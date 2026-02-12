@@ -1,0 +1,410 @@
+# Ippo MVP Project Cursor Rules
+# Swift/SwiftUI iOS + watchOS Fartlek Running Game
+
+## CRITICAL: Project Context
+
+This is an **MVP (Minimum Viable Product)** of a larger app called Ippo. 
+
+### What This Project IS:
+- A simplified fartlek-style running game
+- Sprint prompts during runs (30-45 seconds)
+- Pet collection through sprint rewards
+- Simple sprint validation (HR + cadence)
+
+### What This Project IS NOT:
+- The full Ippo product with complex IEI zones
+- A multi-zone chase system
+- Complex calibration flows
+
+### Reference Documents
+This project includes reference documents from the full Ippo app:
+- `docs/brainlift.md` - Full product vision and research (REFERENCE ONLY)
+- `docs/idea.md` - Core concept explanation (REFERENCE ONLY)
+- `docs/prd.md` - Full product PRD (REFERENCE ONLY)
+- `docs/UIPRD1.md` - Full UI specifications (REFERENCE ONLY)
+
+**IMPORTANT:** These documents are for CONTEXT only. Do NOT build based on them.
+**BUILD BASED ON:** `docs/MVP_PRD.md` - This is the definitive specification for this project.
+
+---
+
+## Project Overview
+
+Ippo MVP is a fartlek running game featuring:
+- Random sprint encounters during runs (watchOS)
+- Sprint validation using HR and cadence
+- Pet collection and progression (iOS + watchOS)
+- Simple reward system (pets, loot boxes, RP, coins)
+- Cross-platform Watch Connectivity sync
+
+---
+
+## File Organization
+
+### Directory Structure
+```
+IppoMVP/
+├── Config/                 # Sendable config structs
+│   ├── SprintConfig.swift
+│   ├── EncounterConfig.swift
+│   └── RewardsConfig.swift
+├── Core/Types/            # Data models, enums, protocols
+│   ├── SprintTypes.swift
+│   ├── PetTypes.swift
+│   ├── RewardTypes.swift
+│   └── PlayerTypes.swift
+├── Data/                  # GameData (static) + UserData (runtime)
+│   ├── GameData.swift
+│   └── UserData.swift
+├── Engine/                # Core algorithms
+│   ├── Sprint/
+│   │   ├── SprintEngine.swift
+│   │   └── SprintValidator.swift
+│   ├── Encounter/
+│   │   └── EncounterManager.swift
+│   └── RunSession/
+│       └── RunSessionManager.swift
+├── Services/              # External integrations
+│   ├── AuthService.swift
+│   ├── CloudService.swift
+│   ├── DataPersistence.swift
+│   └── WatchConnectivityService.swift
+├── Systems/               # Game systems
+│   ├── PetSystem.swift
+│   ├── RewardsSystem.swift
+│   └── LootBoxSystem.swift
+├── UI/
+│   ├── Design/            # Design system
+│   │   ├── AppColors.swift
+│   │   ├── AppTypography.swift
+│   │   └── AppSpacing.swift
+│   ├── Components/        # Reusable UI components
+│   └── Views/             # Screen-level views
+└── Utils/                 # Utilities
+    ├── HapticsManager.swift
+    └── TelemetryLogger.swift
+```
+
+### Watch App Structure
+```
+IppoMVPWatch Watch App/
+├── Config/
+│   └── HapticsConfig.swift
+├── Engine/
+│   ├── Sprint/
+│   ├── Encounter/
+│   └── Sensors/
+│       └── SensorBridge.swift
+├── Views/
+│   ├── WatchStartView.swift
+│   ├── WatchRunningView.swift
+│   ├── WatchSprintView.swift
+│   └── WatchSummaryView.swift
+└── Services/
+    ├── WorkoutManager.swift
+    └── WatchConnectivityService.swift
+```
+
+---
+
+## Naming Conventions
+
+### Data Model Pattern: Definition vs Instance
+
+```swift
+// 1. GameXxxDefinition - Static game data (from GameData)
+struct GamePetDefinition: Identifiable, Codable {
+    let id: String
+    let name: String
+    let rarity: Rarity
+    let baseRPBonus: Double
+}
+
+// 2. OwnedXxx - User's instance (in UserData)
+struct OwnedPet: Identifiable, Codable {
+    let id: String           // Unique instance ID
+    let petDefinitionId: String  // References GamePetDefinition.id
+    var level: Int
+    var mood: Int
+    
+    var definition: GamePetDefinition? {
+        GameData.shared.pet(byId: petDefinitionId)
+    }
+}
+```
+
+### Type Naming
+- **Config structs**: `XxxConfig` (e.g., `SprintConfig`, `EncounterConfig`)
+- **System classes**: `XxxSystem` (e.g., `PetSystem`, `RewardsSystem`)
+- **Manager classes**: `XxxManager` (e.g., `HapticsManager`, `EncounterManager`)
+- **Engine classes**: `XxxEngine` (e.g., `SprintEngine`)
+
+### Enum Naming
+- PascalCase enum names, camelCase cases
+- Conform to `String, Codable` when persistence needed
+
+```swift
+enum Rarity: String, Codable, CaseIterable {
+    case common
+    case uncommon
+    case rare
+    case epic
+    case legendary
+}
+```
+
+---
+
+## SwiftUI Patterns
+
+### ObservableObject Classes
+Always use `@MainActor` for ObservableObject classes:
+
+```swift
+@MainActor
+final class SprintEngine: ObservableObject {
+    @Published private(set) var isSprintActive = false
+    @Published private(set) var sprintTimeRemaining: TimeInterval = 0
+    
+    static let shared = SprintEngine()
+    
+    private let haptics: HapticsManager
+    private let config: SprintConfig
+    
+    init(haptics: HapticsManager? = nil, config: SprintConfig? = nil) {
+        self.haptics = haptics ?? HapticsManager.shared
+        self.config = config ?? .shared
+    }
+}
+```
+
+### View Organization
+```swift
+struct MyView: View {
+    // MARK: - Environment & State
+    @EnvironmentObject private var userData: UserData
+    @State private var isLoading = false
+    
+    // MARK: - Body
+    var body: some View {
+        content
+    }
+    
+    // MARK: - Subviews
+    private var content: some View { ... }
+    
+    // MARK: - Actions
+    private func handleTap() { ... }
+}
+```
+
+---
+
+## Design System Usage
+
+### Colors (AppColors)
+```swift
+// Backgrounds
+AppColors.background           // #0C0C12
+AppColors.surface              // #1A1A24
+AppColors.surfaceElevated      // #222230
+
+// Text
+AppColors.textPrimary          // White
+AppColors.textSecondary        // #B4B4C4
+AppColors.textTertiary         // #6B6B7B
+
+// Brand
+AppColors.brandPrimary         // #00E5FF (cyan)
+
+// Semantic
+AppColors.success              // #22C55E
+AppColors.warning              // #F59E0B
+AppColors.danger               // #EF4444
+
+// Currencies
+AppColors.gold                 // #FFD700
+AppColors.gems                 // #E879F9
+
+// Rarity
+AppColors.rarityCommon         // Gray
+AppColors.rarityUncommon       // Green
+AppColors.rarityRare           // Blue
+AppColors.rarityEpic           // Purple
+AppColors.rarityLegendary      // Orange
+```
+
+### Spacing (AppSpacing)
+```swift
+AppSpacing.xs     // 6pt
+AppSpacing.sm     // 8pt
+AppSpacing.md     // 12pt
+AppSpacing.lg     // 16pt
+AppSpacing.xl     // 24pt
+AppSpacing.screenPadding // 20pt
+AppSpacing.cardPadding   // 16pt
+AppSpacing.radiusSm      // 8pt
+AppSpacing.radiusMd      // 12pt
+```
+
+---
+
+## Sprint System Guidelines
+
+### Sprint Validation
+The MVP uses a simplified sprint validation:
+
+1. **Heart Rate Response (50% weight)**
+   - HR must increase ≥20 BPM from baseline
+   - Must reach Zone 4-5 (>80% max HR)
+   - Must stay elevated for 70%+ of sprint duration
+
+2. **Cadence Increase (35% weight)**
+   - Cadence must increase ≥15% above pre-sprint average
+   - Peak cadence should reach ≥160 SPM
+
+3. **HR Derivative (15% weight)**
+   - HR should rise ≥3 BPM/second in first 10 seconds
+
+**Total score ≥60% = VALID sprint**
+
+### Sprint Timing
+- Duration: Random 30-45 seconds
+- Recovery period: 45 seconds after sprint ends
+- Minimum between encounters: 60 seconds
+
+### Haptics
+- Sprint start: 3 strong vibrations (0.15s apart)
+- Sprint end: 3 strong vibrations (0.15s apart)
+- Last 5 seconds: Tick countdown
+- Success: `.success` haptic
+- Failure: `.failure` haptic
+
+---
+
+## Encounter System Guidelines
+
+### Trigger Probability
+Probability increases with time since last sprint:
+- 60-90s: 2% per 10 seconds
+- 90-120s: 5%
+- 120-150s: 8%
+- 150-180s: 12%
+- 180s+: 15% (cap)
+- 180s+: Guaranteed (pity timer)
+
+### Rarity Distribution
+- Common: 55%
+- Uncommon: 25%
+- Rare: 12%
+- Epic: 6%
+- Legendary: 2%
+
+---
+
+## Data Patterns
+
+### GameData (Static)
+```swift
+// 106 pet definitions - NEVER changes per user
+GameData.shared.allPets
+GameData.shared.pet(byId: "pet_verdant_sproutling")
+```
+
+### UserData (Dynamic)
+```swift
+// Per-user state - persisted locally and to Firebase
+UserData.shared.profile
+UserData.shared.ownedPets
+UserData.shared.coins
+UserData.shared.lootBoxes
+```
+
+### Persistence
+- Local: UserDefaults via DataPersistence.swift
+- Cloud: Firebase Firestore via CloudService.swift
+- Sync: WatchConnectivityService.swift
+
+---
+
+## Code Quality Standards
+
+### When Asked to Build/Review/Audit:
+1. ✅ Does the code compile?
+2. ✅ Does the logic work correctly?
+3. ✅ Does UI exist for all features?
+4. ✅ Does the UI look professional?
+5. ✅ Is the user experience complete?
+6. ✅ Are all states handled (loading, empty, error)?
+
+### NO Half-Finished Work
+- Every screen needs loading states
+- Every screen needs error states
+- Every screen needs empty states
+- Every action needs feedback
+
+### After Large Changes
+Run lint check and fix all errors before reporting completion.
+
+---
+
+## Quick Reference
+
+### Singleton Access
+```swift
+GameData.shared.pet(byId: "pet_001")
+UserData.shared.profile
+SprintEngine.shared.isSprintActive
+HapticsManager.shared.playSprintSignal()
+```
+
+### Rarity Helpers
+```swift
+AppColors.forRarity(.legendary)
+rarity.shardsToUnlock  // 10, 25, 50, 100, 250
+```
+
+### View Modifiers
+```swift
+.cardStyle()           // Standard card background
+.screenPadding()       // Standard screen margins
+```
+
+---
+
+## Important Reminders
+
+1. **Check MVP_PRD.md first** - It's the source of truth
+2. **This is NOT the full Ippo** - Don't implement complex IEI zones
+3. **Sprint validation is simple** - HR increase + cadence increase
+4. **Haptics are crucial** - Strong, unmistakable signals
+5. **106 pets included** - Use the existing pet data
+6. **Firebase for auth/sync** - Apple Sign-In + Firestore
+7. **Watch ↔ Phone sync** - WatchConnectivity for run data
+
+---
+
+## Files to Reference
+
+| File | Purpose |
+|------|---------|
+| `docs/MVP_PRD.md` | **PRIMARY** - Build specification |
+| `docs/MVP_AI_CONTEXT.md` | AI context and decisions |
+| `docs/brainlift.md` | Background research (reference) |
+| `docs/idea.md` | Core concept (reference) |
+| `docs/prd.md` | Full product spec (reference) |
+| `docs/UIPRD1.md` | Full UI spec (reference) |
+
+---
+
+## Communication Style
+
+- **Be proactive** - Suggest improvements, catch issues early
+- **Be thorough** - Check all aspects (backend, frontend, UX)
+- **Be practical** - Focus on what's in MVP_PRD.md
+- **Don't over-engineer** - This is an MVP, keep it simple
+- **Update docs** - Keep MVP_AI_CONTEXT.md current
+
+---
+
+*Last Updated: January 20, 2026*
