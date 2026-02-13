@@ -31,7 +31,6 @@ Package.resolved
 .cursor/
 
 # Firebase
-GoogleService-Info.plist
 
 # Environment
 .env
