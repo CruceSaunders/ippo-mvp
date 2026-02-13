@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 /// AuthService stub - Firebase Auth integration
 /// NOTE: Requires Firebase SDK and GoogleService-Info.plist to be configured.

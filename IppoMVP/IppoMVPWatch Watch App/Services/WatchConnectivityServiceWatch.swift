@@ -1,5 +1,6 @@
 import Foundation
 import WatchConnectivity
+import Combine
 
 @MainActor
 final class WatchConnectivityServiceWatch: NSObject, ObservableObject {

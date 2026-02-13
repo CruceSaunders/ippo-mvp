@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 /// RPBoxSystem — handles opening RP Boxes with animation delay
 @MainActor
