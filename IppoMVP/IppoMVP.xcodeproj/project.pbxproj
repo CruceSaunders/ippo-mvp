@@ -345,7 +345,7 @@
 				CODE_SIGN_ENTITLEMENTS = IppoMVP/IppoMVP.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = W2S75WFR39;
+				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
@@ -380,7 +380,7 @@
 				CODE_SIGN_ENTITLEMENTS = IppoMVP/IppoMVP.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = W2S75WFR39;
+				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
@@ -415,7 +415,7 @@
 				CODE_SIGN_ENTITLEMENTS = "IppoMVPWatch Watch App/IppoMVP Watch Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = W2S75WFR39;
+				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "IppoMVP Watch";
@@ -451,7 +451,7 @@
 				CODE_SIGN_ENTITLEMENTS = "IppoMVPWatch Watch App/IppoMVP Watch Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = W2S75WFR39;
+				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "IppoMVP Watch";
