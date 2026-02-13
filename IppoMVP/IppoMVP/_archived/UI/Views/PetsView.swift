@@ -53,8 +53,17 @@ struct PetsView: View {
                     Circle()
                         .fill(AppColors.forPet(pet.petDefinitionId).opacity(0.2))
                         .frame(width: 80, height: 80)
-                    Text(pet.definition?.emoji ?? "🐾")
-                        .font(.system(size: 40))
+                    if let assetName = pet.definition?.imageAssetName,
+                       UIImage(named: assetName) != nil {
+                        Image(assetName)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 70, height: 70)
+                            .clipShape(Circle())
+                    } else {
+                        Text(pet.definition?.emoji ?? "🐾")
+                            .font(.system(size: 40))
+                    }
                 }
                 
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
@@ -168,8 +177,17 @@ struct PetsView: View {
                     Circle()
                         .fill(AppColors.forPet(pet.petDefinitionId).opacity(0.2))
                         .frame(width: 60, height: 60)
-                    Text(pet.definition?.emoji ?? "🐾")
-                        .font(.title)
+                    if let assetName = pet.definition?.imageAssetName,
+                       UIImage(named: assetName) != nil {
+                        Image(assetName)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 52, height: 52)
+                            .clipShape(Circle())
+                    } else {
+                        Text(pet.definition?.emoji ?? "🐾")
+                            .font(.title)
+                    }
                     
                     if pet.isEquipped {
                         Circle()
@@ -262,8 +280,17 @@ struct PetDetailSheet: View {
                             Circle()
                                 .fill(AppColors.forPet(pet.petDefinitionId).opacity(0.3))
                                 .frame(width: 120, height: 120)
-                            Text(pet.definition?.emoji ?? "🐾")
-                                .font(.system(size: 60))
+                            if let assetName = pet.definition?.imageAssetName,
+                               UIImage(named: assetName) != nil {
+                                Image(assetName)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 100, height: 100)
+                                    .clipShape(Circle())
+                            } else {
+                                Text(pet.definition?.emoji ?? "🐾")
+                                    .font(.system(size: 60))
+                            }
                         }
                         
                         Text(pet.definition?.name ?? "Unknown")

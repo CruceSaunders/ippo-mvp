@@ -6,11 +6,8 @@ import Foundation
 ///
 /// Data structure in Firestore:
 /// /users/{userId} -> SaveableUserData (JSON)
-///
-/// Sync strategy:
-/// - On sign in: merge local data with cloud data (keep highest values)
-/// - On every save: write to both local and cloud
-/// - On app launch (if signed in): load from cloud, merge with local
+/// /users/{userId}/friends/{friendId} -> friend relationship
+/// /groups/{groupId} -> group data with members and leaderboard
 
 @MainActor
 final class CloudService {
@@ -36,15 +33,9 @@ final class CloudService {
     // MARK: - Load from Cloud
     func loadUserData() async -> SaveableUserData? {
         guard AuthService.shared.isAuthenticated,
-              let userId = AuthService.shared.userId else { return nil }
+              let _userId = AuthService.shared.userId else { return nil }
         
         // TODO: Implement when Firebase is configured
-        // let db = Firestore.firestore()
-        // let doc = try await db.collection("users").document(userId).getDocument()
-        // guard let data = doc.data() else { return nil }
-        // let jsonData = try JSONSerialization.data(withJSONObject: data)
-        // return try JSONDecoder().decode(SaveableUserData.self, from: jsonData)
-        
         print("CloudService: Load not yet configured. Loading from local only.")
         return nil
     }
@@ -63,27 +54,16 @@ final class CloudService {
         mergedProfile.longestStreak = max(local.profile.longestStreak, cloud.profile.longestStreak)
         mergedProfile.totalDistanceMeters = max(local.profile.totalDistanceMeters, cloud.profile.totalDistanceMeters)
         
-        // Merge pets (union of both)
-        let localPetIds = Set(local.ownedPets.map { $0.petDefinitionId })
-        let cloudPetIds = Set(cloud.ownedPets.map { $0.petDefinitionId })
-        var mergedPets = local.ownedPets
-        for cloudPet in cloud.ownedPets {
-            if !localPetIds.contains(cloudPet.petDefinitionId) {
-                mergedPets.append(cloudPet)
+        // Merge RP boxes (union by ID)
+        let localBoxIds = Set(local.pendingRPBoxes.map { $0.id })
+        var mergedBoxes = local.pendingRPBoxes
+        for cloudBox in cloud.pendingRPBoxes {
+            if !localBoxIds.contains(cloudBox.id) {
+                mergedBoxes.append(cloudBox)
             }
         }
         
-        // Keep higher currencies
-        let mergedCoins = max(local.coins, cloud.coins)
-        let mergedGems = max(local.gems, cloud.gems)
-        
-        // Merge abilities (union of unlocked)
-        var mergedAbilities = local.abilities
-        mergedAbilities.unlockedPlayerAbilities = local.abilities.unlockedPlayerAbilities.union(cloud.abilities.unlockedPlayerAbilities)
-        mergedAbilities.abilityPoints = max(local.abilities.abilityPoints, cloud.abilities.abilityPoints)
-        mergedAbilities.petPoints = max(local.abilities.petPoints, cloud.abilities.petPoints)
-        
-        // Keep longer run history (union by ID)
+        // Merge run history (union by ID)
         let localRunIds = Set(local.runHistory.map { $0.id })
         var mergedRuns = local.runHistory
         for cloudRun in cloud.runHistory {
@@ -93,17 +73,16 @@ final class CloudService {
         }
         mergedRuns.sort { $0.date > $1.date }
         
+        // Merge friends (union)
+        let mergedFriends = Array(Set(local.friends + cloud.friends))
+        let mergedRequests = Array(Set(local.friendRequests + cloud.friendRequests))
+        
         return SaveableUserData(
             profile: mergedProfile,
-            ownedPets: mergedPets,
-            abilities: mergedAbilities,
-            inventory: local.inventory, // Use local inventory
-            coins: mergedCoins,
-            gems: mergedGems,
+            pendingRPBoxes: mergedBoxes,
             runHistory: mergedRuns,
-            dailyRewards: local.dailyRewards ?? cloud.dailyRewards,
-            challengeData: local.challengeData ?? cloud.challengeData,
-            achievements: local.achievements ?? cloud.achievements
+            friends: mergedFriends,
+            friendRequests: mergedRequests
         )
     }
 }

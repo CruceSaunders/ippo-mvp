@@ -14,7 +14,6 @@ final class EncounterManager: ObservableObject {
     
     // MARK: - Dependencies
     private let config = EncounterConfig.shared
-    private let petConfig = PetConfig.shared
     
     // MARK: - Internal State
     private var runStartTime: Date?
@@ -27,7 +26,6 @@ final class EncounterManager: ObservableObject {
     // Callbacks
     var onEncounterTriggered: (() -> Void)?
     var onEncounterComplete: ((SprintResult, SprintRewards?) -> Void)?
-    var onPetCaught: ((String) -> Void)?
     
     // MARK: - Init
     private init() {}
@@ -73,7 +71,7 @@ final class EncounterManager: ObservableObject {
         if let lastEnc = lastEncounterTime {
             timeSince = Date().timeIntervalSince(lastEnc)
         } else {
-            timeSince = runDuration  // First encounter considers full run time
+            timeSince = runDuration
         }
         
         timeSinceLastEncounter = timeSince
@@ -85,17 +83,7 @@ final class EncounterManager: ObservableObject {
         let probability = config.probability(forTimeSinceLastSprint: timeSince)
         let roll = Double.random(in: 0...1)
         
-        // Apply Zephyr bonus if equipped
-        var modifiedProbability = probability
-        if let equippedPet = UserData.shared.equippedPet,
-           let def = equippedPet.definition,
-           def.id == "pet_04" {
-            // Zephyr's Tailwind: +10% encounter chance
-            let effectiveness = equippedPet.abilityEffectiveness
-            modifiedProbability += 0.10 * effectiveness
-        }
-        
-        if roll < modifiedProbability || timeSince >= config.pityTimerMax {
+        if roll < probability || timeSince >= config.pityTimerMax {
             triggerEncounter()
         }
     }
@@ -120,21 +108,15 @@ final class EncounterManager: ObservableObject {
         var rewards: SprintRewards?
         
         if result.isValid {
-            rewards = calculateRewards(for: result)
-            encounter.rewards = rewards
-            
-            // Check for pet catch
-            if let petCatch = checkForPetCatch() {
-                encounter.petCaught = petCatch
-                rewards?.petCaught = petCatch
-                onPetCaught?(petCatch)
-            }
+            // Award 1 RP Box for valid sprint
+            rewards = SprintRewards(rpBoxEarned: true, xp: 0)
+            encounter.rpBoxEarned = true
         }
         
         currentEncounter = encounter
         isEncounterActive = false
         
-        // Apply rewards to user data
+        // Apply rewards
         if let r = rewards {
             applyRewards(r)
         }
@@ -145,106 +127,16 @@ final class EncounterManager: ObservableObject {
         startRecovery()
     }
     
-    // MARK: - Calculate Rewards
-    private func calculateRewards(for result: SprintResult) -> SprintRewards {
-        let baseRewards = RewardsConfig.shared.baseSprintRewards()
-        let userData = UserData.shared
-        
-        // Gather bonuses
-        var rpBonus = userData.abilities.rpBonusTotal
-        var xpBonus = userData.abilities.xpBonusTotal
-        var coinBonus = userData.abilities.coinBonusTotal
-        let allBonus = 0.0  // From Champion ability, already included
-        
-        // Pet ability bonuses
-        if let equippedPet = userData.equippedPet,
-           let def = equippedPet.definition {
-            let effectiveness = equippedPet.abilityEffectiveness
-            
-            switch def.id {
-            case "pet_01":  // Ember: +15% RP on short sprints
-                if result.duration < 35 {
-                    rpBonus += 0.15 * effectiveness
-                }
-            case "pet_09":  // Blaze: +30% RP on long sprints
-                if result.duration > 40 {
-                    rpBonus += 0.30 * effectiveness
-                }
-            default:
-                break
-            }
-        }
-        
-        // Apply bonuses
-        let finalRewards = RewardsConfig.shared.applyBonuses(
-            base: baseRewards,
-            rpBonus: rpBonus,
-            xpBonus: xpBonus,
-            coinBonus: coinBonus,
-            allBonus: allBonus,
-            streakDays: userData.profile.currentStreak
-        )
-        
-        // Roll for loot box
-        let lootBox = config.rollLootBoxRarity()
-        
-        return SprintRewards(
-            rp: finalRewards.rp,
-            xp: finalRewards.xp,
-            coins: finalRewards.coins,
-            lootBox: lootBox
-        )
-    }
-    
-    // MARK: - Pet Catch
-    private func checkForPetCatch() -> String? {
-        let userData = UserData.shared
-        let petsOwned = userData.petsOwnedCount
-        
-        // Check if all pets owned
-        guard petsOwned < 10 else { return nil }
-        
-        // Calculate catch rate with bonuses
-        var bonusCatchRate = userData.abilities.catchRateBonusTotal
-        
-        // Shadow's Stealth: +5% catch rate
-        if let equippedPet = userData.equippedPet,
-           let def = equippedPet.definition,
-           def.id == "pet_07" {
-            let effectiveness = equippedPet.abilityEffectiveness
-            bonusCatchRate += 0.05 * effectiveness
-        }
-        
-        // Roll for catch
-        if petConfig.shouldCatchPet(petsOwned: petsOwned, bonusCatchRate: bonusCatchRate) {
-            // Select random unowned pet
-            if let petDef = GameData.shared.randomUnownedPet(ownedPetIds: userData.ownedPetIds) {
-                return petDef.id
-            }
-        }
-        
-        return nil
-    }
-    
     // MARK: - Apply Rewards
     private func applyRewards(_ rewards: SprintRewards) {
         let userData = UserData.shared
         
-        userData.addRP(rewards.rp)
-        userData.addXP(rewards.xp)
-        userData.addCoins(rewards.coins)
-        
-        if let lootBox = rewards.lootBox {
-            userData.addLootBox(lootBox)
+        if rewards.rpBoxEarned {
+            userData.addRPBox()
         }
         
-        if let petId = rewards.petCaught {
-            _ = userData.addPet(petId)
-        }
-        
-        // Add XP to equipped pet
-        if let petId = userData.equippedPet?.id {
-            userData.addPetXP(petId, xp: PetConfig.shared.xpPerCompletedSprint)
+        if rewards.xp > 0 {
+            userData.addXP(rewards.xp)
         }
     }
     

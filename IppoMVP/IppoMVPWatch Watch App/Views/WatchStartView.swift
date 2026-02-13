@@ -2,7 +2,6 @@ import SwiftUI
 
 struct WatchStartView: View {
     @EnvironmentObject var runManager: WatchRunManager
-    @EnvironmentObject var connectivity: WatchConnectivityServiceWatch
     
     var body: some View {
         VStack(spacing: 16) {
@@ -34,19 +33,10 @@ struct WatchStartView: View {
             
             Spacer()
             
-            // Equipped Pet
-            if let petName = connectivity.equippedPetName {
-                HStack(spacing: 4) {
-                    Text(connectivity.equippedPetEmoji)
-                    Text(petName)
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-            } else {
-                Text("No pet equipped")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
+            // Simple tagline instead of pet display
+            Text("Sprint. Earn. Rise.")
+                .font(.caption)
+                .foregroundColor(.gray)
         }
         .padding()
     }
@@ -55,5 +45,4 @@ struct WatchStartView: View {
 #Preview {
     WatchStartView()
         .environmentObject(WatchRunManager.shared)
-        .environmentObject(WatchConnectivityServiceWatch.shared)
 }

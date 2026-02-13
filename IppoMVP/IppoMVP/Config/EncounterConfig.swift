@@ -23,18 +23,6 @@ struct EncounterConfig: Sendable {
     // MARK: - Minimum Run Time Before First Encounter
     let warmupDuration: TimeInterval = 60.0  // 1 minute warmup
     
-    // MARK: - Loot Box Probability
-    let lootBoxDropChance: Double = 0.70  // 70% chance per valid sprint
-    
-    // MARK: - Loot Box Rarity Distribution
-    let lootBoxRarityDistribution: [(rarity: Rarity, probability: Double)] = [
-        (.common, 0.55),
-        (.uncommon, 0.25),
-        (.rare, 0.12),
-        (.epic, 0.06),
-        (.legendary, 0.02)
-    ]
-    
     // MARK: - Helpers
     func probability(forTimeSinceLastSprint time: TimeInterval) -> Double {
         for tier in probabilityTiers {
@@ -43,39 +31,5 @@ struct EncounterConfig: Sendable {
             }
         }
         return time >= pityTimerMax ? 1.0 : maxProbability
-    }
-    
-    func rollLootBoxRarity() -> Rarity? {
-        rollLootBoxRarity(luckBonus: 0)
-    }
-    
-    func rollLootBoxRarity(luckBonus: Double) -> Rarity? {
-        guard Double.random(in: 0...1) < lootBoxDropChance else { return nil }
-        
-        let roll = Double.random(in: 0...1)
-        var cumulative: Double = 0
-        
-        // Luck bonus shifts probability toward rarer items
-        for (rarity, prob) in lootBoxRarityDistribution {
-            var adjustedProb = prob
-            // Increase rare+ probabilities, decrease common
-            switch rarity {
-            case .common:
-                adjustedProb = max(0.10, prob - luckBonus)
-            case .uncommon:
-                adjustedProb = prob + luckBonus * 0.3
-            case .rare:
-                adjustedProb = prob + luckBonus * 0.3
-            case .epic:
-                adjustedProb = prob + luckBonus * 0.25
-            case .legendary:
-                adjustedProb = prob + luckBonus * 0.15
-            }
-            cumulative += adjustedProb
-            if roll <= cumulative {
-                return rarity
-            }
-        }
-        return .common
     }
 }

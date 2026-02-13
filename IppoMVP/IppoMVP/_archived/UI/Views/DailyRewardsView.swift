@@ -93,13 +93,14 @@ struct DailyRewardsView: View {
             
             // This Week
             VStack(spacing: AppSpacing.xxs) {
-                HStack(spacing: AppSpacing.xxs) {
-                    Image(systemName: "calendar")
-                        .foregroundColor(AppColors.brandPrimary)
-                    Text("\(userData.dailyRewards.claimedDays.count)/7")
-                        .font(AppTypography.title2)
-                        .foregroundColor(AppColors.textPrimary)
-                }
+                ProgressRing(
+                    progress: Double(userData.dailyRewards.claimedDays.count) / 7.0,
+                    color: AppColors.brandPrimary,
+                    size: 50,
+                    lineWidth: 5,
+                    showLabel: true,
+                    labelFormat: .fraction(current: userData.dailyRewards.claimedDays.count, total: 7)
+                )
                 Text("This Week")
                     .font(AppTypography.caption1)
                     .foregroundColor(AppColors.textSecondary)

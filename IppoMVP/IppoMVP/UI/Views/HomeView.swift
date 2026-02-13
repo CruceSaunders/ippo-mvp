@@ -2,32 +2,42 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var userData: UserData
+    @StateObject private var rpBoxSystem = RPBoxSystem.shared
     @State private var showingRunPrompt = false
-    @State private var showingDailyRewards = false
+    @State private var showingRPBoxOpen = false
+    @State private var lastOpenedContents: RPBoxContents?
+    @State private var showingSettings = false
+    @State private var showingRunHistory = false
     
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: AppSpacing.lg) {
-                    // Welcome
-                    welcomeSection
+                    // Profile Header
+                    profileHeader
                     
                     // Start Run CTA
                     startRunSection
                     
-                    // Daily Rewards Card
-                    dailyRewardsCard
-                    
-                    // Equipped Pet
-                    if let pet = userData.equippedPet {
-                        equippedPetSection(pet)
+                    // RP Boxes Section
+                    if userData.totalRPBoxes > 0 {
+                        rpBoxSection
                     }
                     
-                    // Challenges (Weekly + Monthly grouped)
-                    challengesSection
+                    // Stats Grid
+                    statsGrid
+                    
+                    // Level Progress
+                    levelSection
+                    
+                    // RP / Rank Progress
+                    rpSection
                     
                     // Recent Runs
                     recentRunsSection
+                    
+                    // Quick Settings
+                    quickSettings
                 }
                 .padding(.horizontal, AppSpacing.screenPadding)
                 .padding(.bottom, AppSpacing.xxl)
@@ -37,69 +47,76 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    currencyDisplay
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundColor(AppColors.textSecondary)
+                    }
                 }
             }
-            .sheet(isPresented: $showingDailyRewards) {
-                DailyRewardsView()
+            .sheet(isPresented: $showingSettings) {
+                SettingsSheet()
             }
-            .onAppear {
-                ChallengesSystem.shared.refreshIfNeeded()
-                AchievementsSystem.shared.initializeIfNeeded()
+            .sheet(isPresented: $showingRunHistory) {
+                RunHistorySheet()
             }
         }
     }
     
-    // MARK: - Welcome Section
-    private var welcomeSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: AppSpacing.xxs) {
-                Text("Welcome back,")
-                    .font(AppTypography.subheadline)
-                    .foregroundColor(AppColors.textSecondary)
+    // MARK: - Profile Header
+    private var profileHeader: some View {
+        VStack(spacing: AppSpacing.md) {
+            // Avatar
+            ZStack {
+                Circle()
+                    .fill(AppColors.brandPrimary.opacity(0.2))
+                    .frame(width: 80, height: 80)
+                
+                Text(String(userData.profile.displayName.prefix(2)).uppercased())
+                    .font(AppTypography.title2)
+                    .foregroundColor(AppColors.brandPrimary)
+            }
+            
+            // Name & Rank Tier
+            VStack(spacing: AppSpacing.xxs) {
                 Text(userData.profile.displayName)
                     .font(AppTypography.title2)
                     .foregroundColor(AppColors.textPrimary)
-            }
-            Spacer()
-            
-            // Streak badge
-            if userData.profile.currentStreak > 0 {
-                HStack(spacing: AppSpacing.xxs) {
-                    Image(systemName: "flame.fill")
-                        .foregroundColor(AppColors.warning)
-                    Text("\(userData.profile.currentStreak)")
-                        .font(AppTypography.headline)
-                        .foregroundColor(AppColors.warning)
+                
+                HStack(spacing: AppSpacing.sm) {
+                    Text("Level \(userData.profile.level)")
+                        .font(AppTypography.subheadline)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("\u{2022}")
+                        .foregroundColor(AppColors.textTertiary)
+                    
+                    HStack(spacing: AppSpacing.xxs) {
+                        Image(systemName: userData.profile.rank.iconName)
+                            .foregroundColor(AppColors.brandPrimary)
+                        Text(userData.profile.rankTier.displayName)
+                            .foregroundColor(AppColors.brandPrimary)
+                    }
+                    .font(AppTypography.subheadline)
                 }
-                .padding(.horizontal, AppSpacing.sm)
-                .padding(.vertical, AppSpacing.xs)
-                .background(AppColors.warning.opacity(0.15))
-                .cornerRadius(AppSpacing.radiusSm)
+                
+                // Streak
+                if userData.profile.currentStreak > 0 {
+                    HStack(spacing: AppSpacing.xxs) {
+                        Image(systemName: "flame.fill")
+                            .foregroundColor(AppColors.warning)
+                        Text("\(userData.profile.currentStreak) day streak")
+                            .foregroundColor(AppColors.warning)
+                    }
+                    .font(AppTypography.caption1)
+                }
             }
         }
-        .padding(.top, AppSpacing.sm)
-    }
-    
-    // MARK: - Currency Display
-    private var currencyDisplay: some View {
-        HStack(spacing: AppSpacing.md) {
-            HStack(spacing: AppSpacing.xxs) {
-                Image(systemName: "dollarsign.circle.fill")
-                    .foregroundColor(AppColors.gold)
-                Text("\(userData.coins)")
-                    .font(AppTypography.currency)
-                    .foregroundColor(AppColors.textPrimary)
-            }
-            
-            HStack(spacing: AppSpacing.xxs) {
-                Image(systemName: "diamond.fill")
-                    .foregroundColor(AppColors.gems)
-                Text("\(userData.gems)")
-                    .font(AppTypography.currency)
-                    .foregroundColor(AppColors.textPrimary)
-            }
-        }
+        .frame(maxWidth: .infinity)
+        .padding(AppSpacing.lg)
+        .background(AppColors.surface)
+        .cornerRadius(AppSpacing.radiusMd)
     }
     
     // MARK: - Start Run Section
@@ -112,7 +129,7 @@ struct HomeView: View {
                     Text("Start Run on Watch")
                         .font(AppTypography.headline)
                         .foregroundColor(AppColors.textPrimary)
-                    Text(userData.equippedPet != nil ? "1 pet equipped" : "No pet equipped")
+                    Text("Sprint. Earn RP Boxes. Rise in rank.")
                         .font(AppTypography.caption1)
                         .foregroundColor(AppColors.textSecondary)
                 }
@@ -142,192 +159,221 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Daily Rewards Card
-    private var dailyRewardsCard: some View {
-        Button {
-            showingDailyRewards = true
-        } label: {
-            HStack(spacing: AppSpacing.md) {
-                Image(systemName: "gift.fill")
-                    .font(.title2)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [AppColors.warning, AppColors.sprintActive],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+    // MARK: - RP Box Section
+    private var rpBoxSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            HStack {
+                Text("RP Boxes")
+                    .font(AppTypography.headline)
+                    .foregroundColor(AppColors.textPrimary)
+                Spacer()
+                Text("\(userData.totalRPBoxes) available")
+                    .font(AppTypography.caption1)
+                    .foregroundColor(AppColors.brandPrimary)
+            }
+            
+            // Open Box Button
+            Button {
+                Task {
+                    if let contents = await rpBoxSystem.openRPBox() {
+                        lastOpenedContents = contents
+                        showingRPBoxOpen = true
+                        HapticsManager.shared.playSuccess()
+                    }
+                }
+            } label: {
+                HStack(spacing: AppSpacing.md) {
+                    Image(systemName: "gift.fill")
+                        .font(.title)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [AppColors.brandPrimary, Color.purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                
-                VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
-                    Text("Daily Rewards")
-                        .font(AppTypography.headline)
-                        .foregroundColor(AppColors.textPrimary)
                     
-                    if DailyRewardsSystem.shared.canClaimToday() {
-                        Text("Tap to claim today's reward!")
-                            .font(AppTypography.caption1)
-                            .foregroundColor(AppColors.success)
-                    } else {
-                        Text("Come back tomorrow")
+                    VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
+                        Text(rpBoxSystem.isOpening ? "Opening..." : "Open RP Box")
+                            .font(AppTypography.headline)
+                            .foregroundColor(AppColors.textPrimary)
+                        Text("1-25 Reputation Points inside")
                             .font(AppTypography.caption1)
                             .foregroundColor(AppColors.textSecondary)
                     }
-                }
-                
-                Spacer()
-                
-                // Streak display
-                if userData.dailyRewards.currentStreak > 0 {
-                    HStack(spacing: AppSpacing.xxs) {
-                        Image(systemName: "flame.fill")
-                            .foregroundColor(AppColors.warning)
-                            .font(.caption)
-                        Text("\(userData.dailyRewards.currentStreak)")
-                            .font(AppTypography.callout)
-                            .foregroundColor(AppColors.warning)
+                    
+                    Spacer()
+                    
+                    if rpBoxSystem.isOpening {
+                        ProgressView()
+                            .tint(AppColors.brandPrimary)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(AppColors.textTertiary)
                     }
                 }
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(AppColors.textTertiary)
+                .padding(AppSpacing.cardPadding)
+                .background(AppColors.brandPrimary.opacity(0.08))
+                .cornerRadius(AppSpacing.radiusMd)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppSpacing.radiusMd)
+                        .stroke(AppColors.brandPrimary.opacity(0.3), lineWidth: 1)
+                )
             }
-            .padding(AppSpacing.cardPadding)
-            .background(
-                DailyRewardsSystem.shared.canClaimToday() ?
-                AppColors.brandPrimary.opacity(0.08) : AppColors.surface
-            )
-            .cornerRadius(AppSpacing.radiusMd)
-            .overlay(
-                RoundedRectangle(cornerRadius: AppSpacing.radiusMd)
-                    .stroke(
-                        DailyRewardsSystem.shared.canClaimToday() ?
-                        AppColors.brandPrimary.opacity(0.3) : Color.clear,
-                        lineWidth: 1
-                    )
-            )
-        }
-    }
-    
-    // MARK: - Equipped Pet Section
-    private func equippedPetSection(_ pet: OwnedPet) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Equipped Pet")
-                .font(AppTypography.footnote)
-                .foregroundColor(AppColors.textTertiary)
+            .disabled(rpBoxSystem.isOpening || userData.totalRPBoxes == 0)
             
-            HStack(spacing: AppSpacing.md) {
-                // Pet Image
-                ZStack {
-                    Circle()
-                        .fill(AppColors.forPet(pet.petDefinitionId).opacity(0.2))
-                        .frame(width: 60, height: 60)
-                    Text(pet.definition?.emoji ?? "🐾")
-                        .font(.system(size: 30))
-                }
-                
-                VStack(alignment: .leading, spacing: AppSpacing.xxs) {
-                    Text(pet.definition?.name ?? "Unknown")
-                        .font(AppTypography.headline)
-                        .foregroundColor(AppColors.textPrimary)
-                    Text("\(pet.stageName) (Stage \(pet.evolutionStage))")
-                        .font(AppTypography.caption1)
-                        .foregroundColor(AppColors.textSecondary)
-                    
-                    // XP Progress
-                    ProgressView(value: pet.xpProgress)
-                        .tint(AppColors.forPet(pet.petDefinitionId))
-                }
-                
-                Spacer()
-                
-                Text(pet.moodEmoji)
-                    .font(.title)
+            // Show last opened result
+            if showingRPBoxOpen, let contents = lastOpenedContents {
+                rpBoxResultView(contents)
             }
         }
         .cardStyle()
     }
     
-    // MARK: - Challenges Section
-    private var challengesSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Challenges")
-                .font(AppTypography.headline)
-                .foregroundColor(AppColors.textPrimary)
-            
-            // Monthly Challenge
-            if let monthly = userData.challengeData.monthlyChallenge {
-                challengeRow(monthly, isMonthly: true)
-            }
-            
-            // Weekly Challenges
-            ForEach(userData.challengeData.weeklyChallenges) { challenge in
-                challengeRow(challenge, isMonthly: false)
-            }
-            
-            if userData.challengeData.weeklyChallenges.isEmpty && userData.challengeData.monthlyChallenge == nil {
-                Text("No active challenges")
-                    .font(AppTypography.subheadline)
-                    .foregroundColor(AppColors.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, AppSpacing.md)
-            }
-        }
-        .cardStyle()
-    }
-    
-    private func challengeRow(_ challenge: Challenge, isMonthly: Bool) -> some View {
+    private func rpBoxResultView(_ contents: RPBoxContents) -> some View {
         HStack(spacing: AppSpacing.md) {
-            Image(systemName: challenge.iconName)
-                .font(.title3)
-                .foregroundColor(isMonthly ? AppColors.warning : AppColors.brandPrimary)
-                .frame(width: 28)
+            Image(systemName: "sparkles")
+                .font(.title2)
+                .foregroundColor(tierColor(contents.tier))
             
             VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
-                HStack {
-                    Text(challenge.name)
-                        .font(AppTypography.subheadline)
-                        .foregroundColor(AppColors.textPrimary)
-                    if isMonthly {
-                        Text("MONTHLY")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(AppColors.warning)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(AppColors.warning.opacity(0.15))
-                            .cornerRadius(3)
-                    }
-                }
-                
-                ProgressView(value: challenge.progressFraction)
-                    .tint(challenge.isCompleted ? AppColors.success : AppColors.brandPrimary)
-                
-                Text("\(challenge.progress)/\(challenge.target)")
+                Text("+\(contents.rpAmount) RP")
+                    .font(AppTypography.headline)
+                    .foregroundColor(tierColor(contents.tier))
+                Text(contents.tier.displayName)
                     .font(AppTypography.caption2)
-                    .foregroundColor(AppColors.textTertiary)
+                    .foregroundColor(AppColors.textSecondary)
             }
             
             Spacer()
             
-            if challenge.isCompleted && !challenge.isClaimed {
-                Button {
-                    _ = ChallengesSystem.shared.claimReward(challengeId: challenge.id)
-                    HapticsManager.shared.playSuccess()
-                } label: {
-                    Text("Claim")
+            Button {
+                showingRPBoxOpen = false
+                lastOpenedContents = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(AppColors.textTertiary)
+            }
+        }
+        .padding(AppSpacing.sm)
+        .background(tierColor(contents.tier).opacity(0.1))
+        .cornerRadius(AppSpacing.radiusSm)
+    }
+    
+    private func tierColor(_ tier: RPBoxTier) -> Color {
+        switch tier {
+        case .common: return AppColors.textSecondary
+        case .uncommon: return .green
+        case .rare: return .blue
+        case .epic: return .purple
+        case .legendary: return .orange
+        }
+    }
+    
+    // MARK: - Stats Grid
+    private var statsGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppSpacing.md) {
+            statCard("Runs", value: "\(userData.profile.totalRuns)", icon: "figure.run")
+            statCard("Sprints", value: "\(userData.profile.totalSprintsValid)", icon: "bolt.fill")
+            statCard("RP", value: "\(userData.profile.rp)", icon: "star.fill")
+            statCard("Streak", value: "\(userData.profile.currentStreak)d", icon: "flame.fill")
+        }
+    }
+    
+    private func statCard(_ title: String, value: String, icon: String) -> some View {
+        VStack(spacing: AppSpacing.xs) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(AppColors.brandPrimary)
+            
+            Text(value)
+                .font(AppTypography.title3)
+                .foregroundColor(AppColors.textPrimary)
+            
+            Text(title)
+                .font(AppTypography.caption1)
+                .foregroundColor(AppColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(AppSpacing.md)
+        .background(AppColors.surface)
+        .cornerRadius(AppSpacing.radiusMd)
+    }
+    
+    // MARK: - Level Section
+    private var levelSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            Text("Level Progress")
+                .font(AppTypography.headline)
+                .foregroundColor(AppColors.textPrimary)
+            
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                HStack {
+                    Text("Level \(userData.profile.level)")
+                        .font(AppTypography.subheadline)
+                        .foregroundColor(AppColors.textSecondary)
+                    Spacer()
+                    Text("\(userData.profile.xp) / \(userData.profile.xpForNextLevel) XP")
                         .font(AppTypography.caption1)
-                        .foregroundColor(AppColors.textPrimary)
-                        .padding(.horizontal, AppSpacing.sm)
-                        .padding(.vertical, AppSpacing.xs)
-                        .background(AppColors.brandPrimary)
-                        .cornerRadius(AppSpacing.radiusSm)
+                        .foregroundColor(AppColors.textTertiary)
                 }
-            } else if challenge.isClaimed {
-                Image(systemName: "checkmark.circle.fill")
+                
+                ProgressView(value: userData.profile.xpProgress)
+                    .tint(AppColors.brandPrimary)
+                
+                Text("1 XP per minute of running")
+                    .font(AppTypography.caption2)
+                    .foregroundColor(AppColors.textTertiary)
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - RP Section
+    private var rpSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            HStack {
+                Text("Reputation Points")
+                    .font(AppTypography.headline)
+                    .foregroundColor(AppColors.textPrimary)
+                Spacer()
+                Text("\(userData.profile.rp) RP")
+                    .font(AppTypography.headline)
+                    .foregroundColor(AppColors.brandPrimary)
+            }
+            
+            // Rank tier display
+            HStack {
+                Image(systemName: userData.profile.rank.iconName)
+                    .foregroundColor(AppColors.brandPrimary)
+                Text(userData.profile.rankTier.displayName)
+                    .font(AppTypography.subheadline)
+                    .foregroundColor(AppColors.brandPrimary)
+            }
+            
+            if let nextRank = userData.profile.rank.nextRank {
+                ProgressView(value: userData.profile.rpProgressInRank)
+                    .tint(AppColors.brandPrimary)
+                
+                if let rpNeeded = userData.profile.rpToNextRank {
+                    Text("\(rpNeeded) RP to \(nextRank.displayName)")
+                        .font(AppTypography.caption2)
+                        .foregroundColor(AppColors.textTertiary)
+                }
+            }
+            
+            // Weekly RP
+            HStack {
+                Text("This week")
+                    .font(AppTypography.caption1)
+                    .foregroundColor(AppColors.textSecondary)
+                Spacer()
+                Text("+\(userData.profile.weeklyRP) RP")
+                    .font(AppTypography.caption1)
                     .foregroundColor(AppColors.success)
             }
         }
-        .padding(.vertical, AppSpacing.xs)
+        .cardStyle()
     }
     
     // MARK: - Recent Runs
@@ -338,6 +384,13 @@ struct HomeView: View {
                     .font(AppTypography.headline)
                     .foregroundColor(AppColors.textPrimary)
                 Spacer()
+                if !userData.runHistory.isEmpty {
+                    Button("See All") {
+                        showingRunHistory = true
+                    }
+                    .font(AppTypography.caption1)
+                    .foregroundColor(AppColors.brandPrimary)
+                }
             }
             
             if userData.runHistory.isEmpty {
@@ -358,9 +411,14 @@ struct HomeView: View {
                                 .foregroundColor(AppColors.textSecondary)
                         }
                         Spacer()
-                        Text("+\(run.rpEarned) RP")
-                            .font(AppTypography.callout)
-                            .foregroundColor(AppColors.success)
+                        VStack(alignment: .trailing, spacing: AppSpacing.xxs) {
+                            Text("\(run.rpBoxesEarned) boxes")
+                                .font(AppTypography.callout)
+                                .foregroundColor(AppColors.brandPrimary)
+                            Text("+\(run.xpEarned) XP")
+                                .font(AppTypography.caption2)
+                                .foregroundColor(AppColors.success)
+                        }
                     }
                     .padding(.vertical, AppSpacing.xs)
                     
@@ -372,6 +430,150 @@ struct HomeView: View {
             }
         }
         .cardStyle()
+    }
+    
+    // MARK: - Quick Settings
+    private var quickSettings: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
+            Text("Settings")
+                .font(AppTypography.headline)
+                .foregroundColor(AppColors.textPrimary)
+            
+            settingsRow("Health Permissions", icon: "heart.fill")
+            settingsRow("Privacy", icon: "lock.fill")
+            settingsRow("Help & Support", icon: "questionmark.circle.fill")
+        }
+        .cardStyle()
+    }
+    
+    private func settingsRow(_ title: String, icon: String) -> some View {
+        Button {
+            // Navigate to settings
+        } label: {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(AppColors.textSecondary)
+                    .frame(width: 24)
+                
+                Text(title)
+                    .font(AppTypography.body)
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(AppColors.textTertiary)
+            }
+            .padding(.vertical, AppSpacing.sm)
+        }
+    }
+}
+
+// MARK: - Settings Sheet
+struct SettingsSheet: View {
+    @EnvironmentObject var userData: UserData
+    @Environment(\.dismiss) var dismiss
+    @State private var displayName: String = ""
+    @State private var username: String = ""
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Profile") {
+                    TextField("Display Name", text: $displayName)
+                        .onAppear {
+                            displayName = userData.profile.displayName
+                            username = userData.profile.username
+                        }
+                    TextField("Username", text: $username)
+                }
+                
+                Section("App") {
+                    Button("Request Health Permissions") {
+                        // Would request HealthKit permissions
+                    }
+                }
+                
+                Section("Debug") {
+                    #if DEBUG
+                    Button("Load Test Data") {
+                        userData.loadTestData()
+                    }
+                    
+                    Button("Reset All Data") {
+                        userData.logout()
+                    }
+                    .foregroundColor(AppColors.danger)
+                    #endif
+                }
+                
+                Section("Account") {
+                    Button("Sign Out") {
+                        userData.logout()
+                        dismiss()
+                    }
+                    .foregroundColor(AppColors.danger)
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        userData.profile.displayName = displayName
+                        userData.profile.username = username
+                        userData.save()
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Run History Sheet
+struct RunHistorySheet: View {
+    @EnvironmentObject var userData: UserData
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                if userData.runHistory.isEmpty {
+                    Text("No runs yet")
+                        .foregroundColor(AppColors.textSecondary)
+                } else {
+                    ForEach(userData.runHistory) { run in
+                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                            HStack {
+                                Text(run.date.formatted(date: .abbreviated, time: .shortened))
+                                    .font(AppTypography.headline)
+                                Spacer()
+                                Text("\(run.rpBoxesEarned) RP Boxes")
+                                    .foregroundColor(AppColors.brandPrimary)
+                            }
+                            
+                            HStack(spacing: AppSpacing.md) {
+                                Label(run.formattedDuration, systemImage: "clock")
+                                Label("\(run.sprintsCompleted)/\(run.sprintsTotal)", systemImage: "bolt.fill")
+                                Label("+\(run.xpEarned) XP", systemImage: "arrow.up.circle.fill")
+                            }
+                            .font(AppTypography.caption1)
+                            .foregroundColor(AppColors.textSecondary)
+                        }
+                        .padding(.vertical, AppSpacing.xs)
+                    }
+                }
+            }
+            .navigationTitle("Run History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 

@@ -15,11 +15,8 @@ struct WatchRunSummary {
     let distanceMeters: Double
     let sprintsCompleted: Int
     let sprintsTotal: Int
-    let rpEarned: Int
+    let rpBoxesEarned: Int
     let xpEarned: Int
-    let coinsEarned: Int
-    let petCaught: String?
-    let lootBoxesEarned: [String]
 }
 
 @MainActor
@@ -61,11 +58,8 @@ final class WatchRunManager: NSObject, ObservableObject {
     private var workoutBuilder: HKLiveWorkoutBuilder?
     
     // Rewards accumulator
-    private var earnedRP: Int = 0
+    private var earnedRPBoxes: Int = 0
     private var earnedXP: Int = 0
-    private var earnedCoins: Int = 0
-    private var earnedLootBoxes: [String] = []
-    private var caughtPetId: String?
     
     // Config
     private let sprintConfig = WatchSprintConfig()
@@ -95,7 +89,7 @@ final class WatchRunManager: NSObject, ObservableObject {
         
         healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { success, error in
             if let error = error {
-                print("❌ HealthKit auth error: \(error)")
+                print("HealthKit auth error: \(error)")
             }
         }
     }
@@ -106,11 +100,8 @@ final class WatchRunManager: NSObject, ObservableObject {
         elapsedTime = 0
         totalSprints = 0
         sprintsCompleted = 0
-        earnedRP = 0
+        earnedRPBoxes = 0
         earnedXP = 0
-        earnedCoins = 0
-        earnedLootBoxes = []
-        caughtPetId = nil
         isPaused = false
         
         runState = .running
@@ -160,12 +151,9 @@ final class WatchRunManager: NSObject, ObservableObject {
         // End workout
         endWorkoutSession()
         
-        // Calculate passive rewards
+        // Calculate XP: 1 per minute of running
         let minutes = Int(elapsedTime / 60)
-        let passiveRP = minutes * Int.random(in: 1...2)
-        let passiveXP = minutes * Int.random(in: 2...4)
-        earnedRP += passiveRP
-        earnedXP += passiveXP
+        earnedXP = minutes
         
         // Create summary
         runSummary = WatchRunSummary(
@@ -173,11 +161,8 @@ final class WatchRunManager: NSObject, ObservableObject {
             distanceMeters: 0,  // Would come from workout
             sprintsCompleted: sprintsCompleted,
             sprintsTotal: totalSprints,
-            rpEarned: earnedRP,
-            xpEarned: earnedXP,
-            coinsEarned: earnedCoins,
-            petCaught: caughtPetId,
-            lootBoxesEarned: earnedLootBoxes
+            rpBoxesEarned: earnedRPBoxes,
+            xpEarned: earnedXP
         )
         
         // Send to phone
@@ -210,11 +195,11 @@ final class WatchRunManager: NSObject, ObservableObject {
             workoutSession?.startActivity(with: Date())
             workoutBuilder?.beginCollection(withStart: Date()) { success, error in
                 if let error = error {
-                    print("❌ Failed to begin workout: \(error)")
+                    print("Failed to begin workout: \(error)")
                 }
             }
         } catch {
-            print("❌ Failed to start workout: \(error)")
+            print("Failed to start workout: \(error)")
         }
     }
     
@@ -224,7 +209,7 @@ final class WatchRunManager: NSObject, ObservableObject {
         builder?.endCollection(withEnd: Date()) { success, error in
             builder?.finishWorkout { workout, error in
                 if let error = error {
-                    print("❌ Failed to finish workout: \(error)")
+                    print("Failed to finish workout: \(error)")
                 }
             }
         }
@@ -291,7 +276,7 @@ final class WatchRunManager: NSObject, ObservableObject {
         runState = .sprinting
         sprintStartTime = Date()
         
-        // Play sprint start haptic
+        // Play sprint start haptic (first vibration — tells you to sprint!)
         WatchHapticsManager.shared.playSprintStart()
         
         // Start sprint timer
@@ -335,29 +320,15 @@ final class WatchRunManager: NSObject, ObservableObject {
         if isValid {
             sprintsCompleted += 1
             
-            // Calculate rewards
-            let rp = Int.random(in: 15...25)
-            let xp = Int.random(in: 30...50)
-            let coins = Int.random(in: 40...80)
-            earnedRP += rp
-            earnedXP += xp
-            earnedCoins += coins
-            
-            // Roll for loot box
-            if Double.random(in: 0...1) < 0.70 {
-                let rarity = rollLootBoxRarity()
-                earnedLootBoxes.append(rarity)
-            }
-            
-            // Check for pet catch
-            checkForPetCatch()
+            // Award 1 RP Box for valid sprint
+            earnedRPBoxes += 1
             
             WatchHapticsManager.shared.playSprintSuccess()
         } else {
             WatchHapticsManager.shared.playSprintFail()
         }
         
-        // Play sprint end haptic
+        // Play sprint end haptic (second vibration — tells you chase is over!)
         WatchHapticsManager.shared.playSprintEnd()
         
         // Start recovery
@@ -371,44 +342,17 @@ final class WatchRunManager: NSObject, ObservableObject {
     private func validateSprint() -> Bool {
         guard !sprintHRSamples.isEmpty else { return false }
         
-        // HR Score
+        // HR Score (50% weight)
         let hrIncrease = peakHR - baselineHR
         let hrScore = min(1.0, Double(hrIncrease) / 20.0)
         
-        // Cadence Score (using peak cadence for validation)
+        // Cadence Score (35% weight)
         let cadenceScore = min(1.0, Double(peakCadence) / 160.0)
         
-        // Combined score
+        // Combined score (15% baseline for effort)
         let totalScore = (hrScore * 0.50 + cadenceScore * 0.35 + 0.15) * 100
         
         return totalScore >= 60
-    }
-    
-    private func rollLootBoxRarity() -> String {
-        let roll = Double.random(in: 0...1)
-        if roll < 0.55 { return "common" }
-        if roll < 0.80 { return "uncommon" }
-        if roll < 0.92 { return "rare" }
-        if roll < 0.98 { return "epic" }
-        return "legendary"
-    }
-    
-    private func checkForPetCatch() {
-        // Simplified catch check - would need pet count from phone
-        let catchRate = 0.03  // Default rate
-        if Double.random(in: 0...1) < catchRate {
-            // Random pet ID
-            let petIds = ["pet_01", "pet_02", "pet_03", "pet_04", "pet_05",
-                         "pet_06", "pet_07", "pet_08", "pet_09", "pet_10"]
-            caughtPetId = petIds.randomElement()
-            
-            if caughtPetId != nil {
-                WatchHapticsManager.shared.playPetCatch()
-                earnedRP += 100
-                earnedXP += 200
-                earnedCoins += 500
-            }
-        }
     }
     
     private func startRecovery() {
@@ -425,7 +369,7 @@ extension WatchRunManager: HKWorkoutSessionDelegate {
     }
     
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
-        print("❌ Workout session failed: \(error)")
+        print("Workout session failed: \(error)")
     }
 }
 

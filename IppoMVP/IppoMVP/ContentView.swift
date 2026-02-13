@@ -12,37 +12,24 @@ struct ContentView: View {
                 }
                 .tag(0)
             
-            PetsView()
-                .tabItem {
-                    Label("Pets", systemImage: "pawprint.fill")
-                }
-                .tag(1)
-            
-            AbilitiesView()
-                .tabItem {
-                    Label("Abilities", systemImage: "bolt.fill")
-                }
-                .tag(2)
-            
             RanksView()
                 .tabItem {
                     Label("Ranks", systemImage: "shield.fill")
                 }
-                .tag(3)
+                .tag(1)
             
-            ShopView()
+            SocialView()
                 .tabItem {
-                    Label("Shop", systemImage: "cart.fill")
+                    Label("Social", systemImage: "person.2.fill")
                 }
-                .tag(4)
-            
-            ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person.fill")
-                }
-                .tag(5)
+                .tag(2)
         }
         .tint(AppColors.brandPrimary)
+        .onAppear {
+            // Check for RP decay and weekly reset on app launch
+            userData.applyRPDecayIfNeeded()
+            userData.checkWeeklyReset()
+        }
     }
 }
 

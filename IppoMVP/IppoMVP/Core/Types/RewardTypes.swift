@@ -1,134 +1,81 @@
 import Foundation
 
-// MARK: - Loot Box
-struct LootBox: Identifiable, Codable, Equatable {
+// MARK: - RP Box (Loot Box for Reputation Points)
+struct RPBox: Identifiable, Codable, Equatable {
     let id: String
-    let rarity: Rarity
     let earnedAt: Date
     var isOpened: Bool
     
     init(
         id: String = UUID().uuidString,
-        rarity: Rarity,
         earnedAt: Date = Date(),
         isOpened: Bool = false
     ) {
         self.id = id
-        self.rarity = rarity
         self.earnedAt = earnedAt
         self.isOpened = isOpened
     }
 }
 
-// MARK: - Loot Box Contents
-struct LootBoxContents: Equatable {
-    let coins: Int
-    let gems: Int
-    let rarity: Rarity
+// MARK: - RP Box Contents
+struct RPBoxContents: Equatable {
+    let rpAmount: Int
+    let tier: RPBoxTier
     
-    static func generate(for rarity: Rarity) -> LootBoxContents {
-        switch rarity {
-        case .common:
-            return LootBoxContents(
-                coins: Int.random(in: 50...100),
-                gems: 0,
-                rarity: rarity
-            )
-        case .uncommon:
-            return LootBoxContents(
-                coins: Int.random(in: 100...200),
-                gems: Int.random(in: 5...10),
-                rarity: rarity
-            )
-        case .rare:
-            return LootBoxContents(
-                coins: Int.random(in: 200...400),
-                gems: Int.random(in: 10...25),
-                rarity: rarity
-            )
-        case .epic:
-            return LootBoxContents(
-                coins: Int.random(in: 400...800),
-                gems: Int.random(in: 25...50),
-                rarity: rarity
-            )
-        case .legendary:
-            return LootBoxContents(
-                coins: Int.random(in: 800...1500),
-                gems: Int.random(in: 50...100),
-                rarity: rarity
-            )
+    /// Weighted random RP distribution (1-25 RP per box)
+    /// Uses gacha-style weighting for exciting opening moments
+    static func generate() -> RPBoxContents {
+        let roll = Double.random(in: 0...1)
+        
+        if roll < 0.50 {
+            // Common: 1-5 RP (50% chance)
+            let rp = Int.random(in: 1...5)
+            return RPBoxContents(rpAmount: rp, tier: .common)
+        } else if roll < 0.75 {
+            // Uncommon: 6-10 RP (25% chance)
+            let rp = Int.random(in: 6...10)
+            return RPBoxContents(rpAmount: rp, tier: .uncommon)
+        } else if roll < 0.90 {
+            // Rare: 11-15 RP (15% chance)
+            let rp = Int.random(in: 11...15)
+            return RPBoxContents(rpAmount: rp, tier: .rare)
+        } else if roll < 0.97 {
+            // Epic: 16-20 RP (7% chance)
+            let rp = Int.random(in: 16...20)
+            return RPBoxContents(rpAmount: rp, tier: .epic)
+        } else {
+            // Legendary: 21-25 RP (3% chance)
+            let rp = Int.random(in: 21...25)
+            return RPBoxContents(rpAmount: rp, tier: .legendary)
         }
     }
 }
 
-// MARK: - Shop Item
-struct ShopItem: Identifiable, Codable {
-    let id: String
-    let name: String
-    let description: String
-    let type: ShopItemType
-    let price: Int
-    let currency: Currency
-    let iconName: String
+// MARK: - RP Box Tier
+enum RPBoxTier: String, Codable, CaseIterable {
+    case common
+    case uncommon
+    case rare
+    case epic
+    case legendary
     
-    init(
-        id: String,
-        name: String,
-        description: String,
-        type: ShopItemType,
-        price: Int,
-        currency: Currency,
-        iconName: String = "gift.fill"
-    ) {
-        self.id = id
-        self.name = name
-        self.description = description
-        self.type = type
-        self.price = price
-        self.currency = currency
-        self.iconName = iconName
-    }
-}
-
-enum ShopItemType: String, Codable {
-    case petFood
-    case xpBoost
-    case lootBox
-}
-
-enum Currency: String, Codable {
-    case coins
-    case gems
-}
-
-// MARK: - Inventory
-struct Inventory: Codable, Equatable {
-    var lootBoxes: [Rarity: Int]
-    var petFood: Int
-    var xpBoosts: Int
-    
-    init(
-        lootBoxes: [Rarity: Int] = [:],
-        petFood: Int = 0,
-        xpBoosts: Int = 0
-    ) {
-        self.lootBoxes = lootBoxes
-        self.petFood = petFood
-        self.xpBoosts = xpBoosts
+    var displayName: String {
+        switch self {
+        case .common: return "Common"
+        case .uncommon: return "Uncommon"
+        case .rare: return "Rare"
+        case .epic: return "Epic"
+        case .legendary: return "Legendary"
+        }
     }
     
-    var totalLootBoxes: Int {
-        lootBoxes.values.reduce(0, +)
-    }
-    
-    mutating func addLootBox(_ rarity: Rarity) {
-        lootBoxes[rarity, default: 0] += 1
-    }
-    
-    mutating func removeLootBox(_ rarity: Rarity) -> Bool {
-        guard let count = lootBoxes[rarity], count > 0 else { return false }
-        lootBoxes[rarity] = count - 1
-        return true
+    var color: String {
+        switch self {
+        case .common: return "gray"
+        case .uncommon: return "green"
+        case .rare: return "blue"
+        case .epic: return "purple"
+        case .legendary: return "gold"
+        }
     }
 }

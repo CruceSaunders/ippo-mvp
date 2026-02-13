@@ -25,6 +25,23 @@ struct GamePetDefinition: Identifiable, Codable, Equatable {
         default: return "🐾"
         }
     }
+    
+    /// Maps pet definition IDs to xcassets image names
+    var imageAssetName: String? {
+        switch id {
+        case "pet_01": return "emberhart"    // Ember -> Infernal Legendary
+        case "pet_02": return "solarok"      // Splash -> Aquatic Epic
+        case "pet_03": return "azyrith"      // Sprout -> Verdant Legendary
+        case "pet_04": return "aurivern"     // Zephyr -> Celestial
+        case "pet_05": return "kryonith"     // Pebble -> Verdant Epic
+        case "pet_06": return "lumirith"     // Spark -> Radiant
+        case "pet_07": return "nebulyth"     // Shadow -> Abyssal Legendary
+        case "pet_08": return "flitfoal"     // Frost -> Abyssal Epic
+        case "pet_09": return "cosmoose"     // Blaze -> Celestial Epic
+        case "pet_10": return "astravyrn"    // Luna -> Celestial Legendary
+        default: return nil
+        }
+    }
 }
 
 // MARK: - Owned Pet (User's Instance)

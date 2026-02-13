@@ -12,7 +12,7 @@ struct AppColors {
     static let textTertiary = Color(hex: "#6B7280")     // Gray 500
     
     // MARK: - Brand (Indigo-Purple gradient)
-    static let brandPrimary = Color(hex: "#6366F1")     // Indigo (softer than cyan)
+    static let brandPrimary = Color(hex: "#6366F1")     // Indigo
     static let brandSecondary = Color(hex: "#8B5CF6")   // Purple accent
     
     // MARK: - Gradients
@@ -32,49 +32,21 @@ struct AppColors {
     static let gold = Color(hex: "#FFD700")
     static let gems = Color(hex: "#E879F9")
     
-    // MARK: - Loot Box Rarity
-    static let rarityCommon = Color(hex: "#9CA3AF")
-    static let rarityUncommon = Color(hex: "#22C55E")
-    static let rarityRare = Color(hex: "#3B82F6")
-    static let rarityEpic = Color(hex: "#A855F7")
-    static let rarityLegendary = Color(hex: "#F97316")
-    
-    // MARK: - Pet Colors
-    static let ember = Color(hex: "#EF4444")
-    static let splash = Color(hex: "#3B82F6")
-    static let sprout = Color(hex: "#22C55E")
-    static let zephyr = Color(hex: "#A5F3FC")
-    static let pebble = Color(hex: "#A8A29E")
-    static let spark = Color(hex: "#FBBF24")
-    static let shadow = Color(hex: "#6366F1")
-    static let frost = Color(hex: "#67E8F9")
-    static let blaze = Color(hex: "#F97316")
-    static let luna = Color(hex: "#E879F9")
+    // MARK: - RP Box Tier Colors
+    static let tierCommon = Color(hex: "#9CA3AF")
+    static let tierUncommon = Color(hex: "#22C55E")
+    static let tierRare = Color(hex: "#3B82F6")
+    static let tierEpic = Color(hex: "#A855F7")
+    static let tierLegendary = Color(hex: "#F97316")
     
     // MARK: - Helper
-    static func forRarity(_ rarity: Rarity) -> Color {
-        switch rarity {
-        case .common: return rarityCommon
-        case .uncommon: return rarityUncommon
-        case .rare: return rarityRare
-        case .epic: return rarityEpic
-        case .legendary: return rarityLegendary
-        }
-    }
-    
-    static func forPet(_ petId: String) -> Color {
-        switch petId {
-        case "pet_01": return ember
-        case "pet_02": return splash
-        case "pet_03": return sprout
-        case "pet_04": return zephyr
-        case "pet_05": return pebble
-        case "pet_06": return spark
-        case "pet_07": return shadow
-        case "pet_08": return frost
-        case "pet_09": return blaze
-        case "pet_10": return luna
-        default: return brandPrimary
+    static func forTier(_ tier: RPBoxTier) -> Color {
+        switch tier {
+        case .common: return tierCommon
+        case .uncommon: return tierUncommon
+        case .rare: return tierRare
+        case .epic: return tierEpic
+        case .legendary: return tierLegendary
         }
     }
 }

@@ -4,7 +4,8 @@ import Foundation
 final class DataPersistence {
     static let shared = DataPersistence()
     
-    private let userDataKey = "com.cruce.IppoMVP.userData"
+    private let userDataKey = "com.cruce.IppoMVP.userData.v2"
+    private let legacyUserDataKey = "com.cruce.IppoMVP.userData"
     private let defaults = UserDefaults.standard
     
     private init() {}
@@ -13,15 +14,10 @@ final class DataPersistence {
     func saveUserData(_ userData: UserData) {
         let saveable = SaveableUserData(
             profile: userData.profile,
-            ownedPets: userData.ownedPets,
-            abilities: userData.abilities,
-            inventory: userData.inventory,
-            coins: userData.coins,
-            gems: userData.gems,
+            pendingRPBoxes: userData.pendingRPBoxes,
             runHistory: userData.runHistory,
-            dailyRewards: userData.dailyRewards,
-            challengeData: userData.challengeData,
-            achievements: userData.achievements
+            friends: userData.friends,
+            friendRequests: userData.friendRequests
         )
         
         do {
@@ -34,53 +30,24 @@ final class DataPersistence {
     
     // MARK: - Load
     func loadUserData() -> SaveableUserData? {
-        guard let data = defaults.data(forKey: userDataKey) else { return nil }
-        
-        do {
-            return try JSONDecoder().decode(SaveableUserData.self, from: data)
-        } catch {
-            print("Failed to load user data: \(error)")
-            // Try loading legacy format without new fields
-            return loadLegacyUserData(data: data)
-        }
-    }
-    
-    // MARK: - Legacy Migration
-    private func loadLegacyUserData(data: Data) -> SaveableUserData? {
-        // Try to decode the old format and migrate
-        struct LegacySaveableUserData: Codable {
-            let profile: PlayerProfile
-            let ownedPets: [OwnedPet]
-            let abilities: UserAbilities
-            let inventory: Inventory
-            let coins: Int
-            let gems: Int
-            let runHistory: [CompletedRun]
+        // Try v2 format first
+        if let data = defaults.data(forKey: userDataKey) {
+            do {
+                return try JSONDecoder().decode(SaveableUserData.self, from: data)
+            } catch {
+                print("Failed to load v2 user data: \(error)")
+            }
         }
         
-        do {
-            let legacy = try JSONDecoder().decode(LegacySaveableUserData.self, from: data)
-            return SaveableUserData(
-                profile: legacy.profile,
-                ownedPets: legacy.ownedPets,
-                abilities: legacy.abilities,
-                inventory: legacy.inventory,
-                coins: legacy.coins,
-                gems: legacy.gems,
-                runHistory: legacy.runHistory,
-                dailyRewards: nil,
-                challengeData: nil,
-                achievements: nil
-            )
-        } catch {
-            print("Failed to load legacy user data: \(error)")
-            return nil
-        }
+        // No legacy migration for this scoped-down version
+        // Old data from v1 is incompatible with new structure
+        return nil
     }
     
     // MARK: - Clear
     func clearUserData() {
         defaults.removeObject(forKey: userDataKey)
+        defaults.removeObject(forKey: legacyUserDataKey)
     }
     
     // MARK: - Export/Import (for debugging)

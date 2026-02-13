@@ -1,48 +1,43 @@
 import Foundation
 
+/// RPBoxSystem — handles opening RP Boxes with animation delay
 @MainActor
-final class LootBoxSystem: ObservableObject {
-    static let shared = LootBoxSystem()
+final class RPBoxSystem: ObservableObject {
+    static let shared = RPBoxSystem()
     
     @Published var isOpening: Bool = false
-    @Published var lastContents: LootBoxContents?
+    @Published var lastContents: RPBoxContents?
+    @Published var lastTier: RPBoxTier?
     
     private init() {}
     
-    // MARK: - Open Loot Box
-    func openLootBox(_ rarity: Rarity) async -> LootBoxContents? {
+    // MARK: - Open RP Box
+    func openRPBox() async -> RPBoxContents? {
         let userData = UserData.shared
         
-        // Check inventory
-        guard userData.inventory.lootBoxes[rarity, default: 0] > 0 else { return nil }
+        // Check we have boxes
+        guard userData.totalRPBoxes > 0 else { return nil }
         
         isOpening = true
         
-        // Animate delay
-        try? await Task.sleep(nanoseconds: 1_500_000_000)  // 1.5 seconds
+        // Animation delay (1.5 seconds for suspense)
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
         
         // Open and get contents
-        guard let contents = userData.openLootBox(rarity) else {
+        guard let contents = userData.openRPBox() else {
             isOpening = false
             return nil
         }
         
         lastContents = contents
+        lastTier = contents.tier
         isOpening = false
         
         return contents
     }
     
     // MARK: - Inventory
-    var lootBoxCounts: [Rarity: Int] {
-        UserData.shared.inventory.lootBoxes
-    }
-    
-    var totalLootBoxes: Int {
-        UserData.shared.inventory.totalLootBoxes
-    }
-    
-    func count(for rarity: Rarity) -> Int {
-        UserData.shared.inventory.lootBoxes[rarity, default: 0]
+    var totalRPBoxes: Int {
+        UserData.shared.totalRPBoxes
     }
 }

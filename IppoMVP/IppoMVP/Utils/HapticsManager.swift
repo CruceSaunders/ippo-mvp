@@ -47,18 +47,7 @@ final class HapticsManager {
     }
     
     // MARK: - Custom Patterns
-    func playPetCatchCelebration() {
-        Task {
-            for _ in 0..<3 {
-                playHeavy()
-                try? await Task.sleep(nanoseconds: 100_000_000)
-            }
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            playSuccess()
-        }
-    }
-    
-    func playLootBoxOpen() {
+    func playRPBoxOpen() {
         Task {
             playMedium()
             try? await Task.sleep(nanoseconds: 500_000_000)
@@ -66,7 +55,7 @@ final class HapticsManager {
         }
     }
     
-    func playEvolution() {
+    func playRankUp() {
         Task {
             playLight()
             try? await Task.sleep(nanoseconds: 200_000_000)
@@ -78,27 +67,9 @@ final class HapticsManager {
         }
     }
     
-    func playAbilityUnlock() {
-        Task {
-            playMedium()
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            playSuccess()
-        }
-    }
-    
     func playTick() {
         let generator = UIImpactFeedbackGenerator(style: .soft)
         generator.impactOccurred(intensity: 0.5)
-    }
-    
-    func playSpinLanding() {
-        Task {
-            playHeavy()
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            playHeavy()
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            playSuccess()
-        }
     }
     #endif
 }

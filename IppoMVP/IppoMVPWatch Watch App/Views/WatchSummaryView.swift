@@ -23,25 +23,24 @@ struct WatchSummaryView: View {
                 
                 // Stats
                 VStack(spacing: 8) {
-                    summaryRow("Sprints", value: "\(runManager.sprintsCompleted)/\(runManager.totalSprints) ✓")
-                    summaryRow("RP Earned", value: "+\(runManager.runSummary?.rpEarned ?? 0)")
+                    summaryRow("Sprints", value: "\(runManager.sprintsCompleted)/\(runManager.totalSprints) \u{2713}")
+                    summaryRow("RP Boxes", value: "\(runManager.runSummary?.rpBoxesEarned ?? 0) earned")
                     summaryRow("XP Earned", value: "+\(runManager.runSummary?.xpEarned ?? 0)")
-                    summaryRow("Coins", value: "+\(runManager.runSummary?.coinsEarned ?? 0)")
                 }
                 .padding(.vertical, 8)
                 
-                // Pet catch notification
-                if let petId = runManager.runSummary?.petCaught,
-                   let pet = GameDataWatch.shared.pet(byId: petId) {
+                // RP Box notification
+                if let summary = runManager.runSummary, summary.rpBoxesEarned > 0 {
                     VStack(spacing: 4) {
-                        Text("✨ NEW PET! ✨")
+                        Text("RP BOXES EARNED")
                             .font(.caption)
                             .foregroundColor(.cyan)
-                        Text(pet.emoji)
+                        Text("\(summary.rpBoxesEarned)")
                             .font(.title)
-                        Text(pet.name)
-                            .font(.caption)
                             .foregroundColor(.white)
+                        Text("Open on your phone!")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
                     }
                     .padding(8)
                     .background(Color.cyan.opacity(0.2))
