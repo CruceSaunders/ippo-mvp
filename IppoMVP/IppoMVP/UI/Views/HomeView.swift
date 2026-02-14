@@ -403,7 +403,7 @@ struct HomeView: View {
                 ForEach(userData.runHistory.prefix(3)) { run in
                     HStack {
                         VStack(alignment: .leading, spacing: AppSpacing.xxs) {
-                            Text(run.date, style: .relative)
+                            Text(run.date.formatted(.relative(presentation: .named)))
                                 .font(AppTypography.subheadline)
                                 .foregroundColor(AppColors.textPrimary)
                             Text("\(run.formattedDuration) \u{2022} \(run.sprintsCompleted)/\(run.sprintsTotal) sprints")
