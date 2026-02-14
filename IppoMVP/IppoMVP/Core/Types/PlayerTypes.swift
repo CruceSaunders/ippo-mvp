@@ -309,6 +309,8 @@ struct CompletedRun: Identifiable, Codable, Equatable {
     let sprintsTotal: Int
     let rpBoxesEarned: Int
     let xpEarned: Int
+    let averageHR: Int
+    let totalCalories: Double
     
     init(
         id: String = UUID().uuidString,
@@ -318,7 +320,9 @@ struct CompletedRun: Identifiable, Codable, Equatable {
         sprintsCompleted: Int,
         sprintsTotal: Int,
         rpBoxesEarned: Int = 0,
-        xpEarned: Int = 0
+        xpEarned: Int = 0,
+        averageHR: Int = 0,
+        totalCalories: Double = 0
     ) {
         self.id = id
         self.date = date
@@ -328,12 +332,39 @@ struct CompletedRun: Identifiable, Codable, Equatable {
         self.sprintsTotal = sprintsTotal
         self.rpBoxesEarned = rpBoxesEarned
         self.xpEarned = xpEarned
+        self.averageHR = averageHR
+        self.totalCalories = totalCalories
     }
     
     var formattedDuration: String {
-        let minutes = durationSeconds / 60
+        let hours = durationSeconds / 3600
+        let minutes = (durationSeconds % 3600) / 60
         let seconds = durationSeconds % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
         return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    var formattedDistance: String {
+        let km = distanceMeters / 1000.0
+        if km < 0.01 { return "0.00 km" }
+        return String(format: "%.2f km", km)
+    }
+    
+    var formattedPace: String {
+        guard distanceMeters > 50 else { return "--:--" }
+        let km = distanceMeters / 1000.0
+        let minutesPerKm = (Double(durationSeconds) / 60.0) / km
+        guard minutesPerKm.isFinite && minutesPerKm > 0 && minutesPerKm < 60 else { return "--:--" }
+        let paceMinutes = Int(minutesPerKm)
+        let paceSeconds = Int((minutesPerKm - Double(paceMinutes)) * 60)
+        return String(format: "%d:%02d /km", paceMinutes, paceSeconds)
+    }
+    
+    var formattedCalories: String {
+        if totalCalories < 1 { return "0 kcal" }
+        return String(format: "%.0f kcal", totalCalories)
     }
     
     var sprintSuccessRate: Double {

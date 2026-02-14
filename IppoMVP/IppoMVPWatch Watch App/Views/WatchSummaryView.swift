@@ -5,46 +5,88 @@ struct WatchSummaryView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 // Header
-                VStack(spacing: 4) {
+                HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.largeTitle)
+                        .font(.title3)
                         .foregroundColor(.green)
-                    Text("COMPLETE")
-                        .font(.headline)
+                    Text("RUN COMPLETE")
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
                 }
                 
                 // Duration
                 Text(runManager.formattedDuration)
-                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+                    .font(.system(size: 24, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 
-                // Stats
-                VStack(spacing: 8) {
-                    summaryRow("Sprints", value: "\(runManager.sprintsCompleted)/\(runManager.totalSprints) \u{2713}")
-                    summaryRow("RP Boxes", value: "\(runManager.runSummary?.rpBoxesEarned ?? 0) earned")
-                    summaryRow("XP Earned", value: "+\(runManager.runSummary?.xpEarned ?? 0)")
+                // Key Metrics Grid
+                if let summary = runManager.runSummary {
+                    VStack(spacing: 6) {
+                        // Distance + Pace
+                        HStack {
+                            metricItem(
+                                icon: "figure.run",
+                                iconColor: .cyan,
+                                value: formatDistance(summary.distanceMeters),
+                                label: "Distance"
+                            )
+                            Spacer()
+                            metricItem(
+                                icon: "gauge.medium",
+                                iconColor: .green,
+                                value: formatPace(duration: summary.durationSeconds, distance: summary.distanceMeters),
+                                label: "Pace"
+                            )
+                        }
+                        
+                        // HR + Calories
+                        HStack {
+                            metricItem(
+                                icon: "heart.fill",
+                                iconColor: .red,
+                                value: summary.averageHR > 0 ? "\(summary.averageHR)" : "--",
+                                label: "Avg HR"
+                            )
+                            Spacer()
+                            metricItem(
+                                icon: "flame.fill",
+                                iconColor: .orange,
+                                value: summary.totalCalories > 0 ? String(format: "%.0f", summary.totalCalories) : "--",
+                                label: "Calories"
+                            )
+                        }
+                        
+                        Divider()
+                            .background(Color.gray.opacity(0.3))
+                        
+                        // Sprints + RP Boxes
+                        HStack {
+                            metricItem(
+                                icon: "bolt.fill",
+                                iconColor: .yellow,
+                                value: "\(summary.sprintsCompleted)/\(summary.sprintsTotal)",
+                                label: "Sprints"
+                            )
+                            Spacer()
+                            metricItem(
+                                icon: "gift.fill",
+                                iconColor: .purple,
+                                value: "\(summary.rpBoxesEarned)",
+                                label: "RP Boxes"
+                            )
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 8)
                 
                 // RP Box notification
                 if let summary = runManager.runSummary, summary.rpBoxesEarned > 0 {
-                    VStack(spacing: 4) {
-                        Text("RP BOXES EARNED")
-                            .font(.caption)
-                            .foregroundColor(.cyan)
-                        Text("\(summary.rpBoxesEarned)")
-                            .font(.title)
-                            .foregroundColor(.white)
-                        Text("Open on your phone!")
-                            .font(.caption2)
-                            .foregroundColor(.gray)
-                    }
-                    .padding(8)
-                    .background(Color.cyan.opacity(0.2))
-                    .cornerRadius(8)
+                    Text("Open RP Boxes on your phone!")
+                        .font(.system(size: 10))
+                        .foregroundColor(.cyan)
+                        .padding(.vertical, 2)
                 }
                 
                 // Done button
@@ -52,30 +94,51 @@ struct WatchSummaryView: View {
                     runManager.resetToIdle()
                 } label: {
                     Text("Done")
-                        .font(.headline)
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 8)
                         .background(Color.cyan)
                         .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 8)
+                .padding(.top, 4)
             }
-            .padding()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
         }
     }
     
-    private func summaryRow(_ label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.gray)
-            Spacer()
-            Text(value)
-                .font(.caption)
-                .foregroundColor(.white)
+    private func metricItem(icon: String, iconColor: Color, value: String, label: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+                .foregroundColor(iconColor)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                Text(label)
+                    .font(.system(size: 9))
+                    .foregroundColor(.gray)
+            }
         }
+    }
+    
+    private func formatDistance(_ meters: Double) -> String {
+        let km = meters / 1000.0
+        if km < 0.01 { return "0.00 km" }
+        return String(format: "%.2f km", km)
+    }
+    
+    private func formatPace(duration: Int, distance: Double) -> String {
+        guard distance > 50 else { return "--:--" }
+        let km = distance / 1000.0
+        let minutesPerKm = (Double(duration) / 60.0) / km
+        guard minutesPerKm.isFinite && minutesPerKm > 0 && minutesPerKm < 60 else { return "--:--" }
+        let m = Int(minutesPerKm)
+        let s = Int((minutesPerKm - Double(m)) * 60)
+        return String(format: "%d:%02d/km", m, s)
     }
 }
 

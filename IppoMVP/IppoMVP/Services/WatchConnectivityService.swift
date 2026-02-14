@@ -31,6 +31,8 @@ final class WatchConnectivityService: NSObject, ObservableObject {
             let sprintsTotal = message["sprintsTotal"] as? Int ?? 0
             let rpBoxesEarned = message["rpBoxesEarned"] as? Int ?? 0
             let xpEarned = message["xpEarned"] as? Int ?? 0
+            let averageHR = message["averageHR"] as? Int ?? 0
+            let totalCalories = message["totalCalories"] as? Double ?? 0
             
             // Create run record
             let run = CompletedRun(
@@ -39,7 +41,9 @@ final class WatchConnectivityService: NSObject, ObservableObject {
                 sprintsCompleted: sprintsCompleted,
                 sprintsTotal: sprintsTotal,
                 rpBoxesEarned: rpBoxesEarned,
-                xpEarned: xpEarned
+                xpEarned: xpEarned,
+                averageHR: averageHR,
+                totalCalories: totalCalories
             )
             
             // Apply to user data

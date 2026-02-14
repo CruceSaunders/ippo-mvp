@@ -4,10 +4,10 @@ struct WatchStartView: View {
     @EnvironmentObject var runManager: WatchRunManager
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 10) {
             // Logo/Title
             Text("IPPO")
-                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .font(.system(size: 26, weight: .bold, design: .rounded))
                 .foregroundColor(.cyan)
             
             Spacer()
@@ -16,16 +16,14 @@ struct WatchStartView: View {
             Button {
                 runManager.startRun()
             } label: {
-                VStack(spacing: 4) {
+                VStack(spacing: 2) {
                     Image(systemName: "play.fill")
-                        .font(.title2)
-                    Text("START")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text("RUN")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.title3)
+                    Text("START RUN")
+                        .font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundColor(.black)
-                .frame(width: 100, height: 100)
+                .frame(width: 80, height: 80)
                 .background(Color.cyan)
                 .clipShape(Circle())
             }
@@ -33,12 +31,12 @@ struct WatchStartView: View {
             
             Spacer()
             
-            // Simple tagline instead of pet display
             Text("Sprint. Earn. Rise.")
-                .font(.caption)
+                .font(.system(size: 11))
                 .foregroundColor(.gray)
         }
-        .padding()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
     }
 }
 

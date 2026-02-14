@@ -401,24 +401,37 @@ struct HomeView: View {
                     .padding(.vertical, AppSpacing.lg)
             } else {
                 ForEach(userData.runHistory.prefix(3)) { run in
-                    HStack {
-                        VStack(alignment: .leading, spacing: AppSpacing.xxs) {
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        HStack {
                             Text(run.date.formatted(.relative(presentation: .named)))
                                 .font(AppTypography.subheadline)
                                 .foregroundColor(AppColors.textPrimary)
-                            Text("\(run.formattedDuration) \u{2022} \(run.sprintsCompleted)/\(run.sprintsTotal) sprints")
-                                .font(AppTypography.caption1)
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: AppSpacing.xxs) {
+                            Spacer()
                             Text("\(run.rpBoxesEarned) boxes")
-                                .font(AppTypography.callout)
+                                .font(AppTypography.caption1)
                                 .foregroundColor(AppColors.brandPrimary)
-                            Text("+\(run.xpEarned) XP")
-                                .font(AppTypography.caption2)
-                                .foregroundColor(AppColors.success)
                         }
+                        
+                        // Metrics row
+                        HStack(spacing: AppSpacing.md) {
+                            Label(run.formattedDuration, systemImage: "clock")
+                            Label(run.formattedDistance, systemImage: "figure.run")
+                            if run.averageHR > 0 {
+                                Label("\(run.averageHR)", systemImage: "heart.fill")
+                            }
+                        }
+                        .font(AppTypography.caption1)
+                        .foregroundColor(AppColors.textSecondary)
+                        
+                        HStack(spacing: AppSpacing.md) {
+                            Label(run.formattedPace, systemImage: "gauge.medium")
+                            Label("\(run.sprintsCompleted)/\(run.sprintsTotal) sprints", systemImage: "bolt.fill")
+                            if run.totalCalories > 0 {
+                                Label(run.formattedCalories, systemImage: "flame.fill")
+                            }
+                        }
+                        .font(AppTypography.caption2)
+                        .foregroundColor(AppColors.textTertiary)
                     }
                     .padding(.vertical, AppSpacing.xs)
                     
@@ -587,13 +600,27 @@ struct RunHistorySheet: View {
                                     .foregroundColor(AppColors.brandPrimary)
                             }
                             
+                            // Primary metrics
                             HStack(spacing: AppSpacing.md) {
                                 Label(run.formattedDuration, systemImage: "clock")
-                                Label("\(run.sprintsCompleted)/\(run.sprintsTotal)", systemImage: "bolt.fill")
-                                Label("+\(run.xpEarned) XP", systemImage: "arrow.up.circle.fill")
+                                Label(run.formattedDistance, systemImage: "figure.run")
+                                Label(run.formattedPace, systemImage: "gauge.medium")
                             }
                             .font(AppTypography.caption1)
                             .foregroundColor(AppColors.textSecondary)
+                            
+                            // Secondary metrics
+                            HStack(spacing: AppSpacing.md) {
+                                Label("\(run.sprintsCompleted)/\(run.sprintsTotal) sprints", systemImage: "bolt.fill")
+                                if run.averageHR > 0 {
+                                    Label("\(run.averageHR) bpm", systemImage: "heart.fill")
+                                }
+                                if run.totalCalories > 0 {
+                                    Label(run.formattedCalories, systemImage: "flame.fill")
+                                }
+                            }
+                            .font(AppTypography.caption2)
+                            .foregroundColor(AppColors.textTertiary)
                         }
                         .padding(.vertical, AppSpacing.xs)
                     }

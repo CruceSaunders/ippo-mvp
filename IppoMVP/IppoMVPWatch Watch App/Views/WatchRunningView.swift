@@ -4,72 +4,88 @@ struct WatchRunningView: View {
     @EnvironmentObject var runManager: WatchRunManager
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             // Timer
             Text(runManager.formattedDuration)
-                .font(.system(size: 36, weight: .bold, design: .monospaced))
+                .font(.system(size: 28, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
             
-            // Stats Row
-            HStack(spacing: 16) {
-                // Heart Rate
-                HStack(spacing: 4) {
-                    Image(systemName: "heart.fill")
-                        .foregroundColor(.red)
-                    Text("\(runManager.currentHR)")
-                        .font(.system(size: 18, weight: .semibold))
+            // Distance + Pace row
+            HStack(spacing: 12) {
+                VStack(spacing: 0) {
+                    Text(runManager.formattedDistance)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text("dist")
+                        .font(.system(size: 9))
+                        .foregroundColor(.gray)
                 }
                 
-                // Cadence
-                HStack(spacing: 4) {
+                VStack(spacing: 0) {
+                    Text(runManager.formattedPace)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text("pace")
+                        .font(.system(size: 9))
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // HR + Cadence row
+            HStack(spacing: 14) {
+                HStack(spacing: 3) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                    Text("\(runManager.currentHR)")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                
+                HStack(spacing: 3) {
                     Image(systemName: "bolt.fill")
+                        .font(.system(size: 10))
                         .foregroundColor(.yellow)
                     Text("\(runManager.currentCadence)")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                 }
             }
             .foregroundColor(.white)
             
-            Spacer()
-            
-            // Sprints Counter
-            VStack(spacing: 2) {
-                Text("Sprints")
-                    .font(.caption2)
+            // Sprints counter
+            HStack(spacing: 3) {
+                Text("Sprints:")
+                    .font(.system(size: 10))
                     .foregroundColor(.gray)
-                HStack(spacing: 4) {
-                    Text("\(runManager.sprintsCompleted)")
-                        .font(.title2)
-                        .foregroundColor(.green)
-                    Text("/")
-                        .foregroundColor(.gray)
-                    Text("\(runManager.totalSprints)")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                }
+                Text("\(runManager.sprintsCompleted)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.green)
+                Text("/\(runManager.totalSprints)")
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
             }
             
             // Recovery indicator
             if runManager.isInRecovery {
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     Image(systemName: "clock")
-                    Text("Recovery: \(Int(runManager.recoveryRemaining))s")
+                        .font(.system(size: 9))
+                    Text("Recovery \(Int(runManager.recoveryRemaining))s")
+                        .font(.system(size: 10))
                 }
-                .font(.caption)
                 .foregroundColor(.cyan)
             }
             
             Spacer()
             
             // Controls
-            HStack(spacing: 20) {
+            HStack(spacing: 16) {
                 Button {
                     runManager.pauseRun()
                 } label: {
                     Image(systemName: runManager.isPaused ? "play.fill" : "pause.fill")
-                        .font(.title3)
+                        .font(.system(size: 14))
                         .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 40, height: 40)
                         .background(Color.gray.opacity(0.3))
                         .clipShape(Circle())
                 }
@@ -79,16 +95,17 @@ struct WatchRunningView: View {
                     runManager.endRun()
                 } label: {
                     Image(systemName: "stop.fill")
-                        .font(.title3)
+                        .font(.system(size: 14))
                         .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 40, height: 40)
                         .background(Color.red.opacity(0.8))
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding()
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
     }
 }
 

@@ -17,6 +17,8 @@ struct WatchRunSummary {
     let sprintsTotal: Int
     let rpBoxesEarned: Int
     let xpEarned: Int
+    let averageHR: Int
+    let totalCalories: Double
 }
 
 @MainActor
@@ -29,6 +31,8 @@ final class WatchRunManager: NSObject, ObservableObject {
     @Published var elapsedTime: TimeInterval = 0
     @Published var currentHR: Int = 0
     @Published var currentCadence: Int = 0
+    @Published var currentDistance: Double = 0      // meters
+    @Published var currentCalories: Double = 0      // kcal
     @Published var totalSprints: Int = 0
     @Published var sprintsCompleted: Int = 0
     @Published var isInRecovery: Bool = false
@@ -51,6 +55,7 @@ final class WatchRunManager: NSObject, ObservableObject {
     private var sprintCadenceSamples: [Int] = []
     private var peakHR: Int = 0
     private var peakCadence: Int = 0
+    private var allHRSamples: [Int] = []  // For average HR calculation
     
     // HealthKit
     private let healthStore = HKHealthStore()
@@ -65,11 +70,39 @@ final class WatchRunManager: NSObject, ObservableObject {
     private let sprintConfig = WatchSprintConfig()
     private let encounterConfig = WatchEncounterConfig()
     
-    // MARK: - Computed
+    // MARK: - Computed Properties
     var formattedDuration: String {
-        let minutes = Int(elapsedTime) / 60
+        let hours = Int(elapsedTime) / 3600
+        let minutes = (Int(elapsedTime) % 3600) / 60
         let seconds = Int(elapsedTime) % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    /// Distance in km, formatted
+    var formattedDistance: String {
+        let km = currentDistance / 1000.0
+        if km < 0.01 { return "0.00 km" }
+        return String(format: "%.2f km", km)
+    }
+    
+    /// Current pace in min/km
+    var formattedPace: String {
+        guard currentDistance > 50 else { return "--:--" } // Need at least 50m for meaningful pace
+        let km = currentDistance / 1000.0
+        let minutesPerKm = (elapsedTime / 60.0) / km
+        guard minutesPerKm.isFinite && minutesPerKm > 0 && minutesPerKm < 60 else { return "--:--" }
+        let paceMinutes = Int(minutesPerKm)
+        let paceSeconds = Int((minutesPerKm - Double(paceMinutes)) * 60)
+        return String(format: "%d:%02d", paceMinutes, paceSeconds)
+    }
+    
+    /// Average HR from all samples during the run
+    var averageHR: Int {
+        guard !allHRSamples.isEmpty else { return 0 }
+        return allHRSamples.reduce(0, +) / allHRSamples.count
     }
     
     // MARK: - Init
@@ -84,7 +117,8 @@ final class WatchRunManager: NSObject, ObservableObject {
         let typesToRead: Set<HKObjectType> = [
             HKQuantityType.quantityType(forIdentifier: .heartRate)!,
             HKQuantityType.quantityType(forIdentifier: .stepCount)!,
-            HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
+            HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+            HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
         ]
         
         healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { success, error in
@@ -98,6 +132,9 @@ final class WatchRunManager: NSObject, ObservableObject {
     func startRun() {
         runStartTime = Date()
         elapsedTime = 0
+        currentDistance = 0
+        currentCalories = 0
+        allHRSamples = []
         totalSprints = 0
         sprintsCompleted = 0
         earnedRPBoxes = 0
@@ -148,6 +185,10 @@ final class WatchRunManager: NSObject, ObservableObject {
         encounterCheckTimer?.invalidate()
         sprintTimer?.invalidate()
         
+        // Grab final metrics from workout builder before ending
+        let finalDistance = readFinalDistance()
+        let finalCalories = readFinalCalories()
+        
         // End workout
         endWorkoutSession()
         
@@ -155,14 +196,16 @@ final class WatchRunManager: NSObject, ObservableObject {
         let minutes = Int(elapsedTime / 60)
         earnedXP = minutes
         
-        // Create summary
+        // Create summary with real metrics
         runSummary = WatchRunSummary(
             durationSeconds: Int(elapsedTime),
-            distanceMeters: 0,  // Would come from workout
+            distanceMeters: finalDistance,
             sprintsCompleted: sprintsCompleted,
             sprintsTotal: totalSprints,
             rpBoxesEarned: earnedRPBoxes,
-            xpEarned: earnedXP
+            xpEarned: earnedXP,
+            averageHR: averageHR,
+            totalCalories: finalCalories
         )
         
         // Send to phone
@@ -176,6 +219,30 @@ final class WatchRunManager: NSObject, ObservableObject {
         runState = .idle
         runSummary = nil
         elapsedTime = 0
+        currentDistance = 0
+        currentCalories = 0
+        allHRSamples = []
+    }
+    
+    // MARK: - Read Final Metrics from Workout Builder
+    private func readFinalDistance() -> Double {
+        guard let builder = workoutBuilder else { return currentDistance }
+        let distanceType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
+        if let stats = builder.statistics(for: distanceType),
+           let sum = stats.sumQuantity() {
+            return sum.doubleValue(for: .meter())
+        }
+        return currentDistance
+    }
+    
+    private func readFinalCalories() -> Double {
+        guard let builder = workoutBuilder else { return currentCalories }
+        let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+        if let stats = builder.statistics(for: energyType),
+           let sum = stats.sumQuantity() {
+            return sum.doubleValue(for: .kilocalorie())
+        }
+        return currentCalories
     }
     
     // MARK: - Workout Session
@@ -219,6 +286,11 @@ final class WatchRunManager: NSObject, ObservableObject {
     private func updateRunTimer() {
         guard !isPaused else { return }
         elapsedTime += 1
+        
+        // Collect HR sample every second for average calculation
+        if currentHR > 0 {
+            allHRSamples.append(currentHR)
+        }
         
         // Update recovery
         if isInRecovery, let endTime = recoveryEndTime {
@@ -276,7 +348,7 @@ final class WatchRunManager: NSObject, ObservableObject {
         runState = .sprinting
         sprintStartTime = Date()
         
-        // Play sprint start haptic (first vibration — tells you to sprint!)
+        // Play sprint start haptic (first vibration -- tells you to sprint!)
         WatchHapticsManager.shared.playSprintStart()
         
         // Start sprint timer
@@ -319,16 +391,13 @@ final class WatchRunManager: NSObject, ObservableObject {
         
         if isValid {
             sprintsCompleted += 1
-            
-            // Award 1 RP Box for valid sprint
             earnedRPBoxes += 1
-            
             WatchHapticsManager.shared.playSprintSuccess()
         } else {
             WatchHapticsManager.shared.playSprintFail()
         }
         
-        // Play sprint end haptic (second vibration — tells you chase is over!)
+        // Play sprint end haptic (second vibration -- tells you chase is over!)
         WatchHapticsManager.shared.playSprintEnd()
         
         // Start recovery
@@ -342,14 +411,9 @@ final class WatchRunManager: NSObject, ObservableObject {
     private func validateSprint() -> Bool {
         guard !sprintHRSamples.isEmpty else { return false }
         
-        // HR Score (50% weight)
         let hrIncrease = peakHR - baselineHR
         let hrScore = min(1.0, Double(hrIncrease) / 20.0)
-        
-        // Cadence Score (35% weight)
         let cadenceScore = min(1.0, Double(peakCadence) / 160.0)
-        
-        // Combined score (15% baseline for effort)
         let totalScore = (hrScore * 0.50 + cadenceScore * 0.35 + 0.15) * 100
         
         return totalScore >= 60
@@ -386,9 +450,23 @@ extension WatchRunManager: HKLiveWorkoutBuilderDelegate {
             let statistics = workoutBuilder.statistics(for: quantityType)
             
             Task { @MainActor in
-                if quantityType == HKQuantityType.quantityType(forIdentifier: .heartRate) {
+                switch quantityType {
+                case HKQuantityType.quantityType(forIdentifier: .heartRate):
                     let value = statistics?.mostRecentQuantity()?.doubleValue(for: HKUnit.count().unitDivided(by: .minute())) ?? 0
                     self.currentHR = Int(value)
+                    
+                case HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning):
+                    if let sum = statistics?.sumQuantity() {
+                        self.currentDistance = sum.doubleValue(for: .meter())
+                    }
+                    
+                case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned):
+                    if let sum = statistics?.sumQuantity() {
+                        self.currentCalories = sum.doubleValue(for: .kilocalorie())
+                    }
+                    
+                default:
+                    break
                 }
             }
         }

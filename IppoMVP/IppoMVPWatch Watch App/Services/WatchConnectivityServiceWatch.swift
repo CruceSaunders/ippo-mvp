@@ -34,7 +34,9 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
             "sprintsCompleted": summary.sprintsCompleted,
             "sprintsTotal": summary.sprintsTotal,
             "rpBoxesEarned": summary.rpBoxesEarned,
-            "xpEarned": summary.xpEarned
+            "xpEarned": summary.xpEarned,
+            "averageHR": summary.averageHR,
+            "totalCalories": summary.totalCalories
         ]
         
         session.sendMessage(payload, replyHandler: nil) { error in
