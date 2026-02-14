@@ -275,6 +275,24 @@ struct PlayerProfile: Codable, Equatable {
     }
 }
 
+// MARK: - Rank Player Entry (for rank roster display)
+struct RankPlayerEntry: Identifiable, Equatable {
+    let id: String          // Firestore uid
+    let displayName: String
+    let username: String
+    let rp: Int
+    let level: Int
+    let isCurrentUser: Bool
+    
+    var rankTier: RankTier {
+        RankTier.tier(forRP: rp)
+    }
+    
+    var rank: Rank {
+        Rank.rank(forRP: rp)
+    }
+}
+
 // MARK: - Player Level Config
 // 1 XP per minute of running, cap at level 100
 struct PlayerLevelConfig {

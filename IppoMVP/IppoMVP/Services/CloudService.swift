@@ -24,7 +24,15 @@ final class CloudService {
         
         do {
             let data = try JSONEncoder().encode(saveable)
-            guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            guard var dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            
+            // Write flat search fields for efficient Firestore querying (rank roster, leaderboards)
+            dict["rankSearchFields"] = [
+                "rp": userData.profile.rp,
+                "displayName": userData.profile.displayName,
+                "username": userData.profile.username,
+                "level": userData.profile.level
+            ] as [String: Any]
             
             try await db.collection("users").document(uid).setData(dict, merge: true)
         } catch {
