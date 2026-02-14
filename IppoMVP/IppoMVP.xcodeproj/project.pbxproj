@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		ED6BAE852F207E300013C16D /* IppoMVP Watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ED6BAE7B2F207E2F0013C16D /* IppoMVP Watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BERU00012F214A000000001A /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000001B /* FirebaseAuth */; };
+		BERU00012F214A000000002A /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000002B /* FirebaseCore */; };
+		BERU00012F214A000000003A /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000003B /* FirebaseFirestore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +60,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BERU00012F214A000000002A /* FirebaseCore in Frameworks */,
+				BERU00012F214A000000001A /* FirebaseAuth in Frameworks */,
+				BERU00012F214A000000003A /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -110,6 +116,9 @@
 			);
 			name = IppoMVP;
 			packageProductDependencies = (
+				BERU00012F214A000000001B /* FirebaseAuth */,
+				BERU00012F214A000000002B /* FirebaseCore */,
+				BERU00012F214A000000003B /* FirebaseFirestore */,
 			);
 			productName = IppoMVP;
 			productReference = ED6BAE692F207C440013C16D /* IppoMVP.app */;
@@ -164,6 +173,9 @@
 			);
 			mainGroup = ED6BAE602F207C430013C16D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BERU00012F214A0000000000 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = ED6BAE6A2F207C440013C16D /* Products */;
 			projectDirPath = "";
@@ -510,6 +522,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BERU00012F214A0000000000 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BERU00012F214A000000001B /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BERU00012F214A0000000000 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		BERU00012F214A000000002B /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BERU00012F214A0000000000 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		BERU00012F214A000000003B /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BERU00012F214A0000000000 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = ED6BAE612F207C430013C16D /* Project object */;
 }
