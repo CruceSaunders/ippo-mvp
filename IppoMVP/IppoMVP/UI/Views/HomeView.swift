@@ -476,6 +476,8 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) var dismiss
     @State private var displayName: String = ""
     @State private var username: String = ""
+    @State private var showingSignOutConfirm = false
+    @State private var showingDeleteConfirm = false
     
     var body: some View {
         NavigationStack {
@@ -487,6 +489,18 @@ struct SettingsSheet: View {
                             username = userData.profile.username
                         }
                     TextField("Username", text: $username)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+                    
+                    if let email = AuthService.shared.email {
+                        HStack {
+                            Text("Email")
+                                .foregroundColor(AppColors.textSecondary)
+                            Spacer()
+                            Text(email)
+                                .foregroundColor(AppColors.textTertiary)
+                        }
+                    }
                 }
                 
                 Section("App") {
@@ -495,23 +509,22 @@ struct SettingsSheet: View {
                     }
                 }
                 
+                #if DEBUG
                 Section("Debug") {
-                    #if DEBUG
                     Button("Load Test Data") {
                         userData.loadTestData()
                     }
-                    
-                    Button("Reset All Data") {
-                        userData.logout()
-                    }
-                    .foregroundColor(AppColors.danger)
-                    #endif
                 }
+                #endif
                 
                 Section("Account") {
                     Button("Sign Out") {
-                        userData.logout()
-                        dismiss()
+                        showingSignOutConfirm = true
+                    }
+                    .foregroundColor(AppColors.danger)
+                    
+                    Button("Delete Account") {
+                        showingDeleteConfirm = true
                     }
                     .foregroundColor(AppColors.danger)
                 }
@@ -527,6 +540,26 @@ struct SettingsSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .alert("Sign Out?", isPresented: $showingSignOutConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Sign Out", role: .destructive) {
+                    AuthService.shared.signOut()
+                    dismiss()
+                }
+            } message: {
+                Text("Your data is saved to the cloud. You can sign back in anytime.")
+            }
+            .alert("Delete Account?", isPresented: $showingDeleteConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await AuthService.shared.deleteAccount()
+                        dismiss()
+                    }
+                }
+            } message: {
+                Text("This will permanently delete your account and all data. This cannot be undone.")
             }
         }
     }

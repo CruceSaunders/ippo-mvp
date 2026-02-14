@@ -171,6 +171,41 @@ final class UserData: ObservableObject {
     // MARK: - Persistence
     func save() {
         DataPersistence.shared.saveUserData(self)
+        // Also sync to Firestore if authenticated
+        CloudService.shared.syncToCloud(self)
+    }
+    
+    // MARK: - Cloud Sync
+    /// Call after successful sign-in to load/merge cloud data
+    func syncFromCloud() async {
+        guard let cloudData = await CloudService.shared.loadUserData() else {
+            // No cloud data — save current local data to cloud
+            await CloudService.shared.saveUserData(self)
+            return
+        }
+        
+        // Merge cloud data with local data
+        let localData = SaveableUserData(
+            profile: profile,
+            pendingRPBoxes: pendingRPBoxes,
+            runHistory: runHistory,
+            friends: friends,
+            friendRequests: friendRequests
+        )
+        
+        let merged = CloudService.shared.mergeData(local: localData, cloud: cloudData)
+        
+        // Apply merged data
+        profile = merged.profile
+        pendingRPBoxes = merged.pendingRPBoxes
+        runHistory = merged.runHistory
+        friends = merged.friends
+        friendRequests = merged.friendRequests
+        isLoggedIn = true
+        
+        // Save merged result to both local and cloud
+        DataPersistence.shared.saveUserData(self)
+        await CloudService.shared.saveUserData(self)
     }
     
     func logout() {
