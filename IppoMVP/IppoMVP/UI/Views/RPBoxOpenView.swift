@@ -1,12 +1,17 @@
 import SwiftUI
 
-/// Full-screen RP Box opening experience with multi-phase animation
+/// Full-screen RP Box opening experience with interactive tap-to-open mechanic
 struct RPBoxOpenView: View {
     @EnvironmentObject var userData: UserData
     @Environment(\.dismiss) var dismiss
     
     @State private var phase: OpenPhase = .idle
     @State private var contents: RPBoxContents?
+    
+    // Tap mechanic
+    @State private var tapsRequired: Int = 5
+    @State private var tapCount: Int = 0
+    @State private var showHint: Bool = false
     
     // Animation states
     @State private var boxScale: CGFloat = 0.6
@@ -17,22 +22,35 @@ struct RPBoxOpenView: View {
     @State private var flashOpacity: Double = 0
     @State private var revealScale: CGFloat = 0.3
     @State private var revealOpacity: Double = 0
-    @State private var particlePhase: Bool = false
     @State private var glowPulse: Bool = false
     @State private var lidOffset: CGFloat = 0
     @State private var lightRays: Bool = false
+    @State private var borderGlow: Double = 0.6
+    @State private var tapWiggle: Double = 0
+    
+    // Tap sparkles
+    @State private var tapSparkles: [TapSparkle] = []
     
     enum OpenPhase {
         case idle
-        case shaking
+        case tapping   // User taps the box
+        case shaking   // Short auto-shake before burst
         case burst
         case reveal
+    }
+    
+    private var tapProgress: Double {
+        guard tapsRequired > 0 else { return 0 }
+        return Double(tapCount) / Double(tapsRequired)
     }
     
     var tierColor: Color {
         guard let tier = contents?.tier else { return AppColors.brandPrimary }
         return AppColors.forTier(tier)
     }
+    
+    // Soft haptic generator for taps
+    private let softHaptic = UIImpactFeedbackGenerator(style: .soft)
     
     var body: some View {
         ZStack {
@@ -43,8 +61,8 @@ struct RPBoxOpenView: View {
             // Light rays behind box
             if lightRays {
                 LightRaysView(color: tierColor)
-                    .opacity(phase == .reveal ? 0.4 : 0.15)
-                    .animation(.easeInOut(duration: 0.5), value: phase)
+                    .opacity(phase == .reveal ? 0.4 : 0.1 + tapProgress * 0.2)
+                    .animation(.easeInOut(duration: 0.3), value: tapProgress)
             }
             
             // Flash overlay
@@ -57,14 +75,33 @@ struct RPBoxOpenView: View {
                 BoxConfettiView(tier: contents?.tier ?? .common)
             }
             
+            // Tap sparkles layer
+            ForEach(tapSparkles) { sparkle in
+                Image(systemName: "sparkle")
+                    .font(.system(size: sparkle.size))
+                    .foregroundColor(sparkle.color)
+                    .position(sparkle.position)
+                    .opacity(sparkle.opacity)
+                    .scaleEffect(sparkle.scale)
+            }
+            .allowsHitTesting(false)
+            
             // Main content
             VStack(spacing: 30) {
                 Spacer()
                 
-                // Box count
+                // Box count (idle only)
                 if phase == .idle {
                     Text("\(userData.totalRPBoxes) RP Boxes")
                         .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(AppColors.textSecondary)
+                        .transition(.opacity)
+                }
+                
+                // Hint text (tapping phase)
+                if phase == .tapping && showHint {
+                    Text("Tap to open!")
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundColor(AppColors.textSecondary)
                         .transition(.opacity)
                 }
@@ -76,6 +113,12 @@ struct RPBoxOpenView: View {
                         .scaleEffect(boxScale)
                         .opacity(boxOpacity)
                         .rotation3DEffect(.degrees(boxRotation), axis: (x: 0, y: 1, z: 0))
+                        .rotationEffect(.degrees(tapWiggle))
+                        .onTapGesture {
+                            if phase == .tapping {
+                                handleBoxTap()
+                            }
+                        }
                 } else {
                     revealView
                         .scaleEffect(revealScale)
@@ -84,11 +127,11 @@ struct RPBoxOpenView: View {
                 
                 Spacer()
                 
-                // Bottom buttons
+                // Bottom buttons (idle only)
                 if phase == .idle {
                     VStack(spacing: 12) {
                         Button {
-                            startOpening()
+                            beginTapping()
                         } label: {
                             Text("Open Box")
                                 .font(.system(size: 18, weight: .bold))
@@ -114,6 +157,7 @@ struct RPBoxOpenView: View {
                     .transition(.opacity)
                 }
                 
+                // Reveal buttons
                 if phase == .reveal {
                     VStack(spacing: 12) {
                         if userData.totalRPBoxes > 0 {
@@ -141,7 +185,7 @@ struct RPBoxOpenView: View {
             .padding(.bottom, 40)
         }
         .onAppear {
-            // Start idle glow pulse
+            softHaptic.prepare()
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 glowPulse = true
             }
@@ -154,11 +198,16 @@ struct RPBoxOpenView: View {
     // MARK: - Box View
     private var boxView: some View {
         ZStack {
-            // Glow behind box
+            // Glow behind box (intensifies with taps)
             RoundedRectangle(cornerRadius: 16)
                 .fill(
                     RadialGradient(
-                        colors: [AppColors.brandPrimary.opacity(glowPulse ? 0.5 : 0.2), .clear],
+                        colors: [
+                            AppColors.brandPrimary.opacity(
+                                phase == .tapping ? (0.3 + tapProgress * 0.5) : (glowPulse ? 0.5 : 0.2)
+                            ),
+                            .clear
+                        ],
                         center: .center,
                         startRadius: 40,
                         endRadius: 120
@@ -188,19 +237,19 @@ struct RPBoxOpenView: View {
                             .stroke(
                                 LinearGradient(
                                     colors: [
-                                        AppColors.brandPrimary.opacity(0.6),
-                                        AppColors.brandSecondary.opacity(0.3),
-                                        AppColors.brandPrimary.opacity(0.6)
+                                        AppColors.brandPrimary.opacity(borderGlow),
+                                        AppColors.brandSecondary.opacity(borderGlow * 0.5),
+                                        AppColors.brandPrimary.opacity(borderGlow)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: 2
+                                lineWidth: phase == .tapping ? 2 + tapProgress * 2 : 2
                             )
                     )
                     .shadow(color: AppColors.brandPrimary.opacity(boxGlow), radius: 20)
                 
-                // "?" or gift icon
+                // Gift icon
                 Image(systemName: "gift.fill")
                     .font(.system(size: 44))
                     .foregroundStyle(
@@ -211,7 +260,7 @@ struct RPBoxOpenView: View {
                         )
                     )
                 
-                // Lid (moves up on burst)
+                // Lid
                 RoundedRectangle(cornerRadius: 8)
                     .fill(
                         LinearGradient(
@@ -223,7 +272,7 @@ struct RPBoxOpenView: View {
                     .frame(width: 150, height: 30)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(AppColors.brandPrimary.opacity(0.4), lineWidth: 1)
+                            .stroke(AppColors.brandPrimary.opacity(borderGlow * 0.7), lineWidth: 1)
                     )
                     .offset(y: -55 + lidOffset)
                     .opacity(phase == .burst ? 0 : 1)
@@ -235,13 +284,11 @@ struct RPBoxOpenView: View {
     // MARK: - Reveal View
     private var revealView: some View {
         VStack(spacing: 16) {
-            // Tier badge
             Text(contents?.tier.displayName.uppercased() ?? "")
                 .font(.system(size: 14, weight: .heavy, design: .rounded))
                 .tracking(3)
                 .foregroundColor(tierColor)
             
-            // RP Amount
             Text("+\(contents?.rpAmount ?? 0)")
                 .font(.system(size: 72, weight: .heavy, design: .rounded))
                 .foregroundStyle(
@@ -259,46 +306,162 @@ struct RPBoxOpenView: View {
         }
     }
     
-    // MARK: - Animation Sequence
-    private func startOpening() {
-        // Open the box data immediately
+    // MARK: - Begin Tapping Phase
+    private func beginTapping() {
+        // Open box data immediately
         contents = userData.openRPBox()
         guard contents != nil else { return }
         
-        HapticsManager.shared.playMedium()
-        
-        // Phase 1: Shaking (0.8s)
-        phase = .shaking
+        tapsRequired = Int.random(in: 3...7)
+        tapCount = 0
+        showHint = true
         lightRays = true
         
-        // Intense shake animation
-        withAnimation(.linear(duration: 0.05).repeatCount(16, autoreverses: true)) {
-            boxShakeOffset = 8
+        withAnimation(.easeInOut(duration: 0.3)) {
+            phase = .tapping
         }
         
-        // Glow intensifies
-        withAnimation(.easeIn(duration: 0.8)) {
-            boxGlow = 0.8
+        // Fade hint after 2 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeOut(duration: 0.5)) {
+                showHint = false
+            }
+        }
+    }
+    
+    // MARK: - Handle Box Tap
+    private func handleBoxTap() {
+        tapCount += 1
+        
+        // Hide hint on first tap
+        if tapCount == 1 {
+            withAnimation(.easeOut(duration: 0.3)) {
+                showHint = false
+            }
         }
         
-        // Lid starts lifting
-        withAnimation(.easeIn(duration: 0.8)) {
-            lidOffset = -15
+        // Gentle haptic (Clash Royale feel -- very soft)
+        softHaptic.impactOccurred(intensity: 0.4)
+        
+        // Progressive glow
+        withAnimation(.easeOut(duration: 0.2)) {
+            boxGlow = 0.3 + tapProgress * 0.5
+            borderGlow = 0.6 + tapProgress * 0.4
+            lidOffset = -15.0 * CGFloat(tapProgress)
         }
         
-        // Phase 2: Burst (after 0.8s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        // Scale bump: quick pop then back
+        withAnimation(.spring(response: 0.12, dampingFraction: 0.5)) {
+            boxScale = 1.0 + 0.08 * CGFloat(tapProgress + 0.3)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
+                boxScale = 1.0
+            }
+        }
+        
+        // Tiny rotation wiggle
+        let wiggleDirection: Double = tapCount.isMultiple(of: 2) ? 1 : -1
+        withAnimation(.spring(response: 0.1, dampingFraction: 0.3)) {
+            tapWiggle = wiggleDirection * (2 + tapProgress * 3)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.spring(response: 0.15, dampingFraction: 0.5)) {
+                tapWiggle = 0
+            }
+        }
+        
+        // Spawn tap sparkles
+        spawnTapSparkles()
+        
+        // Check if final tap
+        if tapCount >= tapsRequired {
+            // Short delay then trigger burst sequence
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                triggerBurstSequence()
+            }
+        }
+    }
+    
+    // MARK: - Tap Sparkles
+    private func spawnTapSparkles() {
+        let centerX = UIScreen.main.bounds.width / 2
+        let centerY = UIScreen.main.bounds.height / 2 - 30
+        let sparkleCount = Int.random(in: 3...5)
+        let colors: [Color] = [AppColors.brandPrimary, AppColors.brandSecondary, .white, Color(hex: "#FFD700")]
+        
+        for i in 0..<sparkleCount {
+            let id = Int(Date().timeIntervalSince1970 * 1000) + i
+            let angle = Double.random(in: 0...360)
+            let startOffset = CGFloat.random(in: 30...60)
+            let startX = centerX + cos(angle * .pi / 180) * startOffset
+            let startY = centerY + sin(angle * .pi / 180) * startOffset
+            
+            let sparkle = TapSparkle(
+                id: id,
+                position: CGPoint(x: startX, y: startY),
+                color: colors.randomElement()!,
+                size: CGFloat.random(in: 8...16),
+                opacity: 1.0,
+                scale: 0.3
+            )
+            tapSparkles.append(sparkle)
+            
+            // Animate out
+            let endDistance = CGFloat.random(in: 40...80)
+            let endX = startX + cos(angle * .pi / 180) * endDistance
+            let endY = startY + sin(angle * .pi / 180) * endDistance
+            
+            withAnimation(.easeOut(duration: 0.4)) {
+                if let idx = tapSparkles.firstIndex(where: { $0.id == id }) {
+                    tapSparkles[idx].position = CGPoint(x: endX, y: endY)
+                    tapSparkles[idx].scale = 1.0
+                }
+            }
+            
+            // Fade out
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    if let idx = tapSparkles.firstIndex(where: { $0.id == id }) {
+                        tapSparkles[idx].opacity = 0
+                    }
+                }
+            }
+            
+            // Remove
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                tapSparkles.removeAll { $0.id == id }
+            }
+        }
+    }
+    
+    // MARK: - Burst Sequence (shortened since box is already "charged")
+    private func triggerBurstSequence() {
+        HapticsManager.shared.playMedium()
+        
+        // Short shake (0.4s -- box is already charged from taps)
+        phase = .shaking
+        
+        withAnimation(.linear(duration: 0.04).repeatCount(10, autoreverses: true)) {
+            boxShakeOffset = 10
+        }
+        
+        withAnimation(.easeIn(duration: 0.4)) {
+            boxGlow = 1.0
+            lidOffset = -25
+        }
+        
+        // Burst after 0.4s
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             HapticsManager.shared.playHeavy()
             phase = .burst
             boxShakeOffset = 0
             
-            // Box explodes up and fades
             withAnimation(.easeOut(duration: 0.3)) {
                 boxScale = 1.5
                 boxOpacity = 0
             }
             
-            // Flash
             withAnimation(.easeOut(duration: 0.15)) {
                 flashOpacity = 0.8
             }
@@ -308,7 +471,7 @@ struct RPBoxOpenView: View {
                 }
             }
             
-            // Phase 3: Reveal (after 0.4s)
+            // Reveal after 0.4s
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 HapticsManager.shared.playSuccess()
                 phase = .reveal
@@ -321,10 +484,13 @@ struct RPBoxOpenView: View {
         }
     }
     
+    // MARK: - Reset
     private func resetForNextBox() {
-        // Reset all states
         phase = .idle
         contents = nil
+        tapCount = 0
+        tapsRequired = 5
+        showHint = false
         boxScale = 0.6
         boxRotation = 0
         boxGlow = 0.3
@@ -335,12 +501,24 @@ struct RPBoxOpenView: View {
         revealOpacity = 0
         lidOffset = 0
         lightRays = false
+        borderGlow = 0.6
+        tapWiggle = 0
+        tapSparkles = []
         
-        // Animate box back in
         withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
             boxScale = 1.0
         }
     }
+}
+
+// MARK: - Tap Sparkle
+private struct TapSparkle: Identifiable {
+    let id: Int
+    var position: CGPoint
+    let color: Color
+    let size: CGFloat
+    var opacity: Double
+    var scale: CGFloat
 }
 
 // MARK: - Light Rays Background
