@@ -31,9 +31,6 @@ struct HomeView: View {
                     
                     // Recent Runs
                     recentRunsSection
-                    
-                    // Quick Settings
-                    quickSettings
                 }
                 .padding(.horizontal, AppSpacing.screenPadding)
                 .padding(.bottom, AppSpacing.xxl)
@@ -389,42 +386,6 @@ struct HomeView: View {
         .cardStyle()
     }
     
-    // MARK: - Quick Settings
-    private var quickSettings: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Settings")
-                .font(AppTypography.headline)
-                .foregroundColor(AppColors.textPrimary)
-            
-            settingsRow("Health Permissions", icon: "heart.fill")
-            settingsRow("Privacy", icon: "lock.fill")
-            settingsRow("Help & Support", icon: "questionmark.circle.fill")
-        }
-        .cardStyle()
-    }
-    
-    private func settingsRow(_ title: String, icon: String) -> some View {
-        Button {
-            // Navigate to settings
-        } label: {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(AppColors.textSecondary)
-                    .frame(width: 24)
-                
-                Text(title)
-                    .font(AppTypography.body)
-                    .foregroundColor(AppColors.textPrimary)
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(AppColors.textTertiary)
-            }
-            .padding(.vertical, AppSpacing.sm)
-        }
-    }
 }
 
 // MARK: - Settings Sheet
