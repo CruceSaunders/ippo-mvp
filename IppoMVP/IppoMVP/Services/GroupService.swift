@@ -9,14 +9,27 @@ final class GroupService: ObservableObject {
     @Published var userGroups: [IppoGroup] = []
     @Published var isLoading = false
     @Published var groupLeaderboards: [String: [GroupLeaderboardEntry]] = [:]  // groupId -> entries
+    @Published var createError: String?
+    
+    static let maxGroups = 5
     
     private let db = Firestore.firestore()
     
     private init() {}
     
+    var canCreateGroup: Bool {
+        userGroups.count < Self.maxGroups
+    }
+    
     // MARK: - Create Group
     func createGroup(name: String, invitedFriendIds: [String] = []) async -> IppoGroup? {
         guard let uid = AuthService.shared.userId else { return nil }
+        
+        guard canCreateGroup else {
+            createError = "You can only create up to \(Self.maxGroups) groups."
+            return nil
+        }
+        createError = nil
         
         var memberIds = [uid] + invitedFriendIds
         memberIds = Array(Set(memberIds))  // deduplicate
@@ -145,6 +158,18 @@ final class GroupService: ObservableObject {
     
     // MARK: - Weekly Leaderboard
     
+    /// Get the start of the current week (Monday midnight)
+    private var currentWeekStart: Date {
+        let calendar = Calendar.current
+        let now = Date()
+        var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
+        components.weekday = 2  // Monday
+        components.hour = 0
+        components.minute = 0
+        components.second = 0
+        return calendar.date(from: components) ?? now
+    }
+    
     /// Update the current user's weekly RP entry in a group
     func updateLeaderboardEntry(groupId: String) async {
         guard let uid = AuthService.shared.userId else { return }
@@ -154,7 +179,8 @@ final class GroupService: ObservableObject {
             "displayName": userData.profile.displayName,
             "username": userData.profile.username,
             "weeklyRP": userData.profile.weeklyRP,
-            "updatedAt": Timestamp(date: Date())
+            "updatedAt": Timestamp(date: Date()),
+            "weekStartDate": Timestamp(date: currentWeekStart)
         ]
         
         do {
@@ -165,9 +191,11 @@ final class GroupService: ObservableObject {
         }
     }
     
-    /// Fetch leaderboard for a group
+    /// Fetch leaderboard for a group (only entries from current week)
     func fetchLeaderboard(for groupId: String) async {
         guard let currentUid = AuthService.shared.userId else { return }
+        
+        let weekStart = currentWeekStart
         
         do {
             let snapshot = try await db.collection("groups").document(groupId)
@@ -177,9 +205,22 @@ final class GroupService: ObservableObject {
             
             let entries = snapshot.documents.compactMap { doc -> GroupLeaderboardEntry? in
                 let data = doc.data()
+                
+                // Filter to only show current week entries
+                if let weekStartTs = data["weekStartDate"] as? Timestamp {
+                    let entryWeekStart = weekStartTs.dateValue()
+                    // If the entry's week start is before the current week, it's stale
+                    if entryWeekStart < weekStart {
+                        return nil
+                    }
+                }
+                
                 let displayName = data["displayName"] as? String ?? "Runner"
                 let username = data["username"] as? String ?? ""
                 let weeklyRP = data["weeklyRP"] as? Int ?? 0
+                
+                // Skip entries with 0 RP
+                guard weeklyRP > 0 else { return nil }
                 
                 return GroupLeaderboardEntry(
                     id: doc.documentID,

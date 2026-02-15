@@ -30,7 +30,7 @@ final class CloudService {
             dict["rankSearchFields"] = [
                 "rp": userData.profile.rp,
                 "displayName": userData.profile.displayName,
-                "username": userData.profile.username,
+                "username": userData.profile.username.lowercased(),
                 "level": userData.profile.level
             ] as [String: Any]
             

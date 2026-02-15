@@ -295,16 +295,24 @@ struct SocialView: View {
 // MARK: - Group Detail View
 struct GroupDetailView: View {
     let group: IppoGroup
+    @EnvironmentObject var userData: UserData
     @StateObject private var groupService = GroupService.shared
     @State private var leaderboard: [GroupLeaderboardEntry] = []
     @State private var members: [FriendProfile] = []
     @State private var isLoading = true
     @State private var showingLeaveConfirm = false
     @State private var showingDeleteConfirm = false
+    @State private var showingInviteFriends = false
     @Environment(\.dismiss) var dismiss
     
     private var isOwner: Bool {
         group.ownerUid == AuthService.shared.userId
+    }
+    
+    /// Friends who are not already in this group
+    private var invitableFriends: [String] {
+        let currentMembers = Set(group.memberIds)
+        return UserData.shared.friends.filter { !currentMembers.contains($0) }
     }
     
     var body: some View {
@@ -369,9 +377,24 @@ struct GroupDetailView: View {
                 
                 // Members
                 VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                    Text("Members")
-                        .font(AppTypography.headline)
-                        .foregroundColor(AppColors.textPrimary)
+                    HStack {
+                        Text("Members")
+                            .font(AppTypography.headline)
+                            .foregroundColor(AppColors.textPrimary)
+                        Spacer()
+                        if !invitableFriends.isEmpty {
+                            Button {
+                                showingInviteFriends = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person.badge.plus")
+                                    Text("Invite")
+                                }
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(AppColors.brandPrimary)
+                            }
+                        }
+                    }
                     
                     ForEach(members) { member in
                         HStack(spacing: AppSpacing.md) {
@@ -481,6 +504,14 @@ struct GroupDetailView: View {
         } message: {
             Text("This will permanently delete the group and its leaderboard for all members.")
         }
+        .sheet(isPresented: $showingInviteFriends) {
+            InviteToGroupSheet(group: group) {
+                // Refresh members after inviting
+                Task {
+                    members = await groupService.fetchMemberProfiles(for: group.memberIds)
+                }
+            }
+        }
     }
     
     private func leaderboardRow(entry: GroupLeaderboardEntry, position: Int) -> some View {
@@ -523,6 +554,84 @@ struct GroupDetailView: View {
         .padding(.vertical, AppSpacing.xs)
         .background(entry.isCurrentUser ? AppColors.brandPrimary.opacity(0.06) : Color.clear)
         .cornerRadius(AppSpacing.radiusSm)
+    }
+}
+
+// MARK: - Invite to Group Sheet
+struct InviteToGroupSheet: View {
+    let group: IppoGroup
+    var onInvited: () -> Void
+    @StateObject private var groupService = GroupService.shared
+    @Environment(\.dismiss) var dismiss
+    @State private var invitedIds: Set<String> = []
+    
+    private var invitableFriends: [String] {
+        let currentMembers = Set(group.memberIds)
+        return UserData.shared.friends.filter { !currentMembers.contains($0) }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: AppSpacing.lg) {
+                if invitableFriends.isEmpty {
+                    VStack(spacing: AppSpacing.sm) {
+                        Image(systemName: "person.2.slash")
+                            .font(.largeTitle)
+                            .foregroundColor(AppColors.textTertiary)
+                        Text("No friends to invite")
+                            .font(AppTypography.subheadline)
+                            .foregroundColor(AppColors.textSecondary)
+                        Text("All your friends are already in this group, or add more friends first.")
+                            .font(AppTypography.caption1)
+                            .foregroundColor(AppColors.textTertiary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppSpacing.xxl)
+                } else {
+                    List {
+                        ForEach(invitableFriends, id: \.self) { friendId in
+                            HStack {
+                                Text(friendId.prefix(20) + (friendId.count > 20 ? "..." : ""))
+                                    .font(AppTypography.subheadline)
+                                    .foregroundColor(AppColors.textPrimary)
+                                
+                                Spacer()
+                                
+                                if invitedIds.contains(friendId) {
+                                    Text("Invited")
+                                        .font(AppTypography.caption1)
+                                        .foregroundColor(AppColors.success)
+                                } else {
+                                    Button("Invite") {
+                                        Task {
+                                            await groupService.inviteFriend(uid: friendId, toGroup: group.id)
+                                            invitedIds.insert(friendId)
+                                        }
+                                    }
+                                    .font(AppTypography.caption1)
+                                    .foregroundColor(AppColors.brandPrimary)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
+            .navigationTitle("Invite Friends")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        if !invitedIds.isEmpty {
+                            onInvited()
+                        }
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -716,6 +825,20 @@ struct CreateGroupSheet: View {
                 
                 Spacer()
                 
+                // Group limit warning
+                if !groupService.canCreateGroup {
+                    Text("You've reached the maximum of \(GroupService.maxGroups) groups.")
+                        .font(AppTypography.caption1)
+                        .foregroundColor(AppColors.danger)
+                        .multilineTextAlignment(.center)
+                }
+                
+                if let error = groupService.createError {
+                    Text(error)
+                        .font(AppTypography.caption1)
+                        .foregroundColor(AppColors.danger)
+                }
+                
                 Button {
                     isCreating = true
                     Task {
@@ -724,7 +847,9 @@ struct CreateGroupSheet: View {
                             invitedFriendIds: Array(selectedFriendIds)
                         )
                         isCreating = false
-                        dismiss()
+                        if groupService.createError == nil {
+                            dismiss()
+                        }
                     }
                 } label: {
                     HStack {
@@ -738,10 +863,10 @@ struct CreateGroupSheet: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, AppSpacing.md)
-                    .background(groupName.isEmpty ? AppColors.textTertiary : AppColors.brandPrimary)
+                    .background((groupName.isEmpty || !groupService.canCreateGroup) ? AppColors.textTertiary : AppColors.brandPrimary)
                     .cornerRadius(AppSpacing.radiusMd)
                 }
-                .disabled(groupName.isEmpty || isCreating)
+                .disabled(groupName.isEmpty || isCreating || !groupService.canCreateGroup)
             }
             .padding(AppSpacing.screenPadding)
             .background(AppColors.background)
