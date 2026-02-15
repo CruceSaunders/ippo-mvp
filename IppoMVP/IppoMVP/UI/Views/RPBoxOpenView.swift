@@ -87,24 +87,22 @@ struct RPBoxOpenView: View {
             .allowsHitTesting(false)
             
             // Main content
-            VStack(spacing: 30) {
-                Spacer()
+            VStack(spacing: 20) {
+                // Box count -- always visible at top
+                Text("\(userData.totalRPBoxes) remaining")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(AppColors.textSecondary)
+                    .padding(.top, 60)
                 
-                // Box count (idle only)
-                if phase == .idle {
-                    Text("\(userData.totalRPBoxes) RP Boxes")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(AppColors.textSecondary)
-                        .transition(.opacity)
-                }
-                
-                // Hint text (tapping phase)
+                // Hint text (first box only)
                 if phase == .tapping && showHint {
                     Text("Tap to open!")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundColor(AppColors.textSecondary)
                         .transition(.opacity)
                 }
+                
+                Spacer()
                 
                 // The Box or the Reveal
                 if phase != .reveal {
@@ -127,71 +125,17 @@ struct RPBoxOpenView: View {
                 
                 Spacer()
                 
-                // Bottom buttons (idle only)
-                if phase == .idle {
-                    VStack(spacing: 12) {
-                        Button {
-                            beginTapping()
-                        } label: {
-                            Text("Open Box")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(
-                                    LinearGradient(
-                                        colors: [AppColors.brandPrimary, AppColors.brandSecondary],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .cornerRadius(14)
-                        }
-                        .disabled(userData.totalRPBoxes == 0)
-                        
-                        Button("Close") { dismiss() }
-                            .font(.system(size: 15))
-                            .foregroundColor(AppColors.textSecondary)
-                    }
-                    .padding(.horizontal, 30)
-                    .transition(.opacity)
-                }
-                
-                // Reveal buttons
-                if phase == .reveal {
-                    VStack(spacing: 12) {
-                        if userData.totalRPBoxes > 0 {
-                            Button {
-                                resetForNextBox()
-                            } label: {
-                                Text("Open Another (\(userData.totalRPBoxes) left)")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 14)
-                                    .background(tierColor)
-                                    .cornerRadius(12)
-                            }
-                        }
-                        
-                        Button("Done") { dismiss() }
-                            .font(.system(size: 15))
-                            .foregroundColor(AppColors.textSecondary)
-                    }
-                    .padding(.horizontal, 30)
-                    .transition(.opacity)
-                }
+                // Done button -- always visible
+                Button("Done") { dismiss() }
+                    .font(.system(size: 15))
+                    .foregroundColor(AppColors.textSecondary)
+                    .padding(.bottom, 40)
             }
-            .padding(.bottom, 40)
         }
         .onAppear {
             softHaptic.prepare()
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                glowPulse = true
-            }
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                boxScale = 1.0
-            }
+            // Immediately enter tapping mode -- no idle phase
+            beginTapping()
         }
     }
     
@@ -308,6 +252,14 @@ struct RPBoxOpenView: View {
     
     // MARK: - Begin Tapping Phase
     private func beginTapping() {
+        guard userData.totalRPBoxes > 0 else {
+            // No boxes -- auto-dismiss after a moment
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                dismiss()
+            }
+            return
+        }
+        
         // Open box data immediately
         contents = userData.openRPBox()
         guard contents != nil else { return }
@@ -316,9 +268,23 @@ struct RPBoxOpenView: View {
         tapCount = 0
         showHint = true
         lightRays = true
+        boxScale = 0.6
+        boxOpacity = 1
+        boxGlow = 0.3
+        boxShakeOffset = 0
+        borderGlow = 0.6
+        tapWiggle = 0
+        lidOffset = 0
+        revealScale = 0.3
+        revealOpacity = 0
+        flashOpacity = 0
+        tapSparkles = []
         
         withAnimation(.easeInOut(duration: 0.3)) {
             phase = .tapping
+        }
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+            boxScale = 1.0
         }
         
         // Fade hint after 2 seconds
@@ -480,34 +446,21 @@ struct RPBoxOpenView: View {
                     revealScale = 1.0
                     revealOpacity = 1
                 }
+                
+                // Auto-reset to tapping after 1.5s if more boxes remain
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    if userData.totalRPBoxes > 0 {
+                        beginTapping()
+                    }
+                    // If no more boxes, stay on reveal -- user taps "Done"
+                }
             }
         }
     }
     
-    // MARK: - Reset
+    // MARK: - Reset (kept for reference but beginTapping handles reset now)
     private func resetForNextBox() {
-        phase = .idle
-        contents = nil
-        tapCount = 0
-        tapsRequired = 5
-        showHint = false
-        boxScale = 0.6
-        boxRotation = 0
-        boxGlow = 0.3
-        boxShakeOffset = 0
-        boxOpacity = 1
-        flashOpacity = 0
-        revealScale = 0.3
-        revealOpacity = 0
-        lidOffset = 0
-        lightRays = false
-        borderGlow = 0.6
-        tapWiggle = 0
-        tapSparkles = []
-        
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-            boxScale = 1.0
-        }
+        beginTapping()
     }
 }
 

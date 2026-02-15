@@ -168,6 +168,8 @@ struct PlayerProfile: Codable, Equatable {
     var totalDurationSeconds: Int
     var weeklyRP: Int
     var weeklyRPResetDate: Date
+    var birthYear: Int?
+    var biologicalSex: String?  // "male", "female", "other"
     
     init(
         id: String = UUID().uuidString,
@@ -186,7 +188,9 @@ struct PlayerProfile: Codable, Equatable {
         totalDistanceMeters: Double = 0,
         totalDurationSeconds: Int = 0,
         weeklyRP: Int = 0,
-        weeklyRPResetDate: Date = Self.nextMondayMidnight()
+        weeklyRPResetDate: Date = Self.nextMondayMidnight(),
+        birthYear: Int? = nil,
+        biologicalSex: String? = nil
     ) {
         self.id = id
         self.displayName = displayName
@@ -205,6 +209,29 @@ struct PlayerProfile: Codable, Equatable {
         self.totalDurationSeconds = totalDurationSeconds
         self.weeklyRP = weeklyRP
         self.weeklyRPResetDate = weeklyRPResetDate
+        self.birthYear = birthYear
+        self.biologicalSex = biologicalSex
+    }
+    
+    // MARK: - Heart Rate Zone Calculations
+    
+    /// Estimated age from birth year
+    var estimatedAge: Int? {
+        guard let birthYear else { return nil }
+        return Calendar.current.component(.year, from: Date()) - birthYear
+    }
+    
+    /// Estimated max heart rate using Tanaka formula: 208 - (0.7 * age)
+    /// More accurate than the old 220-age formula
+    var estimatedMaxHR: Int? {
+        guard let age = estimatedAge, age > 0 else { return nil }
+        return Int(208.0 - (0.7 * Double(age)))
+    }
+    
+    /// HR Zone 4 threshold (80% of max HR) -- the minimum for "hard effort"
+    var hrZone4Threshold: Int? {
+        guard let maxHR = estimatedMaxHR else { return nil }
+        return Int(Double(maxHR) * 0.80)
     }
     
     var rank: Rank {

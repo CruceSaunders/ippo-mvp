@@ -111,8 +111,35 @@ final class GroupService: ObservableObject {
             ])
             
             userGroups.removeAll { $0.id == groupId }
+            
+            // Auto-delete group if no members left
+            let doc = try await db.collection("groups").document(groupId).getDocument()
+            if let data = doc.data(),
+               let memberIds = data["memberIds"] as? [String],
+               memberIds.isEmpty {
+                try await db.collection("groups").document(groupId).delete()
+            }
         } catch {
             print("GroupService: Failed to leave group - \(error)")
+        }
+    }
+    
+    // MARK: - Delete Group (owner only)
+    func deleteGroup(_ groupId: String) async {
+        do {
+            // Delete the weekly leaderboard sub-collection docs
+            let leaderboardDocs = try await db.collection("groups").document(groupId)
+                .collection("weeklyLeaderboard").getDocuments()
+            for doc in leaderboardDocs.documents {
+                try await doc.reference.delete()
+            }
+            
+            // Delete the group document
+            try await db.collection("groups").document(groupId).delete()
+            
+            userGroups.removeAll { $0.id == groupId }
+        } catch {
+            print("GroupService: Failed to delete group - \(error)")
         }
     }
     

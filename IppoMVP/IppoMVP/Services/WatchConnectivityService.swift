@@ -99,7 +99,11 @@ extension WatchConnectivityService: WCSessionDelegate {
             if let type = message["type"] as? String {
                 switch type {
                 case "syncRequest":
-                    replyHandler(["status": "ok"])
+                    var response: [String: Any] = ["status": "ok"]
+                    if let maxHR = UserData.shared.profile.estimatedMaxHR {
+                        response["estimatedMaxHR"] = maxHR
+                    }
+                    replyHandler(response)
                 default:
                     replyHandler([:])
                 }

@@ -7,11 +7,15 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     static let shared = WatchConnectivityServiceWatch()
     
     @Published var isConnected: Bool = false
+    @Published var estimatedMaxHR: Int = 0  // Synced from phone profile
     
     private var session: WCSession?
     
     override init() {
         super.init()
+        
+        // Load cached maxHR
+        estimatedMaxHR = UserDefaults.standard.integer(forKey: "ippo.estimatedMaxHR")
         
         if WCSession.isSupported() {
             session = WCSession.default
@@ -22,10 +26,7 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     
     // MARK: - Send Run Summary
     func sendRunSummary(_ summary: WatchRunSummary) {
-        guard let session = session, session.isReachable else {
-            // Queue for later
-            return
-        }
+        guard let session = session, session.isReachable else { return }
         
         let payload: [String: Any] = [
             "type": "runEnded",
@@ -44,15 +45,26 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Request Sync
+    // MARK: - Request Sync (gets maxHR from phone)
     func requestSync() {
         guard let session = session, session.isReachable else { return }
         
-        session.sendMessage(["type": "syncRequest"], replyHandler: { _ in
-            // No pet data to sync anymore
+        session.sendMessage(["type": "syncRequest"], replyHandler: { [weak self] response in
+            Task { @MainActor in
+                if let maxHR = response["estimatedMaxHR"] as? Int, maxHR > 0 {
+                    self?.estimatedMaxHR = maxHR
+                    UserDefaults.standard.set(maxHR, forKey: "ippo.estimatedMaxHR")
+                }
+            }
         }, errorHandler: { error in
             print("Sync request failed: \(error)")
         })
+    }
+    
+    /// HR Zone 4 threshold (80% of max HR)
+    var hrZone4Threshold: Int {
+        guard estimatedMaxHR > 0 else { return 0 }
+        return Int(Double(estimatedMaxHR) * 0.80)
     }
 }
 
@@ -61,10 +73,20 @@ extension WatchConnectivityServiceWatch: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         Task { @MainActor in
             isConnected = activationState == .activated
+            if isConnected {
+                requestSync()
+            }
         }
     }
     
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        // Handle incoming messages from phone if needed
+        Task { @MainActor in
+            if let type = message["type"] as? String, type == "profileSync" {
+                if let maxHR = message["estimatedMaxHR"] as? Int, maxHR > 0 {
+                    estimatedMaxHR = maxHR
+                    UserDefaults.standard.set(maxHR, forKey: "ippo.estimatedMaxHR")
+                }
+            }
+        }
     }
 }

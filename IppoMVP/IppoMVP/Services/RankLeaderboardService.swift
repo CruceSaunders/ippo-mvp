@@ -41,9 +41,15 @@ final class RankLeaderboardService: ObservableObject {
     
     // MARK: - Public API
     
+    /// Currently selected division filter per rank (nil = all divisions)
+    @Published var selectedDivision: [Rank: Division] = [:]
+    
     /// Fetch the first page of players for a rank. Uses cache if fresh.
-    func fetchPlayers(for rank: Rank, forceRefresh: Bool = false) async {
-        // Return cached data if fresh and not force-refreshing
+    func fetchPlayers(for rank: Rank, division: Division? = nil, forceRefresh: Bool = false) async {
+        // Update selected division
+        selectedDivision[rank] = division
+        
+        // Return cached data if fresh and not force-refreshing and same division
         if !forceRefresh,
            let lastFetch = lastFetchTimes[rank],
            Date().timeIntervalSince(lastFetch) < cacheTTL,
@@ -60,7 +66,7 @@ final class RankLeaderboardService: ObservableObject {
         defer { loadingRanks.remove(rank) }
         
         do {
-            let query = buildQuery(for: rank, startAfter: nil)
+            let query = buildQuery(for: rank, division: division, startAfter: nil)
             let snapshot = try await query.getDocuments()
             
             let currentUserId = AuthService.shared.userId
@@ -163,14 +169,15 @@ final class RankLeaderboardService: ObservableObject {
     
     // MARK: - Private Helpers
     
-    /// Build the Firestore query for players within a rank's RP range.
-    private func buildQuery(for rank: Rank, startAfter: DocumentSnapshot?) -> Query {
-        var query: Query = db.collection("users")
-            .whereField("rankSearchFields.rp", isGreaterThanOrEqualTo: rank.baseRPRequired)
+    /// Build the Firestore query for players within a rank's RP range, optionally filtered by division.
+    private func buildQuery(for rank: Rank, division: Division? = nil, startAfter: DocumentSnapshot?) -> Query {
+        let rpRange = rpBounds(for: rank, division: division)
         
-        // Add upper bound (except for Diamond which has no ceiling)
-        if let nextRank = rank.nextRank {
-            query = query.whereField("rankSearchFields.rp", isLessThan: nextRank.baseRPRequired)
+        var query: Query = db.collection("users")
+            .whereField("rankSearchFields.rp", isGreaterThanOrEqualTo: rpRange.lower)
+        
+        if let upper = rpRange.upper {
+            query = query.whereField("rankSearchFields.rp", isLessThan: upper)
         }
         
         query = query
@@ -182,6 +189,28 @@ final class RankLeaderboardService: ObservableObject {
         }
         
         return query
+    }
+    
+    /// Calculate RP bounds for a rank, optionally narrowed to a specific division.
+    private func rpBounds(for rank: Rank, division: Division?) -> (lower: Int, upper: Int?) {
+        guard let division else {
+            // Full rank range
+            let lower = rank.baseRPRequired
+            let upper = rank.nextRank?.baseRPRequired
+            return (lower, upper)
+        }
+        
+        let divisionRP = rank.rpPerDivision
+        let base = rank.baseRPRequired
+        
+        switch division {
+        case .three:
+            return (base, base + divisionRP)
+        case .two:
+            return (base + divisionRP, base + divisionRP * 2)
+        case .one:
+            return (base + divisionRP * 2, rank.nextRank?.baseRPRequired)
+        }
     }
     
     /// Build a count-only query (no limit needed for aggregation).

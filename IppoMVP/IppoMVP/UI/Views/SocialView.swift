@@ -300,7 +300,12 @@ struct GroupDetailView: View {
     @State private var members: [FriendProfile] = []
     @State private var isLoading = true
     @State private var showingLeaveConfirm = false
+    @State private var showingDeleteConfirm = false
     @Environment(\.dismiss) var dismiss
+    
+    private var isOwner: Bool {
+        group.ownerUid == AuthService.shared.userId
+    }
     
     var body: some View {
         ScrollView {
@@ -412,17 +417,31 @@ struct GroupDetailView: View {
                 }
                 .cardStyle()
                 
-                // Leave group
-                Button {
-                    showingLeaveConfirm = true
-                } label: {
-                    Text("Leave Group")
-                        .font(AppTypography.subheadline)
-                        .foregroundColor(AppColors.danger)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, AppSpacing.md)
-                        .background(AppColors.danger.opacity(0.1))
-                        .cornerRadius(AppSpacing.radiusMd)
+                // Leave or delete group
+                if isOwner {
+                    Button {
+                        showingDeleteConfirm = true
+                    } label: {
+                        Text("Delete Group")
+                            .font(AppTypography.subheadline)
+                            .foregroundColor(AppColors.danger)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, AppSpacing.md)
+                            .background(AppColors.danger.opacity(0.1))
+                            .cornerRadius(AppSpacing.radiusMd)
+                    }
+                } else {
+                    Button {
+                        showingLeaveConfirm = true
+                    } label: {
+                        Text("Leave Group")
+                            .font(AppTypography.subheadline)
+                            .foregroundColor(AppColors.danger)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, AppSpacing.md)
+                            .background(AppColors.danger.opacity(0.1))
+                            .cornerRadius(AppSpacing.radiusMd)
+                    }
                 }
             }
             .padding(.horizontal, AppSpacing.screenPadding)
@@ -450,6 +469,17 @@ struct GroupDetailView: View {
             }
         } message: {
             Text("You can be re-invited later.")
+        }
+        .alert("Delete Group?", isPresented: $showingDeleteConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task {
+                    await groupService.deleteGroup(group.id)
+                    dismiss()
+                }
+            }
+        } message: {
+            Text("This will permanently delete the group and its leaderboard for all members.")
         }
     }
     

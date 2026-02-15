@@ -766,6 +766,7 @@ struct IppoCompleteOnboardingFlow: View {
     enum IppoOnboardingStep: CaseIterable {
         case welcome
         case features
+        case aboutYou
         case watchPairing
         case permissions
         case ready
@@ -809,6 +810,13 @@ struct IppoCompleteOnboardingFlow: View {
                 
             case .features:
                 IppoOnboardingCarousel(pages: featurePages) {
+                    transitionTo(.aboutYou)
+                }
+                
+            case .aboutYou:
+                IppoAboutYouView {
+                    transitionTo(.watchPairing)
+                } onSkip: {
                     transitionTo(.watchPairing)
                 }
                 
@@ -1024,6 +1032,135 @@ private struct OnboardingConfettiParticle: Identifiable {
     var rotation: Double
     var position: CGPoint
     var opacity: Double
+}
+
+// MARK: - About You View (Biometrics Collection)
+
+struct IppoAboutYouView: View {
+    var onComplete: () -> Void
+    var onSkip: () -> Void
+    
+    @State private var selectedBirthYear: Int = 2000
+    @State private var selectedSex: String = "male"
+    
+    private let currentYear = Calendar.current.component(.year, from: Date())
+    private var birthYearRange: [Int] {
+        Array((currentYear - 80)...(currentYear - 10)).reversed()
+    }
+    
+    var body: some View {
+        ZStack {
+            AppColors.background
+                .ignoresSafeArea()
+            
+            VStack(spacing: AppSpacing.xxl) {
+                Spacer()
+                
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(AppColors.brandPrimary.opacity(0.15))
+                        .frame(width: 120, height: 120)
+                    Circle()
+                        .fill(AppColors.brandPrimary.opacity(0.3))
+                        .frame(width: 80, height: 80)
+                    Image(systemName: "heart.text.square.fill")
+                        .font(.system(size: 40, weight: .medium))
+                        .foregroundColor(AppColors.brandPrimary)
+                }
+                
+                VStack(spacing: AppSpacing.md) {
+                    Text("About You")
+                        .font(AppTypography.title1)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("This helps us calculate your heart rate zones for accurate sprint validation.")
+                        .font(AppTypography.body)
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, AppSpacing.xl)
+                }
+                
+                // Birth Year
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    Text("Birth Year")
+                        .font(AppTypography.subheadline)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Picker("Birth Year", selection: $selectedBirthYear) {
+                        ForEach(birthYearRange, id: \.self) { year in
+                            Text(String(year)).tag(year)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(height: 120)
+                    .clipped()
+                }
+                .padding(.horizontal, AppSpacing.xl)
+                
+                // Biological Sex
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    Text("Biological Sex")
+                        .font(AppTypography.subheadline)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Picker("Biological Sex", selection: $selectedSex) {
+                        Text("Male").tag("male")
+                        Text("Female").tag("female")
+                        Text("Other").tag("other")
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.horizontal, AppSpacing.xl)
+                
+                // Estimated Max HR display
+                let age = currentYear - selectedBirthYear
+                let maxHR = Int(208.0 - (0.7 * Double(age)))
+                VStack(spacing: AppSpacing.xxs) {
+                    Text("Estimated Max Heart Rate")
+                        .font(AppTypography.caption1)
+                        .foregroundColor(AppColors.textTertiary)
+                    Text("\(maxHR) BPM")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(AppColors.brandPrimary)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: AppSpacing.md) {
+                    Button(action: {
+                        // Save biometric data
+                        let userData = UserData.shared
+                        userData.profile.birthYear = selectedBirthYear
+                        userData.profile.biologicalSex = selectedSex
+                        userData.save()
+                        
+                        let generator = UIImpactFeedbackGenerator(style: .medium)
+                        generator.impactOccurred()
+                        onComplete()
+                    }) {
+                        Text("Continue")
+                            .font(AppTypography.headline)
+                            .foregroundColor(AppColors.background)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(AppColors.brandPrimary)
+                            .cornerRadius(25)
+                    }
+                    
+                    Button("Skip for Now") {
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
+                        onSkip()
+                    }
+                    .font(AppTypography.body)
+                    .foregroundColor(AppColors.textSecondary)
+                }
+                .padding(.horizontal, AppSpacing.xl)
+                .padding(.bottom, AppSpacing.xxxl)
+            }
+        }
+    }
 }
 
 // MARK: - Previews

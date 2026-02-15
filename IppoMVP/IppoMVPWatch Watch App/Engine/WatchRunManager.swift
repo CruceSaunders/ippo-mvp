@@ -113,12 +113,21 @@ final class WatchRunManager: NSObject, ObservableObject {
     
     // MARK: - HealthKit
     private func requestHealthKitPermissions() {
-        let typesToShare: Set<HKSampleType> = [HKWorkoutType.workoutType()]
+        let typesToShare: Set<HKSampleType> = [
+            HKWorkoutType.workoutType(),
+            HKQuantityType.quantityType(forIdentifier: .heartRate)!,
+            HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+            HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
+            HKQuantityType.quantityType(forIdentifier: .stepCount)!
+        ]
         let typesToRead: Set<HKObjectType> = [
             HKQuantityType.quantityType(forIdentifier: .heartRate)!,
             HKQuantityType.quantityType(forIdentifier: .stepCount)!,
             HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!,
-            HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+            HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
+            HKQuantityType.quantityType(forIdentifier: .runningSpeed)!,
+            HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!,
+            HKObjectType.characteristicType(forIdentifier: .biologicalSex)!
         ]
         
         healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { success, error in
@@ -411,12 +420,26 @@ final class WatchRunManager: NSObject, ObservableObject {
     private func validateSprint() -> Bool {
         guard !sprintHRSamples.isEmpty else { return false }
         
-        let hrIncrease = peakHR - baselineHR
-        let hrScore = min(1.0, Double(hrIncrease) / 20.0)
-        let cadenceScore = min(1.0, Double(peakCadence) / 160.0)
-        let totalScore = (hrScore * 0.50 + cadenceScore * 0.35 + 0.15) * 100
+        let zone4Threshold = WatchConnectivityServiceWatch.shared.hrZone4Threshold
         
-        return totalScore >= 60
+        if zone4Threshold > 0 {
+            // HR Zone-based validation: at least 50% of samples must be at or above zone 4
+            let validSamples = sprintHRSamples.filter { $0 > 0 }  // Exclude zero readings
+            guard !validSamples.isEmpty else { return false }
+            
+            let samplesInZone4 = validSamples.filter { $0 >= zone4Threshold }.count
+            let zone4Ratio = Double(samplesInZone4) / Double(validSamples.count)
+            
+            // Lenient: 50% of samples need to be in zone 4+
+            return zone4Ratio >= 0.50
+        } else {
+            // Fallback: HR increase method (for users without maxHR data)
+            let hrIncrease = peakHR - baselineHR
+            let hrScore = min(1.0, Double(hrIncrease) / 20.0)
+            let cadenceScore = min(1.0, Double(peakCadence) / 160.0)
+            let totalScore = (hrScore * 0.50 + cadenceScore * 0.35 + 0.15) * 100
+            return totalScore >= 60
+        }
     }
     
     private func startRecovery() {

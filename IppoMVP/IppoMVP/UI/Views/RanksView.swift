@@ -239,18 +239,44 @@ struct RanksView: View {
                         .foregroundColor(isCurrent ? AppColors.textPrimary : AppColors.textSecondary)
                         .fontWeight(isCurrent ? .bold : .regular)
                     
-                    // Divisions row
+                    // Divisions row (tappable for filtering)
                     HStack(spacing: AppSpacing.xs) {
-                        ForEach([Division.three, .two, .one], id: \.self) { division in
-                            let tier = RankTier(rank: rank, division: division)
-                            let isCurrentTier = userData.profile.rankTier == tier
-                            Text(division.displayName)
-                                .font(.system(size: 10, weight: isCurrentTier ? .bold : .regular))
-                                .foregroundColor(isCurrentTier ? rankColor(rank) : AppColors.textTertiary)
+                        // "All" filter
+                        let allSelected = leaderboardService.selectedDivision[rank] == nil && isExpanded
+                        Button {
+                            Task {
+                                leaderboardService.invalidateCache(for: rank)
+                                await leaderboardService.fetchPlayers(for: rank, division: nil, forceRefresh: true)
+                            }
+                        } label: {
+                            Text("All")
+                                .font(.system(size: 10, weight: allSelected ? .bold : .regular))
+                                .foregroundColor(allSelected ? rankColor(rank) : AppColors.textTertiary)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 2)
-                                .background(isCurrentTier ? rankColor(rank).opacity(0.15) : Color.clear)
+                                .background(allSelected ? rankColor(rank).opacity(0.15) : Color.clear)
                                 .cornerRadius(3)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        ForEach([Division.three, .two, .one], id: \.self) { division in
+                            let isCurrentTier = userData.profile.rankTier == RankTier(rank: rank, division: division)
+                            let isSelectedFilter = leaderboardService.selectedDivision[rank] == division && isExpanded
+                            Button {
+                                Task {
+                                    leaderboardService.invalidateCache(for: rank)
+                                    await leaderboardService.fetchPlayers(for: rank, division: division, forceRefresh: true)
+                                }
+                            } label: {
+                                Text(division.displayName)
+                                    .font(.system(size: 10, weight: (isCurrentTier || isSelectedFilter) ? .bold : .regular))
+                                    .foregroundColor((isCurrentTier || isSelectedFilter) ? rankColor(rank) : AppColors.textTertiary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .background((isCurrentTier || isSelectedFilter) ? rankColor(rank).opacity(0.15) : Color.clear)
+                                    .cornerRadius(3)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
