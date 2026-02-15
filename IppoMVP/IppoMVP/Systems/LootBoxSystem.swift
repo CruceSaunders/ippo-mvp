@@ -1,7 +1,8 @@
 import Foundation
 import Combine
 
-/// RPBoxSystem — handles opening RP Boxes with animation delay
+/// RPBoxSystem -- handles RP Box opening logic
+/// Animation is now handled by RPBoxOpenView, so this is instant
 @MainActor
 final class RPBoxSystem: ObservableObject {
     static let shared = RPBoxSystem()
@@ -12,27 +13,16 @@ final class RPBoxSystem: ObservableObject {
     
     private init() {}
     
-    // MARK: - Open RP Box
-    func openRPBox() async -> RPBoxContents? {
+    // MARK: - Open RP Box (instant -- animation handled by view)
+    func openRPBox() -> RPBoxContents? {
         let userData = UserData.shared
         
-        // Check we have boxes
         guard userData.totalRPBoxes > 0 else { return nil }
         
-        isOpening = true
-        
-        // Animation delay (1.5 seconds for suspense)
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
-        
-        // Open and get contents
-        guard let contents = userData.openRPBox() else {
-            isOpening = false
-            return nil
-        }
+        guard let contents = userData.openRPBox() else { return nil }
         
         lastContents = contents
         lastTier = contents.tier
-        isOpening = false
         
         return contents
     }

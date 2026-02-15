@@ -2,10 +2,8 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var userData: UserData
-    @StateObject private var rpBoxSystem = RPBoxSystem.shared
     @State private var showingRunPrompt = false
     @State private var showingRPBoxOpen = false
-    @State private var lastOpenedContents: RPBoxContents?
     @State private var showingSettings = false
     @State private var showingRunHistory = false
     
@@ -20,9 +18,7 @@ struct HomeView: View {
                     startRunSection
                     
                     // RP Boxes Section
-                    if userData.totalRPBoxes > 0 {
-                        rpBoxSection
-                    }
+                    rpBoxSection
                     
                     // Stats Grid
                     statsGrid
@@ -172,15 +168,9 @@ struct HomeView: View {
                     .foregroundColor(AppColors.brandPrimary)
             }
             
-            // Open Box Button
+            // Open Box Button -- launches full-screen opening experience
             Button {
-                Task {
-                    if let contents = await rpBoxSystem.openRPBox() {
-                        lastOpenedContents = contents
-                        showingRPBoxOpen = true
-                        HapticsManager.shared.playSuccess()
-                    }
-                }
+                showingRPBoxOpen = true
             } label: {
                 HStack(spacing: AppSpacing.md) {
                     Image(systemName: "gift.fill")
@@ -194,7 +184,7 @@ struct HomeView: View {
                         )
                     
                     VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
-                        Text(rpBoxSystem.isOpening ? "Opening..." : "Open RP Box")
+                        Text("Open RP Box")
                             .font(AppTypography.headline)
                             .foregroundColor(AppColors.textPrimary)
                         Text("1-25 Reputation Points inside")
@@ -204,13 +194,8 @@ struct HomeView: View {
                     
                     Spacer()
                     
-                    if rpBoxSystem.isOpening {
-                        ProgressView()
-                            .tint(AppColors.brandPrimary)
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(AppColors.textTertiary)
-                    }
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(AppColors.textTertiary)
                 }
                 .padding(AppSpacing.cardPadding)
                 .background(AppColors.brandPrimary.opacity(0.08))
@@ -220,53 +205,12 @@ struct HomeView: View {
                         .stroke(AppColors.brandPrimary.opacity(0.3), lineWidth: 1)
                 )
             }
-            .disabled(rpBoxSystem.isOpening || userData.totalRPBoxes == 0)
-            
-            // Show last opened result
-            if showingRPBoxOpen, let contents = lastOpenedContents {
-                rpBoxResultView(contents)
-            }
+            .disabled(userData.totalRPBoxes == 0)
         }
         .cardStyle()
-    }
-    
-    private func rpBoxResultView(_ contents: RPBoxContents) -> some View {
-        HStack(spacing: AppSpacing.md) {
-            Image(systemName: "sparkles")
-                .font(.title2)
-                .foregroundColor(tierColor(contents.tier))
-            
-            VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
-                Text("+\(contents.rpAmount) RP")
-                    .font(AppTypography.headline)
-                    .foregroundColor(tierColor(contents.tier))
-                Text(contents.tier.displayName)
-                    .font(AppTypography.caption2)
-                    .foregroundColor(AppColors.textSecondary)
-            }
-            
-            Spacer()
-            
-            Button {
-                showingRPBoxOpen = false
-                lastOpenedContents = nil
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(AppColors.textTertiary)
-            }
-        }
-        .padding(AppSpacing.sm)
-        .background(tierColor(contents.tier).opacity(0.1))
-        .cornerRadius(AppSpacing.radiusSm)
-    }
-    
-    private func tierColor(_ tier: RPBoxTier) -> Color {
-        switch tier {
-        case .common: return AppColors.textSecondary
-        case .uncommon: return .green
-        case .rare: return .blue
-        case .epic: return .purple
-        case .legendary: return .orange
+        .fullScreenCover(isPresented: $showingRPBoxOpen) {
+            RPBoxOpenView()
+                .environmentObject(userData)
         }
     }
     
@@ -491,6 +435,7 @@ struct SettingsSheet: View {
     @State private var username: String = ""
     @State private var showingSignOutConfirm = false
     @State private var showingDeleteConfirm = false
+    @State private var showingDebugPanel = false
     
     var body: some View {
         NavigationStack {
@@ -522,13 +467,15 @@ struct SettingsSheet: View {
                     }
                 }
                 
-                #if DEBUG
-                Section("Debug") {
-                    Button("Load Test Data") {
-                        userData.loadTestData()
+                // Admin panel -- only visible to crucesaunders@icloud.com
+                if AuthService.shared.isAdmin {
+                    Section("Admin") {
+                        Button("Debug Panel") {
+                            showingDebugPanel = true
+                        }
+                        .foregroundColor(AppColors.brandPrimary)
                     }
                 }
-                #endif
                 
                 Section("Account") {
                     Button("Sign Out") {
@@ -573,6 +520,10 @@ struct SettingsSheet: View {
                 }
             } message: {
                 Text("This will permanently delete your account and all data. This cannot be undone.")
+            }
+            .sheet(isPresented: $showingDebugPanel) {
+                AdminDebugView()
+                    .environmentObject(userData)
             }
         }
     }
