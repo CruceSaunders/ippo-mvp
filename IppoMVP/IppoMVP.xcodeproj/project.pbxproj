@@ -360,6 +360,7 @@
 				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ippo saves your workout data to track your progress.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -395,6 +396,7 @@
 				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ippo saves your workout data to track your progress.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -430,6 +432,7 @@
 				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_CFBundleDisplayName = "IppoMVP Watch";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ippo saves your workout data to track your progress.";
@@ -466,6 +469,7 @@
 				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_CFBundleDisplayName = "IppoMVP Watch";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ippo saves your workout data to track your progress.";
