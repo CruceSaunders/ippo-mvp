@@ -126,19 +126,19 @@ struct WatchSummaryView: View {
     }
     
     private func formatDistance(_ meters: Double) -> String {
-        let km = meters / 1000.0
-        if km < 0.01 { return "0.00 km" }
-        return String(format: "%.2f km", km)
+        let miles = meters / 1609.34
+        if miles < 0.01 { return "0.00 mi" }
+        return String(format: "%.2f mi", miles)
     }
     
     private func formatPace(duration: Int, distance: Double) -> String {
-        guard distance > 50 else { return "--:--" }
-        let km = distance / 1000.0
-        let minutesPerKm = (Double(duration) / 60.0) / km
+        guard distance > 80 else { return "--:--" }
+        let miles = distance / 1609.34
+        let minutesPerKm = (Double(duration) / 60.0) / miles
         guard minutesPerKm.isFinite && minutesPerKm > 0 && minutesPerKm < 60 else { return "--:--" }
         let m = Int(minutesPerKm)
         let s = Int((minutesPerKm - Double(m)) * 60)
-        return String(format: "%d:%02d/km", m, s)
+        return String(format: "%d:%02d/mi", m, s)
     }
 }
 

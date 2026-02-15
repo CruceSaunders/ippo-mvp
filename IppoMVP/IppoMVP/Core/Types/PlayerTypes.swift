@@ -392,19 +392,19 @@ struct CompletedRun: Identifiable, Codable, Equatable {
     }
     
     var formattedDistance: String {
-        let km = distanceMeters / 1000.0
-        if km < 0.01 { return "0.00 km" }
-        return String(format: "%.2f km", km)
+        let miles = distanceMeters / 1609.34
+        if miles < 0.01 { return "0.00 mi" }
+        return String(format: "%.2f mi", miles)
     }
     
     var formattedPace: String {
-        guard distanceMeters > 50 else { return "--:--" }
-        let km = distanceMeters / 1000.0
-        let minutesPerKm = (Double(durationSeconds) / 60.0) / km
-        guard minutesPerKm.isFinite && minutesPerKm > 0 && minutesPerKm < 60 else { return "--:--" }
-        let paceMinutes = Int(minutesPerKm)
-        let paceSeconds = Int((minutesPerKm - Double(paceMinutes)) * 60)
-        return String(format: "%d:%02d /km", paceMinutes, paceSeconds)
+        guard distanceMeters > 80 else { return "--:--" }
+        let miles = distanceMeters / 1609.34
+        let minutesPerMile = (Double(durationSeconds) / 60.0) / miles
+        guard minutesPerMile.isFinite && minutesPerMile > 0 && minutesPerMile < 60 else { return "--:--" }
+        let paceMinutes = Int(minutesPerMile)
+        let paceSeconds = Int((minutesPerMile - Double(paceMinutes)) * 60)
+        return String(format: "%d:%02d /mi", paceMinutes, paceSeconds)
     }
     
     var formattedCalories: String {

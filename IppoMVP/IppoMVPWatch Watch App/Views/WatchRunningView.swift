@@ -25,13 +25,13 @@ struct WatchRunningView: View {
                     Text(runManager.formattedPace)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.white)
-                    Text("pace")
+                    Text("/mi")
                         .font(.system(size: 9))
                         .foregroundColor(.gray)
                 }
             }
             
-            // HR + Cadence row
+            // HR + Calories row
             HStack(spacing: 14) {
                 HStack(spacing: 3) {
                     Image(systemName: "heart.fill")
@@ -42,10 +42,10 @@ struct WatchRunningView: View {
                 }
                 
                 HStack(spacing: 3) {
-                    Image(systemName: "bolt.fill")
+                    Image(systemName: "flame.fill")
                         .font(.system(size: 10))
-                        .foregroundColor(.yellow)
-                    Text("\(runManager.currentCadence)")
+                        .foregroundColor(.orange)
+                    Text(runManager.formattedCalories)
                         .font(.system(size: 14, weight: .semibold))
                 }
             }

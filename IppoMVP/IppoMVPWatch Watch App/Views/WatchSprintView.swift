@@ -44,10 +44,10 @@ struct WatchSprintView: View {
                 }
                 
                 HStack(spacing: 3) {
-                    Image(systemName: "bolt.fill")
+                    Image(systemName: "flame.fill")
                         .font(.system(size: 10))
-                        .foregroundColor(.yellow)
-                    Text("\(runManager.currentCadence)")
+                        .foregroundColor(.orange)
+                    Text(runManager.formattedCalories)
                         .font(.system(size: 14, weight: .semibold))
                 }
             }
