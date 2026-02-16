@@ -278,6 +278,41 @@ final class GroupService: ObservableObject {
         }
     }
     
+    // MARK: - Cleanup Before Account Deletion
+    /// Removes user from all groups (deletes groups they own, leaves groups they're in)
+    func removeUserFromAllGroups() async {
+        guard let uid = AuthService.shared.userId else { return }
+        
+        do {
+            let snapshot = try await db.collection("groups")
+                .whereField("memberIds", arrayContains: uid)
+                .getDocuments()
+            
+            for doc in snapshot.documents {
+                let data = doc.data()
+                let ownerUid = data["ownerUid"] as? String
+                
+                if ownerUid == uid {
+                    // User owns this group -- delete it
+                    let leaderboardDocs = try await doc.reference.collection("weeklyLeaderboard").getDocuments()
+                    for lbDoc in leaderboardDocs.documents {
+                        try await lbDoc.reference.delete()
+                    }
+                    try await doc.reference.delete()
+                } else {
+                    // User is a member -- just remove them
+                    try await doc.reference.updateData([
+                        "memberIds": FieldValue.arrayRemove([uid])
+                    ])
+                }
+            }
+            
+            userGroups = []
+        } catch {
+            print("GroupService: Failed to clean up groups - \(error)")
+        }
+    }
+    
     // MARK: - Fetch Member Profiles
     func fetchMemberProfiles(for memberIds: [String]) async -> [FriendProfile] {
         guard let currentUid = AuthService.shared.userId else { return [] }

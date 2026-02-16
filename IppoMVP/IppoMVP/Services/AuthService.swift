@@ -142,7 +142,13 @@ final class AuthService: NSObject, ObservableObject {
         guard let user = Auth.auth().currentUser else { return }
         
         do {
-            // Clear cloud data first
+            // Clean up groups (delete owned, leave others)
+            await GroupService.shared.removeUserFromAllGroups()
+            
+            // Remove self from all friends' lists
+            await FriendService.shared.removeUserFromAllFriends()
+            
+            // Clear cloud data
             if let uid = userId {
                 await CloudService.shared.deleteUserData(uid: uid)
             }

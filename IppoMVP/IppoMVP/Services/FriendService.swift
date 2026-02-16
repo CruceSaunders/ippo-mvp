@@ -286,6 +286,31 @@ final class FriendService: ObservableObject {
         }
     }
     
+    // MARK: - Cleanup Before Account Deletion
+    /// Removes user from all friends' friend lists
+    func removeUserFromAllFriends() async {
+        guard let currentUid = AuthService.shared.userId else { return }
+        let userData = UserData.shared
+        
+        let batch = db.batch()
+        
+        // Remove self from each friend's friends array
+        for friendUid in userData.friends {
+            let friendDoc = db.collection("users").document(friendUid)
+            batch.updateData([
+                "friends": FieldValue.arrayRemove([currentUid])
+            ], forDocument: friendDoc)
+        }
+        
+        do {
+            try await batch.commit()
+        } catch {
+            print("FriendService: Failed to clean up friends - \(error)")
+        }
+        
+        friendProfiles = []
+    }
+    
     // MARK: - Refresh Friend Requests
     func refreshFriendRequests() async {
         guard let currentUid = AuthService.shared.userId else { return }

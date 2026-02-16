@@ -401,6 +401,9 @@ struct SettingsSheet: View {
     @State private var showingDeleteConfirm = false
     @State private var showingDebugPanel = false
     @State private var isCheckingUsername = false
+    @State private var deleteConfirmText = ""
+    @State private var isDeletingAccount = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     
     private var isUsernameValid: Bool {
         let trimmed = username.trimmingCharacters(in: .whitespaces)
@@ -510,21 +513,32 @@ struct SettingsSheet: View {
                         ProgressView()
                     } else {
                         Button("Done") {
+                            let trimmedDisplay = displayName.trimmingCharacters(in: .whitespaces)
                             let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
-                            let usernameChanged = trimmedUsername.lowercased() != userData.profile.username && !trimmedUsername.isEmpty
+                            
+                            guard !trimmedDisplay.isEmpty else {
+                                usernameError = "Display name cannot be empty"
+                                return
+                            }
+                            guard !trimmedUsername.isEmpty else {
+                                usernameError = "Username cannot be empty"
+                                return
+                            }
+                            guard isUsernameValid else {
+                                usernameError = "3-20 chars, letters/numbers/underscores only"
+                                return
+                            }
+                            
+                            let usernameChanged = trimmedUsername.lowercased() != userData.profile.username
                             
                             if usernameChanged {
-                                guard isUsernameValid else {
-                                    usernameError = "3-20 chars, letters/numbers/underscores only"
-                                    return
-                                }
                                 isCheckingUsername = true
                                 Task {
                                     let result = await FriendService.shared.checkUsernameAvailability(trimmedUsername.lowercased())
                                     isCheckingUsername = false
                                     switch result {
                                     case .available:
-                                        applyProfileChanges(displayName: displayName, username: trimmedUsername)
+                                        applyProfileChanges(displayName: trimmedDisplay, username: trimmedUsername)
                                     case .taken:
                                         usernameError = "Username is already taken"
                                     case .error(let message):
@@ -532,7 +546,7 @@ struct SettingsSheet: View {
                                     }
                                 }
                             } else {
-                                applyProfileChanges(displayName: displayName, username: trimmedUsername)
+                                applyProfileChanges(displayName: trimmedDisplay, username: trimmedUsername)
                             }
                         }
                     }
@@ -548,15 +562,26 @@ struct SettingsSheet: View {
                 Text("Your data is saved to the cloud. You can sign back in anytime.")
             }
             .alert("Delete Account?", isPresented: $showingDeleteConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) {
+                TextField("Type your username to confirm", text: $deleteConfirmText)
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+                Button("Cancel", role: .cancel) {
+                    deleteConfirmText = ""
+                }
+                Button("Delete Forever", role: .destructive) {
+                    guard deleteConfirmText.lowercased() == userData.profile.username.lowercased() else { return }
+                    isDeletingAccount = true
                     Task {
                         await AuthService.shared.deleteAccount()
+                        deleteConfirmText = ""
+                        isDeletingAccount = false
+                        hasCompletedOnboarding = false
                         dismiss()
                     }
                 }
+                .disabled(deleteConfirmText.lowercased() != userData.profile.username.lowercased())
             } message: {
-                Text("This will permanently delete your account and all data. This cannot be undone.")
+                Text("This will permanently delete your account and all data. Type \"\(userData.profile.username)\" to confirm.")
             }
             .sheet(isPresented: $showingDebugPanel) {
                 AdminDebugView()
