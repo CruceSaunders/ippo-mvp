@@ -16,16 +16,22 @@ struct IppoMVPApp: App {
     private func requestHealthPermissionsIfNeeded() {
         guard HKHealthStore.isHealthDataAvailable() else { return }
         let healthStore = HKHealthStore()
-        let hrType = HKObjectType.quantityType(forIdentifier: .heartRate)!
+        let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate)!
         let status = healthStore.authorizationStatus(for: hrType)
         if status == .notDetermined {
+            let shareTypes: Set<HKSampleType> = [
+                HKWorkoutType.workoutType(),
+                HKQuantityType.quantityType(forIdentifier: .heartRate)!,
+                HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
+                HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
+            ]
             let readTypes: Set<HKObjectType> = [
                 hrType,
                 HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
                 HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
                 HKObjectType.workoutType()
             ]
-            healthStore.requestAuthorization(toShare: [], read: readTypes) { _, _ in }
+            healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { _, _ in }
         }
     }
     

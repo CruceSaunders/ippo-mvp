@@ -448,13 +448,19 @@ struct SettingsSheet: View {
                 Section("App") {
                     Button {
                         let healthStore = HKHealthStore()
+                        let shareTypes: Set<HKSampleType> = [
+                            HKWorkoutType.workoutType(),
+                            HKQuantityType.quantityType(forIdentifier: .heartRate)!,
+                            HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
+                            HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
+                        ]
                         let readTypes: Set<HKObjectType> = [
                             HKObjectType.quantityType(forIdentifier: .heartRate)!,
                             HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
                             HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
                             HKObjectType.workoutType()
                         ]
-                        healthStore.requestAuthorization(toShare: [], read: readTypes) { _, _ in }
+                        healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { _, _ in }
                     } label: {
                         Label("Request Health Permissions", systemImage: "heart.fill")
                     }
