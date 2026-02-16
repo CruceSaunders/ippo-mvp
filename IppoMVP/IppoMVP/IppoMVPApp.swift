@@ -8,6 +8,8 @@ struct IppoMVPApp: App {
     @StateObject private var userData = UserData.shared
     @StateObject private var watchConnectivity = WatchConnectivityService.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var hasCheckedProfile = false
+    @State private var needsProfileSetup = false
     
     init() {
         FirebaseApp.configure()
@@ -50,14 +52,26 @@ struct IppoMVPApp: App {
                     // Returning user who signed out: show login
                     LoginView()
                         .environmentObject(authService)
+                } else if needsProfileSetup {
+                    // Authenticated but no profile -- force onboarding
+                    IppoCompleteOnboardingFlow {
+                        needsProfileSetup = false
+                        hasCompletedOnboarding = true
+                    }
+                    .environmentObject(userData)
+                    .environmentObject(watchConnectivity)
+                    .environmentObject(authService)
                 } else {
-                    // Signed in: show main app
+                    // Signed in: check profile then show main app
                     ContentView()
                         .environmentObject(userData)
                         .environmentObject(watchConnectivity)
                         .environmentObject(authService)
                         .task {
                             await userData.syncFromCloud()
+                            if userData.profile.username.isEmpty {
+                                needsProfileSetup = true
+                            }
                         }
                         .onAppear {
                             requestHealthPermissionsIfNeeded()
