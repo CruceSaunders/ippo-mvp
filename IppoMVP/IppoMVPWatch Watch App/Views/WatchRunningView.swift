@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WatchRunningView: View {
     @EnvironmentObject var runManager: WatchRunManager
+    @State private var showingEndConfirm = false
     
     var body: some View {
         ZStack {
@@ -93,21 +94,29 @@ struct WatchRunningView: View {
                     }
                     .buttonStyle(.plain)
                     
-                    Button {
-                        runManager.endRun()
-                    } label: {
-                        Image(systemName: "stop.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(Color.red.opacity(0.8))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
+                Button {
+                    showingEndConfirm = true
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.red.opacity(0.8))
+                        .clipShape(Circle())
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .alert("End Run?", isPresented: $showingEndConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("End", role: .destructive) {
+                runManager.endRun()
+            }
+        } message: {
+            Text("Are you sure you want to end your run?")
+        }
             
             // Sprint result overlay
             if runManager.showSprintResult {

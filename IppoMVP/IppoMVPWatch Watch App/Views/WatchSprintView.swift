@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WatchSprintView: View {
     @EnvironmentObject var runManager: WatchRunManager
+    @State private var showingEndConfirm = false
     
     var body: some View {
         VStack(spacing: 6) {
@@ -57,10 +58,31 @@ struct WatchSprintView: View {
             Text(runManager.sprintTimeRemaining <= 5 ? "Almost there!" : "Push harder!")
                 .font(.system(size: 11))
                 .foregroundColor(runManager.sprintTimeRemaining <= 5 ? .green : .cyan)
+            
+            // Stop button
+            Button {
+                showingEndConfirm = true
+            } label: {
+                Image(systemName: "stop.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white)
+                    .frame(width: 32, height: 32)
+                    .background(Color.red.opacity(0.7))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(Color.black)
+        .alert("End Run?", isPresented: $showingEndConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("End", role: .destructive) {
+                runManager.endRun()
+            }
+        } message: {
+            Text("Your current sprint will not count.")
+        }
     }
 }
 
