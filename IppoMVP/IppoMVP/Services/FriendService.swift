@@ -2,6 +2,12 @@ import Foundation
 import Combine
 import FirebaseFirestore
 
+enum UsernameCheckResult {
+    case available
+    case taken
+    case error(String)
+}
+
 @MainActor
 final class FriendService: ObservableObject {
     static let shared = FriendService()
@@ -35,6 +41,28 @@ final class FriendService: ObservableObject {
             return false
         } catch {
             return false
+        }
+    }
+    
+    /// Checks username availability with proper error distinction.
+    /// Unlike `isUsernameTaken`, this returns `.error` on network failure instead of silently allowing duplicates.
+    func checkUsernameAvailability(_ username: String) async -> UsernameCheckResult {
+        guard !username.isEmpty else { return .available }
+        
+        do {
+            let snapshot = try await db.collection("users")
+                .whereField("rankSearchFields.username", isEqualTo: username.lowercased())
+                .limit(to: 1)
+                .getDocuments()
+            
+            for doc in snapshot.documents {
+                if doc.documentID != AuthService.shared.userId {
+                    return .taken
+                }
+            }
+            return .available
+        } catch {
+            return .error("Couldn't verify username. Check your connection.")
         }
     }
     

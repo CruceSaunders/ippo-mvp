@@ -1044,6 +1044,7 @@ struct IppoAboutYouView: View {
     @State private var selectedBirthYear: Int = 2000
     @State private var selectedSex: String = "male"
     @State private var usernameError: String?
+    @State private var isCheckingUsername = false
     
     private let currentYear = Calendar.current.component(.year, from: Date())
     private var birthYearRange: [Int] {
@@ -1172,26 +1173,49 @@ struct IppoAboutYouView: View {
                                 return
                             }
                             
-                            let userData = UserData.shared
-                            userData.profile.username = username.trimmingCharacters(in: .whitespaces).lowercased()
-                            userData.profile.displayName = username.trimmingCharacters(in: .whitespaces)
-                            userData.profile.birthYear = selectedBirthYear
-                            userData.profile.biologicalSex = selectedSex
-                            userData.save()
-                            
-                            let generator = UIImpactFeedbackGenerator(style: .medium)
-                            generator.impactOccurred()
-                            onComplete()
+                            isCheckingUsername = true
+                            Task {
+                                let result = await FriendService.shared.checkUsernameAvailability(
+                                    username.trimmingCharacters(in: .whitespaces).lowercased()
+                                )
+                                isCheckingUsername = false
+                                switch result {
+                                case .available:
+                                    let userData = UserData.shared
+                                    userData.profile.username = username.trimmingCharacters(in: .whitespaces).lowercased()
+                                    userData.profile.displayName = username.trimmingCharacters(in: .whitespaces)
+                                    userData.profile.birthYear = selectedBirthYear
+                                    userData.profile.biologicalSex = selectedSex
+                                    userData.save()
+                                    
+                                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                                    generator.impactOccurred()
+                                    onComplete()
+                                case .taken:
+                                    usernameError = "Username is already taken"
+                                case .error(let message):
+                                    usernameError = message
+                                }
+                            }
                         }) {
-                            Text("Continue")
-                                .font(AppTypography.headline)
-                                .foregroundColor(AppColors.background)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
-                                .background(isUsernameValid ? AppColors.brandPrimary : AppColors.textTertiary)
-                                .cornerRadius(25)
+                            if isCheckingUsername {
+                                ProgressView()
+                                    .tint(AppColors.background)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(AppColors.textTertiary)
+                                    .cornerRadius(25)
+                            } else {
+                                Text("Continue")
+                                    .font(AppTypography.headline)
+                                    .foregroundColor(AppColors.background)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(isUsernameValid ? AppColors.brandPrimary : AppColors.textTertiary)
+                                    .cornerRadius(25)
+                            }
                         }
-                        .disabled(!isUsernameValid)
+                        .disabled(!isUsernameValid || isCheckingUsername)
                     }
                     .padding(.horizontal, AppSpacing.xl)
                     .padding(.bottom, AppSpacing.xxxl)

@@ -398,6 +398,7 @@ struct SettingsSheet: View {
     @State private var showingSignOutConfirm = false
     @State private var showingDeleteConfirm = false
     @State private var showingDebugPanel = false
+    @State private var isCheckingUsername = false
     
     private var isUsernameValid: Bool {
         let trimmed = username.trimmingCharacters(in: .whitespaces)
@@ -474,21 +475,35 @@ struct SettingsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        // Validate username if changed
-                        let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
-                        if trimmedUsername != userData.profile.username && !trimmedUsername.isEmpty {
-                            guard isUsernameValid else {
-                                usernameError = "3-20 chars, letters/numbers/underscores only"
-                                return
+                    if isCheckingUsername {
+                        ProgressView()
+                    } else {
+                        Button("Done") {
+                            let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
+                            let usernameChanged = trimmedUsername.lowercased() != userData.profile.username && !trimmedUsername.isEmpty
+                            
+                            if usernameChanged {
+                                guard isUsernameValid else {
+                                    usernameError = "3-20 chars, letters/numbers/underscores only"
+                                    return
+                                }
+                                isCheckingUsername = true
+                                Task {
+                                    let result = await FriendService.shared.checkUsernameAvailability(trimmedUsername.lowercased())
+                                    isCheckingUsername = false
+                                    switch result {
+                                    case .available:
+                                        applyProfileChanges(displayName: displayName, username: trimmedUsername)
+                                    case .taken:
+                                        usernameError = "Username is already taken"
+                                    case .error(let message):
+                                        usernameError = message
+                                    }
+                                }
+                            } else {
+                                applyProfileChanges(displayName: displayName, username: trimmedUsername)
                             }
                         }
-                        userData.profile.displayName = displayName
-                        if !trimmedUsername.isEmpty {
-                            userData.profile.username = trimmedUsername.lowercased()
-                        }
-                        userData.save()
-                        dismiss()
                     }
                 }
             }
@@ -517,6 +532,15 @@ struct SettingsSheet: View {
                     .environmentObject(userData)
             }
         }
+    }
+    
+    private func applyProfileChanges(displayName: String, username: String) {
+        userData.profile.displayName = displayName
+        if !username.isEmpty {
+            userData.profile.username = username.trimmingCharacters(in: .whitespaces).lowercased()
+        }
+        userData.save()
+        dismiss()
     }
 }
 
