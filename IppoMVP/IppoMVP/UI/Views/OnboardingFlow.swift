@@ -1040,12 +1040,21 @@ struct IppoAboutYouView: View {
     var onComplete: () -> Void
     var onSkip: () -> Void
     
+    @State private var username: String = ""
     @State private var selectedBirthYear: Int = 2000
     @State private var selectedSex: String = "male"
+    @State private var usernameError: String?
     
     private let currentYear = Calendar.current.component(.year, from: Date())
     private var birthYearRange: [Int] {
         Array((currentYear - 80)...(currentYear - 10)).reversed()
+    }
+    
+    private var isUsernameValid: Bool {
+        let trimmed = username.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 3, trimmed.count <= 20 else { return false }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+        return trimmed.unicodeScalars.allSatisfy { allowed.contains($0) }
     }
     
     var body: some View {
@@ -1053,111 +1062,140 @@ struct IppoAboutYouView: View {
             AppColors.background
                 .ignoresSafeArea()
             
-            VStack(spacing: AppSpacing.xxl) {
-                Spacer()
-                
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(AppColors.brandPrimary.opacity(0.15))
-                        .frame(width: 120, height: 120)
-                    Circle()
-                        .fill(AppColors.brandPrimary.opacity(0.3))
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "heart.text.square.fill")
-                        .font(.system(size: 40, weight: .medium))
-                        .foregroundColor(AppColors.brandPrimary)
-                }
-                
-                VStack(spacing: AppSpacing.md) {
-                    Text("About You")
-                        .font(AppTypography.title1)
-                        .foregroundColor(AppColors.textPrimary)
+            ScrollView {
+                VStack(spacing: AppSpacing.lg) {
+                    // Icon
+                    ZStack {
+                        Circle()
+                            .fill(AppColors.brandPrimary.opacity(0.15))
+                            .frame(width: 100, height: 100)
+                        Circle()
+                            .fill(AppColors.brandPrimary.opacity(0.3))
+                            .frame(width: 70, height: 70)
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .font(.system(size: 34, weight: .medium))
+                            .foregroundColor(AppColors.brandPrimary)
+                    }
+                    .padding(.top, AppSpacing.xxl)
                     
-                    Text("This helps us calculate your heart rate zones for accurate sprint validation.")
-                        .font(AppTypography.body)
-                        .foregroundColor(AppColors.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, AppSpacing.xl)
-                }
-                
-                // Birth Year
-                VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                    Text("Birth Year")
-                        .font(AppTypography.subheadline)
-                        .foregroundColor(AppColors.textSecondary)
+                    VStack(spacing: AppSpacing.sm) {
+                        Text("Set Up Your Profile")
+                            .font(AppTypography.title1)
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        Text("Choose a username so friends can find you, and set your info for accurate sprint tracking.")
+                            .font(AppTypography.body)
+                            .foregroundColor(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, AppSpacing.xl)
+                    }
                     
-                    Picker("Birth Year", selection: $selectedBirthYear) {
-                        ForEach(birthYearRange, id: \.self) { year in
-                            Text(String(year)).tag(year)
+                    // Username (REQUIRED)
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Username (required)")
+                            .font(AppTypography.subheadline)
+                            .foregroundColor(AppColors.textSecondary)
+                        
+                        TextField("e.g. crucerunner", text: $username)
+                            .textFieldStyle(.roundedBorder)
+                            .autocapitalization(.none)
+                            .autocorrectionDisabled()
+                            .onChange(of: username) { _ in
+                                usernameError = nil
+                            }
+                        
+                        if let error = usernameError {
+                            Text(error)
+                                .font(AppTypography.caption2)
+                                .foregroundColor(AppColors.danger)
+                        } else if !username.isEmpty && !isUsernameValid {
+                            Text("3-20 characters, letters, numbers, and underscores only")
+                                .font(AppTypography.caption2)
+                                .foregroundColor(AppColors.warning)
+                        } else if isUsernameValid {
+                            Text("Looks good!")
+                                .font(AppTypography.caption2)
+                                .foregroundColor(AppColors.success)
                         }
                     }
-                    .pickerStyle(.wheel)
-                    .frame(height: 120)
-                    .clipped()
-                }
-                .padding(.horizontal, AppSpacing.xl)
-                
-                // Biological Sex
-                VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                    Text("Biological Sex")
-                        .font(AppTypography.subheadline)
-                        .foregroundColor(AppColors.textSecondary)
+                    .padding(.horizontal, AppSpacing.xl)
                     
-                    Picker("Biological Sex", selection: $selectedSex) {
-                        Text("Male").tag("male")
-                        Text("Female").tag("female")
-                        Text("Other").tag("other")
-                    }
-                    .pickerStyle(.segmented)
-                }
-                .padding(.horizontal, AppSpacing.xl)
-                
-                // Estimated Max HR display
-                let age = currentYear - selectedBirthYear
-                let maxHR = Int(208.0 - (0.7 * Double(age)))
-                VStack(spacing: AppSpacing.xxs) {
-                    Text("Estimated Max Heart Rate")
-                        .font(AppTypography.caption1)
-                        .foregroundColor(AppColors.textTertiary)
-                    Text("\(maxHR) BPM")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(AppColors.brandPrimary)
-                }
-                
-                Spacer()
-                
-                VStack(spacing: AppSpacing.md) {
-                    Button(action: {
-                        // Save biometric data
-                        let userData = UserData.shared
-                        userData.profile.birthYear = selectedBirthYear
-                        userData.profile.biologicalSex = selectedSex
-                        userData.save()
+                    // Birth Year
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Birth Year")
+                            .font(AppTypography.subheadline)
+                            .foregroundColor(AppColors.textSecondary)
                         
-                        let generator = UIImpactFeedbackGenerator(style: .medium)
-                        generator.impactOccurred()
-                        onComplete()
-                    }) {
-                        Text("Continue")
-                            .font(AppTypography.headline)
-                            .foregroundColor(AppColors.background)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(AppColors.brandPrimary)
-                            .cornerRadius(25)
+                        Picker("Birth Year", selection: $selectedBirthYear) {
+                            ForEach(birthYearRange, id: \.self) { year in
+                                Text(String(year)).tag(year)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(height: 100)
+                        .clipped()
+                    }
+                    .padding(.horizontal, AppSpacing.xl)
+                    
+                    // Biological Sex
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Biological Sex")
+                            .font(AppTypography.subheadline)
+                            .foregroundColor(AppColors.textSecondary)
+                        
+                        Picker("Biological Sex", selection: $selectedSex) {
+                            Text("Male").tag("male")
+                            Text("Female").tag("female")
+                            Text("Other").tag("other")
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding(.horizontal, AppSpacing.xl)
+                    
+                    // Estimated Max HR
+                    let age = currentYear - selectedBirthYear
+                    let maxHR = Int(208.0 - (0.7 * Double(age)))
+                    VStack(spacing: AppSpacing.xxs) {
+                        Text("Estimated Max Heart Rate")
+                            .font(AppTypography.caption1)
+                            .foregroundColor(AppColors.textTertiary)
+                        Text("\(maxHR) BPM")
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundColor(AppColors.brandPrimary)
                     }
                     
-                    Button("Skip for Now") {
-                        let generator = UIImpactFeedbackGenerator(style: .light)
-                        generator.impactOccurred()
-                        onSkip()
+                    // Continue button
+                    VStack(spacing: AppSpacing.md) {
+                        Button(action: {
+                            guard isUsernameValid else {
+                                usernameError = "Please enter a valid username (3-20 characters)"
+                                return
+                            }
+                            
+                            let userData = UserData.shared
+                            userData.profile.username = username.trimmingCharacters(in: .whitespaces).lowercased()
+                            userData.profile.displayName = username.trimmingCharacters(in: .whitespaces)
+                            userData.profile.birthYear = selectedBirthYear
+                            userData.profile.biologicalSex = selectedSex
+                            userData.save()
+                            
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                            onComplete()
+                        }) {
+                            Text("Continue")
+                                .font(AppTypography.headline)
+                                .foregroundColor(AppColors.background)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(isUsernameValid ? AppColors.brandPrimary : AppColors.textTertiary)
+                                .cornerRadius(25)
+                        }
+                        .disabled(!isUsernameValid)
                     }
-                    .font(AppTypography.body)
-                    .foregroundColor(AppColors.textSecondary)
+                    .padding(.horizontal, AppSpacing.xl)
+                    .padding(.bottom, AppSpacing.xxxl)
                 }
-                .padding(.horizontal, AppSpacing.xl)
-                .padding(.bottom, AppSpacing.xxxl)
             }
         }
     }

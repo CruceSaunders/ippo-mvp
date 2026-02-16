@@ -16,6 +16,28 @@ final class FriendService: ObservableObject {
     
     private init() {}
     
+    // MARK: - Username Validation
+    func isUsernameTaken(_ username: String) async -> Bool {
+        guard !username.isEmpty else { return false }
+        
+        do {
+            let snapshot = try await db.collection("users")
+                .whereField("rankSearchFields.username", isEqualTo: username.lowercased())
+                .limit(to: 1)
+                .getDocuments()
+            
+            // If a doc exists and it's not the current user, the username is taken
+            for doc in snapshot.documents {
+                if doc.documentID != AuthService.shared.userId {
+                    return true
+                }
+            }
+            return false
+        } catch {
+            return false
+        }
+    }
+    
     // MARK: - Search by Username
     func searchByUsername(_ username: String) async {
         guard !username.isEmpty else {
@@ -70,8 +92,31 @@ final class FriendService: ObservableObject {
     func sendFriendRequest(to targetUid: String) async -> Bool {
         guard let currentUid = AuthService.shared.userId else { return false }
         
+        // Check if already friends
+        if UserData.shared.friends.contains(targetUid) {
+            return false
+        }
+        
+        // Check if request already sent (read target's friendRequests)
         do {
-            // Add current user's UID to the target's friendRequests array
+            let targetDoc = try await db.collection("users").document(targetUid).getDocument()
+            if let data = targetDoc.data(),
+               let existingRequests = data["friendRequests"] as? [String],
+               existingRequests.contains(currentUid) {
+                return false  // Already sent
+            }
+            
+            // Also check if they already sent us a request (auto-accept)
+            if let data = targetDoc.data(),
+               let theirFriends = data["friends"] as? [String],
+               theirFriends.contains(currentUid) {
+                return false  // Already friends
+            }
+        } catch {
+            // Continue with sending if check fails
+        }
+        
+        do {
             try await db.collection("users").document(targetUid).updateData([
                 "friendRequests": FieldValue.arrayUnion([currentUid])
             ])

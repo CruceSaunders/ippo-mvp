@@ -394,9 +394,17 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) var dismiss
     @State private var displayName: String = ""
     @State private var username: String = ""
+    @State private var usernameError: String?
     @State private var showingSignOutConfirm = false
     @State private var showingDeleteConfirm = false
     @State private var showingDebugPanel = false
+    
+    private var isUsernameValid: Bool {
+        let trimmed = username.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 3, trimmed.count <= 20 else { return false }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+        return trimmed.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
     
     var body: some View {
         NavigationStack {
@@ -407,9 +415,21 @@ struct SettingsSheet: View {
                             displayName = userData.profile.displayName
                             username = userData.profile.username
                         }
-                    TextField("Username", text: $username)
-                        .autocapitalization(.none)
-                        .autocorrectionDisabled()
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField("Username", text: $username)
+                            .autocapitalization(.none)
+                            .autocorrectionDisabled()
+                            .onChange(of: username) { _ in usernameError = nil }
+                        if let error = usernameError {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(AppColors.danger)
+                        } else if !username.isEmpty && !isUsernameValid {
+                            Text("3-20 chars, letters/numbers/underscores")
+                                .font(.caption)
+                                .foregroundColor(AppColors.warning)
+                        }
+                    }
                     
                     if let email = AuthService.shared.email {
                         HStack {
@@ -455,8 +475,18 @@ struct SettingsSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
+                        // Validate username if changed
+                        let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
+                        if trimmedUsername != userData.profile.username && !trimmedUsername.isEmpty {
+                            guard isUsernameValid else {
+                                usernameError = "3-20 chars, letters/numbers/underscores only"
+                                return
+                            }
+                        }
                         userData.profile.displayName = displayName
-                        userData.profile.username = username
+                        if !trimmedUsername.isEmpty {
+                            userData.profile.username = trimmedUsername.lowercased()
+                        }
                         userData.save()
                         dismiss()
                     }

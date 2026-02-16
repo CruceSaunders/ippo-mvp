@@ -12,6 +12,8 @@ struct WatchContentView: View {
                 WatchRunningView()
             case .sprinting:
                 WatchSprintView()
+            case .sprintResult:
+                WatchSprintResultView()
             case .summary:
                 WatchSummaryView()
             }

@@ -70,6 +70,11 @@ final class UserData: ObservableObject {
         profile.rp += amount
         profile.weeklyRP += amount
         save()
+        
+        // Update group leaderboards when RP changes
+        Task {
+            await GroupService.shared.updateAllLeaderboards()
+        }
     }
     
     func addXP(_ amount: Int) {
