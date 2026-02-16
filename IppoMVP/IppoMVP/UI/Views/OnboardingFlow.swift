@@ -521,7 +521,7 @@ struct IppoWatchPairingView: View {
                         }
                         .foregroundColor(AppColors.textSecondary)
                     } else if isPaired {
-                        Text("Your Apple Watch is ready to track sprints in real-time.")
+                        Text("Apple Watch detected! The Ippo Watch app will install automatically. Open it on your Watch to start tracking sprints.")
                             .font(AppTypography.body)
                             .foregroundColor(AppColors.textSecondary)
                             .multilineTextAlignment(.center)
@@ -549,7 +549,7 @@ struct IppoWatchPairingView: View {
                 }
                 
                 if showError {
-                    Text("No Apple Watch found. Make sure your watch is nearby and awake.")
+                    Text("No paired Apple Watch detected. Make sure your Watch is paired to this iPhone in the Watch app. You can skip this step and pair later.")
                         .font(AppTypography.caption1)
                         .foregroundColor(AppColors.danger)
                         .multilineTextAlignment(.center)
@@ -621,18 +621,19 @@ struct IppoWatchPairingView: View {
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
         
-        // Check real WatchConnectivity status
         let connectivity = WatchConnectivityService.shared
-        if connectivity.isReachable {
+        
+        // Check isPaired (Watch is paired to this iPhone) -- not isReachable (Watch app is in foreground)
+        if connectivity.isPaired {
             isPairing = false
             isPaired = true
             let successGenerator = UINotificationFeedbackGenerator()
             successGenerator.notificationOccurred(.success)
         } else {
-            // Simulate search then timeout
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            // Give WCSession a moment to update its state, then check again
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 isPairing = false
-                if connectivity.isReachable {
+                if connectivity.isPaired {
                     isPaired = true
                     let successGenerator = UINotificationFeedbackGenerator()
                     successGenerator.notificationOccurred(.success)

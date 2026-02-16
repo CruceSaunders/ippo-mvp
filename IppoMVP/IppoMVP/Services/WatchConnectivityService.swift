@@ -8,6 +8,8 @@ final class WatchConnectivityService: NSObject, ObservableObject {
     static let shared = WatchConnectivityService()
     
     @Published var isReachable: Bool = false
+    @Published var isPaired: Bool = false
+    @Published var isWatchAppInstalled: Bool = false
     @Published var lastSyncDate: Date?
     
     private var session: WCSession?
@@ -78,6 +80,8 @@ extension WatchConnectivityService: WCSessionDelegate {
         Task { @MainActor in
             if activationState == .activated {
                 isReachable = session.isReachable
+                isPaired = session.isPaired
+                isWatchAppInstalled = session.isWatchAppInstalled
             }
         }
     }
@@ -85,6 +89,8 @@ extension WatchConnectivityService: WCSessionDelegate {
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
         Task { @MainActor in
             isReachable = session.isReachable
+            isPaired = session.isPaired
+            isWatchAppInstalled = session.isWatchAppInstalled
         }
     }
     
