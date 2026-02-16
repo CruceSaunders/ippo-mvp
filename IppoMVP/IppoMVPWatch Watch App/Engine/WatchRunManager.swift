@@ -516,8 +516,8 @@ extension WatchRunManager: HKLiveWorkoutBuilderDelegate {
 
 // MARK: - Watch Configs
 struct WatchSprintConfig {
-    let minDuration: TimeInterval = 30
-    let maxDuration: TimeInterval = 45
+    let minDuration: TimeInterval = 25
+    let maxDuration: TimeInterval = 40
     let recoveryDuration: TimeInterval = 45
 }
 
