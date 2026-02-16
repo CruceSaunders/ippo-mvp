@@ -169,7 +169,7 @@ struct PlayerProfile: Codable, Equatable {
     var weeklyRP: Int
     var weeklyRPResetDate: Date
     var birthYear: Int?
-    var biologicalSex: String?  // "male", "female", "other"
+    var biologicalSex: String?  // "male", "female"
     
     init(
         id: String = UUID().uuidString,

@@ -22,6 +22,22 @@ final class WatchConnectivityService: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Push Profile to Watch
+    /// Proactively sends the user's estimated max HR to the Watch
+    /// Called after profile save (onboarding, settings) so the Watch has accurate data for sprint validation
+    func pushProfileToWatch() {
+        guard let session = session, session.isReachable else { return }
+        guard let maxHR = UserData.shared.profile.estimatedMaxHR else { return }
+        
+        session.sendMessage(
+            ["type": "profileSync", "estimatedMaxHR": maxHR],
+            replyHandler: nil,
+            errorHandler: { error in
+                print("Failed to push profile to Watch: \(error)")
+            }
+        )
+    }
+    
     // MARK: - Handle Incoming Run Summary
     private func handleRunSummary(_ message: [String: Any]) {
         Task { @MainActor in

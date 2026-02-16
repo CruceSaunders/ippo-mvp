@@ -540,6 +540,8 @@ struct SettingsSheet: View {
             userData.profile.username = username.trimmingCharacters(in: .whitespaces).lowercased()
         }
         userData.save()
+        // Push updated profile (maxHR) to Watch
+        WatchConnectivityService.shared.pushProfileToWatch()
         dismiss()
     }
 }

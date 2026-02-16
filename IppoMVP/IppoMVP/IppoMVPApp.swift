@@ -16,14 +16,15 @@ struct IppoMVPApp: App {
         WindowGroup {
             Group {
                 if !hasCompletedOnboarding {
-                    // First launch: show onboarding
+                    // First launch: onboarding includes sign-in step
                     IppoCompleteOnboardingFlow {
                         hasCompletedOnboarding = true
                     }
                     .environmentObject(userData)
                     .environmentObject(watchConnectivity)
+                    .environmentObject(authService)
                 } else if !authService.isAuthenticated {
-                    // Not signed in: show login
+                    // Returning user who signed out: show login
                     LoginView()
                         .environmentObject(authService)
                 } else {

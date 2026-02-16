@@ -2,10 +2,11 @@
 // Ippo MVP - First Launch Experience
 // Adapted from GitHub version with MVP-specific messaging
 //
-// Flow: IppoWelcomeView -> IppoOnboardingCarousel -> WatchPairingView -> PermissionFlowView -> IppoReadyView
+// Flow: IppoWelcomeView -> IppoOnboardingCarousel -> SignIn -> AboutYou -> WatchPairingView -> PermissionFlowView -> IppoReadyView
 
 import SwiftUI
 import HealthKit
+import AuthenticationServices
 
 // MARK: - Onboarding Page Model
 
@@ -766,6 +767,7 @@ struct IppoCompleteOnboardingFlow: View {
     enum IppoOnboardingStep: CaseIterable {
         case welcome
         case features
+        case signIn
         case aboutYou
         case watchPairing
         case permissions
@@ -810,6 +812,11 @@ struct IppoCompleteOnboardingFlow: View {
                 
             case .features:
                 IppoOnboardingCarousel(pages: featurePages) {
+                    transitionTo(.signIn)
+                }
+                
+            case .signIn:
+                IppoOnboardingSignInView {
                     transitionTo(.aboutYou)
                 }
                 
@@ -1034,6 +1041,101 @@ private struct OnboardingConfettiParticle: Identifiable {
     var opacity: Double
 }
 
+// MARK: - Onboarding Sign-In View
+
+struct IppoOnboardingSignInView: View {
+    @StateObject private var authService = AuthService.shared
+    var onComplete: () -> Void
+    
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [AppColors.background, AppColors.surface],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: AppSpacing.xxl) {
+                Spacer()
+                
+                ZStack {
+                    Circle()
+                        .fill(AppColors.brandPrimary.opacity(0.15))
+                        .frame(width: 140, height: 140)
+                    Circle()
+                        .fill(AppColors.brandPrimary.opacity(0.3))
+                        .frame(width: 100, height: 100)
+                    Image(systemName: "person.badge.key.fill")
+                        .font(.system(size: 44, weight: .medium))
+                        .foregroundColor(AppColors.brandPrimary)
+                }
+                
+                VStack(spacing: AppSpacing.md) {
+                    Text("Create Your Account")
+                        .font(AppTypography.title1)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("Sign in to save your progress, add friends, and compete on leaderboards.")
+                        .font(AppTypography.body)
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, AppSpacing.xl)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: AppSpacing.md) {
+                    SignInWithAppleButton(.signIn) { request in
+                        let appleRequest = authService.startSignInWithApple()
+                        request.requestedScopes = appleRequest.requestedScopes
+                        request.nonce = appleRequest.nonce
+                    } onCompletion: { result in
+                        Task {
+                            await authService.handleSignInWithApple(result)
+                        }
+                    }
+                    .signInWithAppleButtonStyle(.white)
+                    .frame(height: 50)
+                    .cornerRadius(25)
+                    
+                    if let error = authService.errorMessage {
+                        Text(error)
+                            .font(AppTypography.caption1)
+                            .foregroundColor(AppColors.danger)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, AppSpacing.lg)
+                    }
+                    
+                    if authService.isLoading {
+                        ProgressView()
+                            .tint(AppColors.brandPrimary)
+                    }
+                }
+                .padding(.horizontal, AppSpacing.xl)
+                
+                Text("By signing in, you agree to our Terms of Service and Privacy Policy.")
+                    .font(AppTypography.caption2)
+                    .foregroundColor(AppColors.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppSpacing.xxl)
+                    .padding(.bottom, AppSpacing.xxxl)
+            }
+        }
+        .onChange(of: authService.isAuthenticated) { isAuthenticated in
+            if isAuthenticated {
+                onComplete()
+            }
+        }
+        .onAppear {
+            // If already authenticated (e.g. Firebase session persisted), skip sign-in
+            if authService.isAuthenticated {
+                onComplete()
+            }
+        }
+    }
+}
+
 // MARK: - About You View (Biometrics Collection)
 
 struct IppoAboutYouView: View {
@@ -1121,7 +1223,7 @@ struct IppoAboutYouView: View {
                     }
                     .padding(.horizontal, AppSpacing.xl)
                     
-                    // Birth Year
+                    // Birth Year + Estimated Max HR
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
                         Text("Birth Year")
                             .font(AppTypography.subheadline)
@@ -1135,6 +1237,21 @@ struct IppoAboutYouView: View {
                         .pickerStyle(.wheel)
                         .frame(height: 100)
                         .clipped()
+                        
+                        let age = currentYear - selectedBirthYear
+                        let maxHR = Int(208.0 - (0.7 * Double(age)))
+                        VStack(spacing: 2) {
+                            Text("Estimated Max Heart Rate")
+                                .font(AppTypography.caption1)
+                                .foregroundColor(AppColors.textTertiary)
+                            Text("\(maxHR) BPM")
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .foregroundColor(AppColors.brandPrimary)
+                            Text("Based on your age (Tanaka formula)")
+                                .font(AppTypography.caption2)
+                                .foregroundColor(AppColors.textTertiary)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     .padding(.horizontal, AppSpacing.xl)
                     
@@ -1147,23 +1264,10 @@ struct IppoAboutYouView: View {
                         Picker("Biological Sex", selection: $selectedSex) {
                             Text("Male").tag("male")
                             Text("Female").tag("female")
-                            Text("Other").tag("other")
                         }
                         .pickerStyle(.segmented)
                     }
                     .padding(.horizontal, AppSpacing.xl)
-                    
-                    // Estimated Max HR
-                    let age = currentYear - selectedBirthYear
-                    let maxHR = Int(208.0 - (0.7 * Double(age)))
-                    VStack(spacing: AppSpacing.xxs) {
-                        Text("Estimated Max Heart Rate")
-                            .font(AppTypography.caption1)
-                            .foregroundColor(AppColors.textTertiary)
-                        Text("\(maxHR) BPM")
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
-                            .foregroundColor(AppColors.brandPrimary)
-                    }
                     
                     // Continue button
                     VStack(spacing: AppSpacing.md) {
@@ -1187,6 +1291,9 @@ struct IppoAboutYouView: View {
                                     userData.profile.birthYear = selectedBirthYear
                                     userData.profile.biologicalSex = selectedSex
                                     userData.save()
+                                    
+                                    // Push maxHR to Watch immediately so sprint validation is accurate
+                                    WatchConnectivityService.shared.pushProfileToWatch()
                                     
                                     let generator = UIImpactFeedbackGenerator(style: .medium)
                                     generator.impactOccurred()
