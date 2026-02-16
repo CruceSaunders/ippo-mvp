@@ -66,10 +66,11 @@ final class FriendService: ObservableObject {
         }
     }
     
-    // MARK: - Search by Username
+    // MARK: - Search by Username (prefix-based, as-you-type)
     func searchByUsername(_ username: String) async {
         guard !username.isEmpty else {
             searchResults = []
+            searchError = nil
             return
         }
         guard let currentUid = AuthService.shared.userId else { return }
@@ -78,18 +79,19 @@ final class FriendService: ObservableObject {
         searchError = nil
         defer { isSearching = false }
         
+        let lowered = username.lowercased()
+        let endPrefix = lowered + "\u{f8ff}"
+        
         do {
-            // Search for exact username match (case-insensitive would require a lowercase field)
             let snapshot = try await db.collection("users")
-                .whereField("rankSearchFields.username", isEqualTo: username.lowercased())
-                .limit(to: 10)
+                .whereField("rankSearchFields.username", isGreaterThanOrEqualTo: lowered)
+                .whereField("rankSearchFields.username", isLessThan: endPrefix)
+                .limit(to: 15)
                 .getDocuments()
             
             searchResults = snapshot.documents.compactMap { doc -> FriendProfile? in
                 let data = doc.data()
                 guard let searchFields = data["rankSearchFields"] as? [String: Any] else { return nil }
-                
-                // Don't show self in results
                 guard doc.documentID != currentUid else { return nil }
                 
                 let displayName = searchFields["displayName"] as? String ?? "Runner"
@@ -108,7 +110,7 @@ final class FriendService: ObservableObject {
             }
             
             if searchResults.isEmpty {
-                searchError = "No user found with username \"\(username)\""
+                searchError = "No users found matching \"\(username)\""
             }
         } catch {
             print("FriendService: Search failed - \(error)")
@@ -257,6 +259,31 @@ final class FriendService: ObservableObject {
         }
         
         friendProfiles = profiles
+    }
+    
+    // MARK: - Fetch Single Profile
+    func fetchProfile(uid: String) async -> FriendProfile? {
+        do {
+            let doc = try await db.collection("users").document(uid).getDocument()
+            guard let data = doc.data(),
+                  let searchFields = data["rankSearchFields"] as? [String: Any] else { return nil }
+            
+            let displayName = searchFields["displayName"] as? String ?? "Runner"
+            let username = searchFields["username"] as? String ?? ""
+            let rp = searchFields["rp"] as? Int ?? 0
+            let level = searchFields["level"] as? Int ?? 1
+            
+            return FriendProfile(
+                id: uid,
+                displayName: displayName,
+                username: username,
+                rp: rp,
+                level: level,
+                isCurrentUser: uid == AuthService.shared.userId
+            )
+        } catch {
+            return nil
+        }
     }
     
     // MARK: - Refresh Friend Requests

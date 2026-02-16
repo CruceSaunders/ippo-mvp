@@ -137,6 +137,40 @@ final class GroupService: ObservableObject {
         }
     }
     
+    // MARK: - Rename Group (owner only)
+    func renameGroup(_ groupId: String, newName: String) async {
+        do {
+            try await db.collection("groups").document(groupId).updateData([
+                "name": newName
+            ])
+            if let index = userGroups.firstIndex(where: { $0.id == groupId }) {
+                userGroups[index] = IppoGroup(
+                    id: userGroups[index].id,
+                    name: newName,
+                    ownerUid: userGroups[index].ownerUid,
+                    memberIds: userGroups[index].memberIds,
+                    createdAt: userGroups[index].createdAt
+                )
+            }
+        } catch {
+            print("GroupService: Failed to rename group - \(error)")
+        }
+    }
+    
+    // MARK: - Kick Member (owner only)
+    func kickMember(uid memberUid: String, fromGroup groupId: String) async {
+        do {
+            try await db.collection("groups").document(groupId).updateData([
+                "memberIds": FieldValue.arrayRemove([memberUid])
+            ])
+            if let index = userGroups.firstIndex(where: { $0.id == groupId }) {
+                userGroups[index].memberIds.removeAll { $0 == memberUid }
+            }
+        } catch {
+            print("GroupService: Failed to kick member - \(error)")
+        }
+    }
+    
     // MARK: - Delete Group (owner only)
     func deleteGroup(_ groupId: String) async {
         do {

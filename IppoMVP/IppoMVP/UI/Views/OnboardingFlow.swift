@@ -6,6 +6,7 @@
 
 import SwiftUI
 import HealthKit
+import UserNotifications
 import AuthenticationServices
 
 // MARK: - Onboarding Page Model
@@ -406,14 +407,43 @@ struct IppoPermissionFlowView: View {
     }
     
     private func requestPermission(_ permission: IppoPermissionType) {
-        // TODO: Wire to real HealthKit/UNUserNotificationCenter requests
-        permissionStatuses[permission] = .granted
-        
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            moveToNext()
+        switch permission {
+        case .health:
+            let healthStore = HKHealthStore()
+            let readTypes: Set<HKObjectType> = [
+                HKObjectType.quantityType(forIdentifier: .heartRate)!,
+                HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+                HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+                HKObjectType.workoutType()
+            ]
+            healthStore.requestAuthorization(toShare: [], read: readTypes) { success, error in
+                DispatchQueue.main.async {
+                    if success {
+                        permissionStatuses[permission] = .granted
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+                    } else {
+                        permissionStatuses[permission] = .denied
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        moveToNext()
+                    }
+                }
+            }
+            
+        case .notifications:
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+                DispatchQueue.main.async {
+                    permissionStatuses[permission] = granted ? .granted : .denied
+                    if granted {
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        moveToNext()
+                    }
+                }
+            }
         }
     }
     

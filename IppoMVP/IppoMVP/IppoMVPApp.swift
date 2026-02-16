@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import HealthKit
 
 @main
 struct IppoMVPApp: App {
@@ -10,6 +11,22 @@ struct IppoMVPApp: App {
     
     init() {
         FirebaseApp.configure()
+    }
+    
+    private func requestHealthPermissionsIfNeeded() {
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+        let healthStore = HKHealthStore()
+        let hrType = HKObjectType.quantityType(forIdentifier: .heartRate)!
+        let status = healthStore.authorizationStatus(for: hrType)
+        if status == .notDetermined {
+            let readTypes: Set<HKObjectType> = [
+                hrType,
+                HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+                HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+                HKObjectType.workoutType()
+            ]
+            healthStore.requestAuthorization(toShare: [], read: readTypes) { _, _ in }
+        }
     }
     
     var body: some Scene {
@@ -34,8 +51,10 @@ struct IppoMVPApp: App {
                         .environmentObject(watchConnectivity)
                         .environmentObject(authService)
                         .task {
-                            // Sync from cloud after sign-in
                             await userData.syncFromCloud()
+                        }
+                        .onAppear {
+                            requestHealthPermissionsIfNeeded()
                         }
                 }
             }

@@ -23,13 +23,30 @@ struct SocialView: View {
                     VStack(spacing: AppSpacing.lg) {
                         if selectedSection == 0 {
                             friendsSection
+                                .onAppear {
+                                    Task {
+                                        await friendService.refreshFriendRequests()
+                                        await friendService.loadFriendProfiles()
+                                    }
+                                }
                         } else {
                             groupsSection
+                                .onAppear {
+                                    Task { await groupService.fetchUserGroups() }
+                                }
                         }
                     }
                     .padding(.horizontal, AppSpacing.screenPadding)
                     .padding(.top, AppSpacing.md)
                     .padding(.bottom, AppSpacing.xxl)
+                }
+                .refreshable {
+                    if selectedSection == 0 {
+                        await friendService.refreshFriendRequests()
+                        await friendService.loadFriendProfiles()
+                    } else {
+                        await groupService.fetchUserGroups()
+                    }
                 }
             }
             .background(AppColors.background)
@@ -75,43 +92,7 @@ struct SocialView: View {
                         .foregroundColor(AppColors.textPrimary)
                     
                     ForEach(userData.friendRequests, id: \.self) { requestUid in
-                        HStack {
-                            ZStack {
-                                Circle()
-                                    .fill(AppColors.brandPrimary.opacity(0.2))
-                                    .frame(width: 40, height: 40)
-                                Image(systemName: "person.fill.questionmark")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(AppColors.brandPrimary)
-                            }
-                            
-                            VStack(alignment: .leading) {
-                                Text(requestUid.prefix(8) + "...")
-                                    .font(AppTypography.subheadline)
-                                    .foregroundColor(AppColors.textPrimary)
-                                Text("Wants to be your friend")
-                                    .font(AppTypography.caption2)
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                            
-                            Spacer()
-                            
-                            Button {
-                                Task {
-                                    await friendService.acceptFriendRequest(from: requestUid)
-                                    await friendService.loadFriendProfiles()
-                                }
-                            } label: {
-                                Text("Accept")
-                                    .font(AppTypography.caption1)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, AppSpacing.sm)
-                                    .padding(.vertical, AppSpacing.xs)
-                                    .background(AppColors.brandPrimary)
-                                    .cornerRadius(AppSpacing.radiusSm)
-                            }
-                        }
-                        .padding(.vertical, AppSpacing.xs)
+                        FriendRequestRow(requestUid: requestUid, friendService: friendService)
                     }
                 }
                 .cardStyle()
@@ -303,6 +284,10 @@ struct GroupDetailView: View {
     @State private var showingLeaveConfirm = false
     @State private var showingDeleteConfirm = false
     @State private var showingInviteFriends = false
+    @State private var showingRenameAlert = false
+    @State private var newGroupName = ""
+    @State private var memberToKick: FriendProfile?
+    @State private var showingKickConfirm = false
     @Environment(\.dismiss) var dismiss
     
     private var isOwner: Bool {
@@ -336,6 +321,20 @@ struct GroupDetailView: View {
                     Text("\(group.memberIds.count) members")
                         .font(AppTypography.caption1)
                         .foregroundColor(AppColors.textSecondary)
+                    
+                    if isOwner {
+                        Button {
+                            newGroupName = group.name
+                            showingRenameAlert = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "pencil")
+                                Text("Rename")
+                            }
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(AppColors.brandPrimary)
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(AppSpacing.lg)
@@ -412,6 +411,15 @@ struct GroupDetailView: View {
                                     Text(member.displayName)
                                         .font(AppTypography.subheadline)
                                         .foregroundColor(AppColors.textPrimary)
+                                    if member.id == group.ownerUid {
+                                        Text("HOST")
+                                            .font(.system(size: 8, weight: .heavy))
+                                            .foregroundColor(AppColors.warning)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 2)
+                                            .background(AppColors.warning.opacity(0.15))
+                                            .cornerRadius(3)
+                                    }
                                     if member.isCurrentUser {
                                         Text("YOU")
                                             .font(.system(size: 8, weight: .heavy))
@@ -434,6 +442,17 @@ struct GroupDetailView: View {
                             Text("Lv. \(member.level)")
                                 .font(AppTypography.caption2)
                                 .foregroundColor(AppColors.textTertiary)
+                            
+                            if isOwner && !member.isCurrentUser {
+                                Button {
+                                    memberToKick = member
+                                    showingKickConfirm = true
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(AppColors.textTertiary)
+                                        .font(.system(size: 16))
+                                }
+                            }
                         }
                         .padding(.vertical, AppSpacing.xxs)
                     }
@@ -506,11 +525,36 @@ struct GroupDetailView: View {
         }
         .sheet(isPresented: $showingInviteFriends) {
             InviteToGroupSheet(group: group) {
-                // Refresh members after inviting
                 Task {
                     members = await groupService.fetchMemberProfiles(for: group.memberIds)
                 }
             }
+        }
+        .alert("Rename Group", isPresented: $showingRenameAlert) {
+            TextField("Group name", text: $newGroupName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") {
+                guard !newGroupName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                Task {
+                    await groupService.renameGroup(group.id, newName: newGroupName.trimmingCharacters(in: .whitespaces))
+                }
+            }
+        } message: {
+            Text("Enter a new name for this group.")
+        }
+        .alert("Kick Member?", isPresented: $showingKickConfirm) {
+            Button("Cancel", role: .cancel) { memberToKick = nil }
+            Button("Kick", role: .destructive) {
+                if let member = memberToKick {
+                    Task {
+                        await groupService.kickMember(uid: member.id, fromGroup: group.id)
+                        members.removeAll { $0.id == member.id }
+                        memberToKick = nil
+                    }
+                }
+            }
+        } message: {
+            Text("Remove \(memberToKick?.displayName ?? "this member") from the group?")
         }
     }
     
@@ -562,18 +606,19 @@ struct InviteToGroupSheet: View {
     let group: IppoGroup
     var onInvited: () -> Void
     @StateObject private var groupService = GroupService.shared
+    @StateObject private var friendService = FriendService.shared
     @Environment(\.dismiss) var dismiss
     @State private var invitedIds: Set<String> = []
     
-    private var invitableFriends: [String] {
+    private var invitableFriendProfiles: [FriendProfile] {
         let currentMembers = Set(group.memberIds)
-        return UserData.shared.friends.filter { !currentMembers.contains($0) }
+        return friendService.friendProfiles.filter { !currentMembers.contains($0.id) }
     }
     
     var body: some View {
         NavigationStack {
             VStack(spacing: AppSpacing.lg) {
-                if invitableFriends.isEmpty {
+                if invitableFriendProfiles.isEmpty {
                     VStack(spacing: AppSpacing.sm) {
                         Image(systemName: "person.2.slash")
                             .font(.largeTitle)
@@ -590,23 +635,30 @@ struct InviteToGroupSheet: View {
                     .padding(.vertical, AppSpacing.xxl)
                 } else {
                     List {
-                        ForEach(invitableFriends, id: \.self) { friendId in
+                        ForEach(invitableFriendProfiles) { friend in
                             HStack {
-                                Text(friendId.prefix(20) + (friendId.count > 20 ? "..." : ""))
-                                    .font(AppTypography.subheadline)
-                                    .foregroundColor(AppColors.textPrimary)
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text(friend.displayName)
+                                        .font(AppTypography.subheadline)
+                                        .foregroundColor(AppColors.textPrimary)
+                                    if !friend.username.isEmpty {
+                                        Text("@\(friend.username)")
+                                            .font(AppTypography.caption2)
+                                            .foregroundColor(AppColors.textTertiary)
+                                    }
+                                }
                                 
                                 Spacer()
                                 
-                                if invitedIds.contains(friendId) {
+                                if invitedIds.contains(friend.id) {
                                     Text("Invited")
                                         .font(AppTypography.caption1)
                                         .foregroundColor(AppColors.success)
                                 } else {
                                     Button("Invite") {
                                         Task {
-                                            await groupService.inviteFriend(uid: friendId, toGroup: group.id)
-                                            invitedIds.insert(friendId)
+                                            await groupService.inviteFriend(uid: friend.id, toGroup: group.id)
+                                            invitedIds.insert(friend.id)
                                         }
                                     }
                                     .font(AppTypography.caption1)
@@ -642,6 +694,7 @@ struct AddFriendSheet: View {
     @Environment(\.dismiss) var dismiss
     @State private var searchText = ""
     @State private var requestSentTo: Set<String> = []
+    @State private var searchTask: Task<Void, Never>?
     
     var body: some View {
         NavigationStack {
@@ -652,21 +705,23 @@ struct AddFriendSheet: View {
                         .foregroundColor(AppColors.textPrimary)
                     
                     HStack {
-                        TextField("Enter username", text: $searchText)
+                        TextField("Search username...", text: $searchText)
                             .textFieldStyle(.roundedBorder)
                             .autocapitalization(.none)
                             .autocorrectionDisabled()
-                            .onSubmit { performSearch() }
-                        
-                        Button { performSearch() } label: {
-                            if friendService.isSearching {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "magnifyingglass")
+                            .onChange(of: searchText) { newValue in
+                                searchTask?.cancel()
+                                searchTask = Task {
+                                    try? await Task.sleep(nanoseconds: 400_000_000)
+                                    guard !Task.isCancelled else { return }
+                                    await friendService.searchByUsername(newValue)
+                                }
                             }
+                        
+                        if friendService.isSearching {
+                            ProgressView()
+                                .padding(.horizontal, AppSpacing.sm)
                         }
-                        .disabled(friendService.isSearching || searchText.isEmpty)
-                        .padding(.horizontal, AppSpacing.sm)
                     }
                     
                     // Your username hint
@@ -760,17 +815,13 @@ struct AddFriendSheet: View {
         }
     }
     
-    private func performSearch() {
-        Task {
-            await friendService.searchByUsername(searchText)
-        }
-    }
 }
 
 // MARK: - Create Group Sheet
 struct CreateGroupSheet: View {
     @EnvironmentObject var userData: UserData
     @StateObject private var groupService = GroupService.shared
+    @StateObject private var friendService = FriendService.shared
     @Environment(\.dismiss) var dismiss
     @State private var groupName = ""
     @State private var selectedFriendIds: Set<String> = []
@@ -798,22 +849,29 @@ struct CreateGroupSheet: View {
                             .font(AppTypography.caption1)
                             .foregroundColor(AppColors.textSecondary)
                     } else {
-                        ForEach(userData.friends, id: \.self) { friendId in
-                            let isSelected = selectedFriendIds.contains(friendId)
+                        ForEach(friendService.friendProfiles) { friend in
+                            let isSelected = selectedFriendIds.contains(friend.id)
                             Button {
                                 if isSelected {
-                                    selectedFriendIds.remove(friendId)
+                                    selectedFriendIds.remove(friend.id)
                                 } else {
-                                    selectedFriendIds.insert(friendId)
+                                    selectedFriendIds.insert(friend.id)
                                 }
                             } label: {
                                 HStack {
                                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                         .foregroundColor(isSelected ? AppColors.brandPrimary : AppColors.textTertiary)
                                     
-                                    Text(friendId.prefix(12) + (friendId.count > 12 ? "..." : ""))
-                                        .font(AppTypography.subheadline)
-                                        .foregroundColor(AppColors.textPrimary)
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        Text(friend.displayName)
+                                            .font(AppTypography.subheadline)
+                                            .foregroundColor(AppColors.textPrimary)
+                                        if !friend.username.isEmpty {
+                                            Text("@\(friend.username)")
+                                                .font(AppTypography.caption2)
+                                                .foregroundColor(AppColors.textTertiary)
+                                        }
+                                    }
                                     
                                     Spacer()
                                 }
@@ -877,6 +935,68 @@ struct CreateGroupSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+        }
+    }
+}
+
+// MARK: - Friend Request Row (loads profile for display name)
+struct FriendRequestRow: View {
+    let requestUid: String
+    let friendService: FriendService
+    @State private var profile: FriendProfile?
+    
+    var body: some View {
+        HStack {
+            ZStack {
+                Circle()
+                    .fill(AppColors.brandPrimary.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                if let p = profile {
+                    Text(String(p.displayName.prefix(2)).uppercased())
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(AppColors.brandPrimary)
+                } else {
+                    Image(systemName: "person.fill.questionmark")
+                        .font(.system(size: 16))
+                        .foregroundColor(AppColors.brandPrimary)
+                }
+            }
+            
+            VStack(alignment: .leading) {
+                Text(profile?.displayName ?? "Loading...")
+                    .font(AppTypography.subheadline)
+                    .foregroundColor(AppColors.textPrimary)
+                if let username = profile?.username, !username.isEmpty {
+                    Text("@\(username)")
+                        .font(AppTypography.caption2)
+                        .foregroundColor(AppColors.textTertiary)
+                } else {
+                    Text("Wants to be your friend")
+                        .font(AppTypography.caption2)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+            }
+            
+            Spacer()
+            
+            Button {
+                Task {
+                    await friendService.acceptFriendRequest(from: requestUid)
+                    await friendService.loadFriendProfiles()
+                }
+            } label: {
+                Text("Accept")
+                    .font(AppTypography.caption1)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, AppSpacing.sm)
+                    .padding(.vertical, AppSpacing.xs)
+                    .background(AppColors.brandPrimary)
+                    .cornerRadius(AppSpacing.radiusSm)
+            }
+        }
+        .padding(.vertical, AppSpacing.xs)
+        .task {
+            profile = await friendService.fetchProfile(uid: requestUid)
         }
     }
 }

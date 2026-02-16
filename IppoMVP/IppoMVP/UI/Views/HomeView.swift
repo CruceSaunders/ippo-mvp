@@ -1,4 +1,6 @@
 import SwiftUI
+import HealthKit
+import UserNotifications
 
 struct HomeView: View {
     @EnvironmentObject var userData: UserData
@@ -444,8 +446,31 @@ struct SettingsSheet: View {
                 }
                 
                 Section("App") {
-                    Button("Request Health Permissions") {
-                        // Would request HealthKit permissions
+                    Button {
+                        let healthStore = HKHealthStore()
+                        let readTypes: Set<HKObjectType> = [
+                            HKObjectType.quantityType(forIdentifier: .heartRate)!,
+                            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+                            HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+                            HKObjectType.workoutType()
+                        ]
+                        healthStore.requestAuthorization(toShare: [], read: readTypes) { _, _ in }
+                    } label: {
+                        Label("Request Health Permissions", systemImage: "heart.fill")
+                    }
+                    
+                    Button {
+                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+                            if !granted {
+                                DispatchQueue.main.async {
+                                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Request Notification Permissions", systemImage: "bell.fill")
                     }
                 }
                 
