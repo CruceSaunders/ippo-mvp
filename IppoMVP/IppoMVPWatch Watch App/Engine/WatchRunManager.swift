@@ -7,7 +7,6 @@ enum WatchRunState {
     case idle
     case running
     case sprinting
-    case sprintResult  // Brief overlay showing success/fail
     case summary
 }
 
@@ -40,7 +39,8 @@ final class WatchRunManager: NSObject, ObservableObject {
     @Published var sprintTimeRemaining: TimeInterval = 0
     @Published var sprintProgress: Double = 0
     @Published var runSummary: WatchRunSummary?
-    @Published var lastSprintSuccess: Bool = false  // For sprint result overlay
+    @Published var lastSprintSuccess: Bool = false
+    @Published var showSprintResult: Bool = false
     
     // MARK: - HealthKit Authorization State
     @Published var healthKitAuthorized: Bool = false
@@ -443,22 +443,25 @@ final class WatchRunManager: NSObject, ObservableObject {
         
         WatchHapticsManager.shared.playSprintEnd()
         
-        // Show sprint result overlay
-        runState = .sprintResult
+        // Go back to running immediately
+        runState = .running
         
-        // Auto-transition after delay: 5s for success, 3s for fail
+        // Show the overlay on top of running view
+        showSprintResult = true
+        
+        // Only successful sprints get recovery period
+        if isValid {
+            startRecovery()
+        }
+        
+        // Start encounter checks (recovery will block them if active)
+        startEncounterChecks()
+        
+        // Auto-hide overlay after delay: 5s for success, 3s for fail
         let delay: UInt64 = isValid ? 5_000_000_000 : 3_000_000_000
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: delay)
-            guard runState == .sprintResult else { return }
-            
-            if isValid {
-                // Only successful sprints get recovery period
-                startRecovery()
-            }
-            
-            runState = .running
-            startEncounterChecks()
+            showSprintResult = false
         }
     }
     
