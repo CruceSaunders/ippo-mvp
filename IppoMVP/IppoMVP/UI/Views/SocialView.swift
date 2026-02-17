@@ -78,6 +78,12 @@ struct SocialView: View {
                 await friendService.loadFriendProfiles()
                 await groupService.fetchUserGroups()
             }
+            .onAppear {
+                friendService.startListening()
+            }
+            .onDisappear {
+                friendService.stopListening()
+            }
         }
     }
     
@@ -982,6 +988,7 @@ struct FriendRequestRow: View {
             Button {
                 Task {
                     await friendService.acceptFriendRequest(from: requestUid)
+                    await friendService.refreshFriendRequests()
                     await friendService.loadFriendProfiles()
                 }
             } label: {

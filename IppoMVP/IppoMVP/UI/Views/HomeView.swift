@@ -403,7 +403,10 @@ struct SettingsSheet: View {
     @State private var isCheckingUsername = false
     @State private var deleteConfirmText = ""
     @State private var isDeletingAccount = false
+    @State private var permissionAlert: String?
+    @State private var showingPermissionAlert = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
+    @ObservedObject private var themeManager = ThemeManager.shared
     
     private var isUsernameValid: Bool {
         let trimmed = username.trimmingCharacters(in: .whitespaces)
@@ -448,38 +451,94 @@ struct SettingsSheet: View {
                     }
                 }
                 
+                Section("Color Theme") {
+                    HStack(spacing: 12) {
+                        ForEach(AppColorTheme.allCases) { theme in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    themeManager.current = theme
+                                }
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Circle()
+                                        .fill(theme.previewColor)
+                                        .frame(width: 36, height: 36)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(themeManager.current == theme ? Color.white : Color.clear, lineWidth: 2)
+                                        )
+                                    Text(theme.rawValue)
+                                        .font(.system(size: 9))
+                                        .foregroundColor(themeManager.current == theme ? AppColors.textPrimary : AppColors.textTertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+                }
+                
                 Section("App") {
                     Button {
                         let healthStore = HKHealthStore()
-                        let shareTypes: Set<HKSampleType> = [
-                            HKWorkoutType.workoutType(),
-                            HKQuantityType.quantityType(forIdentifier: .heartRate)!,
-                            HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
-                            HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
-                        ]
-                        let readTypes: Set<HKObjectType> = [
-                            HKObjectType.quantityType(forIdentifier: .heartRate)!,
-                            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
-                            HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
-                            HKObjectType.workoutType()
-                        ]
-                        healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { _, _ in }
+                        let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate)!
+                        let status = healthStore.authorizationStatus(for: hrType)
+                        if status == .sharingAuthorized {
+                            permissionAlert = "Health permissions are already enabled."
+                            showingPermissionAlert = true
+                        } else {
+                            let shareTypes: Set<HKSampleType> = [
+                                HKWorkoutType.workoutType(),
+                                HKQuantityType.quantityType(forIdentifier: .heartRate)!,
+                                HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
+                                HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
+                            ]
+                            let readTypes: Set<HKObjectType> = [
+                                HKObjectType.quantityType(forIdentifier: .heartRate)!,
+                                HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+                                HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+                                HKObjectType.workoutType()
+                            ]
+                            healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { success, _ in
+                                DispatchQueue.main.async {
+                                    if success {
+                                        permissionAlert = "Health permissions granted!"
+                                    } else {
+                                        permissionAlert = "Please enable Health permissions in Settings."
+                                    }
+                                    showingPermissionAlert = true
+                                }
+                            }
+                        }
                     } label: {
-                        Label("Request Health Permissions", systemImage: "heart.fill")
+                        Label("Health Permissions", systemImage: "heart.fill")
                     }
                     
                     Button {
-                        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-                            if !granted {
-                                DispatchQueue.main.async {
+                        UNUserNotificationCenter.current().getNotificationSettings { settings in
+                            DispatchQueue.main.async {
+                                if settings.authorizationStatus == .authorized {
+                                    permissionAlert = "Notification permissions are already enabled."
+                                    showingPermissionAlert = true
+                                } else if settings.authorizationStatus == .denied {
+                                    permissionAlert = "Notifications are denied. Opening Settings..."
+                                    showingPermissionAlert = true
                                     if let url = URL(string: UIApplication.openSettingsURLString) {
                                         UIApplication.shared.open(url)
+                                    }
+                                } else {
+                                    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+                                        DispatchQueue.main.async {
+                                            permissionAlert = granted ? "Notification permissions granted!" : "Notifications denied. Enable in Settings."
+                                            showingPermissionAlert = true
+                                        }
                                     }
                                 }
                             }
                         }
                     } label: {
-                        Label("Request Notification Permissions", systemImage: "bell.fill")
+                        Label("Notification Permissions", systemImage: "bell.fill")
                     }
                 }
                 
@@ -586,6 +645,11 @@ struct SettingsSheet: View {
             .sheet(isPresented: $showingDebugPanel) {
                 AdminDebugView()
                     .environmentObject(userData)
+            }
+            .alert("Permissions", isPresented: $showingPermissionAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(permissionAlert ?? "")
             }
         }
     }

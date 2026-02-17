@@ -19,8 +19,39 @@ final class FriendService: ObservableObject {
     @Published var searchError: String?
     
     private let db = Firestore.firestore()
+    private var friendsListener: ListenerRegistration?
     
     private init() {}
+    
+    // MARK: - Real-Time Listener
+    /// Starts a Firestore snapshot listener on the current user's document
+    /// to detect friend request and friends list changes in real-time
+    func startListening() {
+        stopListening()
+        guard let uid = AuthService.shared.userId else { return }
+        
+        friendsListener = db.collection("users").document(uid)
+            .addSnapshotListener { [weak self] snapshot, error in
+                guard let self, let data = snapshot?.data() else { return }
+                Task { @MainActor in
+                    if let requests = data["friendRequests"] as? [String] {
+                        UserData.shared.friendRequests = requests
+                    }
+                    if let friends = data["friends"] as? [String] {
+                        let oldFriends = UserData.shared.friends
+                        UserData.shared.friends = friends
+                        if friends != oldFriends {
+                            await self.loadFriendProfiles()
+                        }
+                    }
+                }
+            }
+    }
+    
+    func stopListening() {
+        friendsListener?.remove()
+        friendsListener = nil
+    }
     
     // MARK: - Username Validation
     func isUsernameTaken(_ username: String) async -> Bool {
@@ -122,31 +153,35 @@ final class FriendService: ObservableObject {
     func sendFriendRequest(to targetUid: String) async -> Bool {
         guard let currentUid = AuthService.shared.userId else { return false }
         
-        // Check if already friends
         if UserData.shared.friends.contains(targetUid) {
             return false
         }
         
-        // Check if request already sent (read target's friendRequests)
         do {
             let targetDoc = try await db.collection("users").document(targetUid).getDocument()
-            if let data = targetDoc.data(),
-               let existingRequests = data["friendRequests"] as? [String],
-               existingRequests.contains(currentUid) {
-                return false  // Already sent
+            guard let data = targetDoc.data() else { return false }
+            
+            let existingRequests = data["friendRequests"] as? [String] ?? []
+            let theirFriends = data["friends"] as? [String] ?? []
+            
+            if theirFriends.contains(currentUid) {
+                return false
             }
             
-            // Also check if they already sent us a request (auto-accept)
-            if let data = targetDoc.data(),
-               let theirFriends = data["friends"] as? [String],
-               theirFriends.contains(currentUid) {
-                return false  // Already friends
+            if existingRequests.contains(currentUid) {
+                return false
             }
-        } catch {
-            // Continue with sending if check fails
-        }
-        
-        do {
+            
+            // Check if they already sent US a request -- auto-accept instead of creating a duplicate
+            let myDoc = try await db.collection("users").document(currentUid).getDocument()
+            let myData = myDoc.data() ?? [:]
+            let myRequests = myData["friendRequests"] as? [String] ?? []
+            
+            if myRequests.contains(targetUid) {
+                await acceptFriendRequest(from: targetUid)
+                return true
+            }
+            
             try await db.collection("users").document(targetUid).updateData([
                 "friendRequests": FieldValue.arrayUnion([currentUid])
             ])
@@ -175,7 +210,8 @@ final class FriendService: ObservableObject {
             
             let theirDoc = db.collection("users").document(senderUid)
             batch.updateData([
-                "friends": FieldValue.arrayUnion([currentUid])
+                "friends": FieldValue.arrayUnion([currentUid]),
+                "friendRequests": FieldValue.arrayRemove([currentUid])
             ], forDocument: theirDoc)
             
             try await batch.commit()
