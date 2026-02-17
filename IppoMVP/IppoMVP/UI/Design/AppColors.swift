@@ -34,6 +34,36 @@ enum AppColorTheme: String, CaseIterable, Identifiable {
     var gradientStart: Color { brandPrimary }
     var gradientEnd: Color { brandSecondary }
     
+    var background: Color {
+        switch self {
+        case .midnight: return Color(hex: "#0A0A0F")
+        case .ocean: return Color(hex: "#0A0F14")
+        case .ember: return Color(hex: "#0F0A0A")
+        case .forest: return Color(hex: "#0A0F0C")
+        case .monochrome: return Color(hex: "#0C0C0C")
+        }
+    }
+    
+    var surface: Color {
+        switch self {
+        case .midnight: return Color(hex: "#12121A")
+        case .ocean: return Color(hex: "#0F1A24")
+        case .ember: return Color(hex: "#1A1210")
+        case .forest: return Color(hex: "#101A14")
+        case .monochrome: return Color(hex: "#161616")
+        }
+    }
+    
+    var surfaceElevated: Color {
+        switch self {
+        case .midnight: return Color(hex: "#1A1A25")
+        case .ocean: return Color(hex: "#152230")
+        case .ember: return Color(hex: "#251A15")
+        case .forest: return Color(hex: "#15251C")
+        case .monochrome: return Color(hex: "#202020")
+        }
+    }
+    
     var previewColor: Color { brandPrimary }
 }
 
@@ -56,10 +86,10 @@ class ThemeManager: ObservableObject {
 struct AppColors {
     private static var theme: AppColorTheme { ThemeManager.shared.current }
     
-    // MARK: - Backgrounds (same across all themes)
-    static let background = Color(hex: "#0A0A0F")
-    static let surface = Color(hex: "#12121A")
-    static let surfaceElevated = Color(hex: "#1A1A25")
+    // MARK: - Backgrounds (theme-dependent)
+    static var background: Color { theme.background }
+    static var surface: Color { theme.surface }
+    static var surfaceElevated: Color { theme.surfaceElevated }
     
     // MARK: - Text (same across all themes)
     static let textPrimary = Color(hex: "#F9FAFB")
