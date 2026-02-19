@@ -306,23 +306,13 @@ struct IppoPermissionRequestView: View {
                             generator.impactOccurred()
                             onRequest()
                         }) {
-                            Text("Allow \(permission.title)")
+                            Text("Continue")
                                 .font(AppTypography.headline)
                                 .foregroundColor(AppColors.background)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 50)
                                 .background(permission.color)
                                 .cornerRadius(25)
-                        }
-                        
-                        if let onSkip = onSkip {
-                            Button("Maybe Later") {
-                                let generator = UIImpactFeedbackGenerator(style: .light)
-                                generator.impactOccurred()
-                                onSkip()
-                            }
-                            .font(AppTypography.body)
-                            .foregroundColor(AppColors.textSecondary)
                         }
                         
                     case .granted:
@@ -398,9 +388,6 @@ struct IppoPermissionFlowView: View {
                 status: permissionStatuses[permissions[currentIndex]] ?? .notDetermined,
                 onRequest: {
                     requestPermission(permissions[currentIndex])
-                },
-                onSkip: {
-                    moveToNext()
                 }
             )
         }
