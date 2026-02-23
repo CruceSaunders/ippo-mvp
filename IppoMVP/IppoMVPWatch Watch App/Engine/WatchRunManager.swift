@@ -15,10 +15,11 @@ struct WatchRunSummary {
     let distanceMeters: Double
     let sprintsCompleted: Int
     let sprintsTotal: Int
-    let rpBoxesEarned: Int
+    let coinsEarned: Int
     let xpEarned: Int
     let averageHR: Int
     let totalCalories: Double
+    let petCaughtId: String?
 }
 
 @MainActor
@@ -66,8 +67,12 @@ final class WatchRunManager: NSObject, ObservableObject {
     private var workoutBuilder: HKLiveWorkoutBuilder?
     
     // Rewards accumulator
-    private var earnedRPBoxes: Int = 0
+    private var earnedCoins: Int = 0
     private var earnedXP: Int = 0
+    private var petCaughtId: String?
+    private var sprintsSinceLastCatch: Int = 0
+    @Published var didCatchPet: Bool = false
+    @Published var caughtPetName: String?
     
     // Config
     private let sprintConfig = WatchSprintConfig()
@@ -193,8 +198,11 @@ final class WatchRunManager: NSObject, ObservableObject {
         allHRSamples = []
         totalSprints = 0
         sprintsCompleted = 0
-        earnedRPBoxes = 0
+        earnedCoins = 0
         earnedXP = 0
+        petCaughtId = nil
+        didCatchPet = false
+        caughtPetName = nil
         isPaused = false
         
         runState = .running
@@ -248,17 +256,19 @@ final class WatchRunManager: NSObject, ObservableObject {
         endWorkoutSession()
         
         let minutes = Int(elapsedTime / 60)
-        earnedXP = minutes
-        
+        earnedCoins += minutes
+        earnedXP += minutes * 5
+
         runSummary = WatchRunSummary(
             durationSeconds: Int(elapsedTime),
             distanceMeters: finalDistance,
             sprintsCompleted: sprintsCompleted,
             sprintsTotal: totalSprints,
-            rpBoxesEarned: earnedRPBoxes,
+            coinsEarned: earnedCoins,
             xpEarned: earnedXP,
             averageHR: averageHR,
-            totalCalories: finalCalories
+            totalCalories: finalCalories,
+            petCaughtId: petCaughtId
         )
         
         WatchConnectivityServiceWatch.shared.sendRunSummary(runSummary!)
@@ -429,40 +439,63 @@ final class WatchRunManager: NSObject, ObservableObject {
     
     private func completeSprint() {
         sprintTimer?.invalidate()
-        
+
         let isValid = validateSprint()
         lastSprintSuccess = isValid
-        
+        didCatchPet = false
+        caughtPetName = nil
+
         if isValid {
             sprintsCompleted += 1
-            earnedRPBoxes += 1
-            WatchHapticsManager.shared.playSprintSuccess()
+            let sprintCoins = Int.random(in: 8...12)
+            let sprintXP = Int.random(in: 15...25)
+            earnedCoins += sprintCoins
+            earnedXP += sprintXP
+
+            sprintsSinceLastCatch += 1
+            let catchRate: Double = sprintsSinceLastCatch >= 15 ? 1.0 : 0.08
+            let roll = Double.random(in: 0...1)
+            if roll < catchRate {
+                let caughtId = selectRandomUnownedPet()
+                if let caughtId {
+                    petCaughtId = caughtId
+                    didCatchPet = true
+                    sprintsSinceLastCatch = 0
+                    earnedCoins += 25
+                    WatchHapticsManager.shared.playPetCatch()
+                }
+            }
+
+            if !didCatchPet {
+                WatchHapticsManager.shared.playSprintSuccess()
+            }
         } else {
             WatchHapticsManager.shared.playSprintFail()
         }
-        
+
         WatchHapticsManager.shared.playSprintEnd()
-        
-        // Go back to running immediately
         runState = .running
-        
-        // Show the overlay on top of running view
         showSprintResult = true
-        
-        // Only successful sprints get recovery period
+
         if isValid {
             startRecovery()
         }
-        
-        // Start encounter checks (recovery will block them if active)
+
         startEncounterChecks()
-        
-        // Auto-hide overlay after delay: 5s for success, 3s for fail
-        let delay: UInt64 = isValid ? 5_000_000_000 : 3_000_000_000
+
+        let delay: UInt64 = didCatchPet ? 5_000_000_000 : (isValid ? 4_000_000_000 : 3_000_000_000)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: delay)
             showSprintResult = false
+            didCatchPet = false
         }
+    }
+
+    private func selectRandomUnownedPet() -> String? {
+        let ownedIds = WatchConnectivityServiceWatch.shared.ownedPetIds
+        let allIds = ["pet_04", "pet_05", "pet_06", "pet_07", "pet_08", "pet_09", "pet_10"]
+        let available = allIds.filter { !ownedIds.contains($0) }
+        return available.randomElement()
     }
     
     private func validateSprint() -> Bool {

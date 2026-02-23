@@ -1,81 +1,116 @@
 import Foundation
 
-// MARK: - RP Box (Loot Box for Reputation Points)
-struct RPBox: Identifiable, Codable, Equatable {
+// MARK: - Sprint Reward (given after each successful sprint)
+struct SprintReward {
+    let coins: Int
+    let xp: Int
+    let caughtPetId: String?
+
+    var didCatchPet: Bool { caughtPetId != nil }
+}
+
+// MARK: - Shop Item
+enum ShopItemType: String, Codable, CaseIterable {
+    case food
+    case water
+    case foodPack
+    case waterPack
+    case xpBoost
+    case encounterBoost
+    case hibernation
+}
+
+struct ShopItem: Identifiable {
     let id: String
-    let earnedAt: Date
-    var isOpened: Bool
-    
+    let type: ShopItemType
+    let name: String
+    let description: String
+    let cost: Int
+    let iconName: String
+
+    static let allItems: [ShopItem] = {
+        let config = EconomyConfig.shared
+        return [
+            ShopItem(
+                id: "food", type: .food,
+                name: "Food", description: "Feed your pet once",
+                cost: config.foodCost, iconName: "leaf.fill"
+            ),
+            ShopItem(
+                id: "water", type: .water,
+                name: "Water", description: "Give your pet a drink",
+                cost: config.waterCost, iconName: "drop.fill"
+            ),
+            ShopItem(
+                id: "food_pack", type: .foodPack,
+                name: "Food Pack (x\(config.foodPackCount))",
+                description: "\(config.foodPackCount) feedings",
+                cost: config.foodPackCost, iconName: "leaf.fill"
+            ),
+            ShopItem(
+                id: "water_pack", type: .waterPack,
+                name: "Water Pack (x\(config.waterPackCount))",
+                description: "\(config.waterPackCount) drinks",
+                cost: config.waterPackCost, iconName: "drop.fill"
+            ),
+            ShopItem(
+                id: "xp_boost", type: .xpBoost,
+                name: "XP Boost",
+                description: "+30% XP for 2 hours",
+                cost: config.xpBoostCost, iconName: "arrow.up.circle.fill"
+            ),
+            ShopItem(
+                id: "encounter_boost", type: .encounterBoost,
+                name: "Lucky Charm",
+                description: "+50% catch rate next run",
+                cost: config.encounterBoostCost, iconName: "sparkles"
+            ),
+            ShopItem(
+                id: "hibernation", type: .hibernation,
+                name: "Hibernation",
+                description: "Freeze mood & runaway for 7 days",
+                cost: config.hibernationCost, iconName: "moon.zzz.fill"
+            ),
+        ]
+    }()
+}
+
+// MARK: - Inventory
+struct PlayerInventory: Codable, Equatable {
+    var food: Int
+    var water: Int
+    var activeBoosts: [ActiveBoost]
+    var hibernationEndsAt: Date?
+
     init(
-        id: String = UUID().uuidString,
-        earnedAt: Date = Date(),
-        isOpened: Bool = false
+        food: Int = EconomyConfig.shared.startingFood,
+        water: Int = EconomyConfig.shared.startingWater,
+        activeBoosts: [ActiveBoost] = [],
+        hibernationEndsAt: Date? = nil
     ) {
-        self.id = id
-        self.earnedAt = earnedAt
-        self.isOpened = isOpened
+        self.food = food
+        self.water = water
+        self.activeBoosts = activeBoosts
+        self.hibernationEndsAt = hibernationEndsAt
     }
-}
 
-// MARK: - RP Box Contents
-struct RPBoxContents: Equatable {
-    let rpAmount: Int
-    let tier: RPBoxTier
-    
-    /// Weighted random RP distribution (1-25 RP per box)
-    /// Uses gacha-style weighting for exciting opening moments
-    static func generate() -> RPBoxContents {
-        let roll = Double.random(in: 0...1)
-        
-        if roll < 0.50 {
-            // Common: 1-5 RP (50% chance)
-            let rp = Int.random(in: 1...5)
-            return RPBoxContents(rpAmount: rp, tier: .common)
-        } else if roll < 0.75 {
-            // Uncommon: 6-10 RP (25% chance)
-            let rp = Int.random(in: 6...10)
-            return RPBoxContents(rpAmount: rp, tier: .uncommon)
-        } else if roll < 0.90 {
-            // Rare: 11-15 RP (15% chance)
-            let rp = Int.random(in: 11...15)
-            return RPBoxContents(rpAmount: rp, tier: .rare)
-        } else if roll < 0.97 {
-            // Epic: 16-20 RP (7% chance)
-            let rp = Int.random(in: 16...20)
-            return RPBoxContents(rpAmount: rp, tier: .epic)
-        } else {
-            // Legendary: 21-25 RP (3% chance)
-            let rp = Int.random(in: 21...25)
-            return RPBoxContents(rpAmount: rp, tier: .legendary)
-        }
+    var isHibernating: Bool {
+        guard let ends = hibernationEndsAt else { return false }
+        return Date() < ends
     }
-}
 
-// MARK: - RP Box Tier
-enum RPBoxTier: String, Codable, CaseIterable {
-    case common
-    case uncommon
-    case rare
-    case epic
-    case legendary
-    
-    var displayName: String {
-        switch self {
-        case .common: return "Common"
-        case .uncommon: return "Uncommon"
-        case .rare: return "Rare"
-        case .epic: return "Epic"
-        case .legendary: return "Legendary"
-        }
+    var activeXPBoost: ActiveBoost? {
+        activeBoosts.first { $0.type == .xpBoost && $0.isActive }
     }
-    
-    var color: String {
-        switch self {
-        case .common: return "gray"
-        case .uncommon: return "green"
-        case .rare: return "blue"
-        case .epic: return "purple"
-        case .legendary: return "gold"
+
+    var activeEncounterBoost: ActiveBoost? {
+        activeBoosts.first { $0.type == .encounterBoost && $0.isActive }
+    }
+
+    mutating func cleanExpiredBoosts() {
+        activeBoosts.removeAll { !$0.isActive }
+        if let ends = hibernationEndsAt, Date() >= ends {
+            hibernationEndsAt = nil
         }
     }
 }

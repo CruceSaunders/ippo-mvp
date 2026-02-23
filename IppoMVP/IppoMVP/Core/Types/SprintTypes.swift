@@ -112,30 +112,38 @@ struct Encounter: Identifiable, Codable {
     let id: String
     let triggeredAt: Date
     var sprintResult: SprintResult?
-    var rpBoxEarned: Bool
-    
+    var coinsEarned: Int
+    var xpEarned: Int
+    var petCaughtId: String?
+
     init(
         id: String = UUID().uuidString,
         triggeredAt: Date = Date(),
         sprintResult: SprintResult? = nil,
-        rpBoxEarned: Bool = false
+        coinsEarned: Int = 0,
+        xpEarned: Int = 0,
+        petCaughtId: String? = nil
     ) {
         self.id = id
         self.triggeredAt = triggeredAt
         self.sprintResult = sprintResult
-        self.rpBoxEarned = rpBoxEarned
+        self.coinsEarned = coinsEarned
+        self.xpEarned = xpEarned
+        self.petCaughtId = petCaughtId
     }
 }
 
-// MARK: - Sprint Rewards (simplified: only RP Box + XP)
+// MARK: - Sprint Rewards
 struct SprintRewards: Codable, Equatable {
-    var rpBoxEarned: Bool
+    var coins: Int
     var xp: Int
-    
-    init(rpBoxEarned: Bool = false, xp: Int = 0) {
-        self.rpBoxEarned = rpBoxEarned
+    var petCaughtId: String?
+
+    init(coins: Int = 0, xp: Int = 0, petCaughtId: String? = nil) {
+        self.coins = coins
         self.xp = xp
+        self.petCaughtId = petCaughtId
     }
-    
+
     static let empty = SprintRewards()
 }

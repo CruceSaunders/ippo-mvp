@@ -8,7 +8,7 @@ struct WatchStartView: View {
             // Logo/Title
             Text("IPPO")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundColor(.cyan)
+                .foregroundColor(.orange)
             
             Spacer()
             
@@ -72,7 +72,7 @@ struct WatchStartView: View {
             
             Spacer()
             
-            Text("Sprint. Earn. Rise.")
+            Text("Run. Catch. Grow.")
                 .font(.system(size: 11))
                 .foregroundColor(.gray)
         }

@@ -7,7 +7,8 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     static let shared = WatchConnectivityServiceWatch()
     
     @Published var isConnected: Bool = false
-    @Published var estimatedMaxHR: Int = 0  // Synced from phone profile
+    @Published var estimatedMaxHR: Int = 0
+    var ownedPetIds: Set<String> = []
     
     private var session: WCSession?
     
@@ -28,17 +29,20 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     func sendRunSummary(_ summary: WatchRunSummary) {
         guard let session = session, session.isReachable else { return }
         
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "type": "runEnded",
             "durationSeconds": summary.durationSeconds,
             "distanceMeters": summary.distanceMeters,
             "sprintsCompleted": summary.sprintsCompleted,
             "sprintsTotal": summary.sprintsTotal,
-            "rpBoxesEarned": summary.rpBoxesEarned,
+            "coinsEarned": summary.coinsEarned,
             "xpEarned": summary.xpEarned,
             "averageHR": summary.averageHR,
             "totalCalories": summary.totalCalories
         ]
+        if let petId = summary.petCaughtId {
+            payload["petCaughtId"] = petId
+        }
         
         session.sendMessage(payload, replyHandler: nil) { error in
             print("Failed to send run summary: \(error)")
@@ -54,6 +58,9 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
                 if let maxHR = response["estimatedMaxHR"] as? Int, maxHR > 0 {
                     self?.estimatedMaxHR = maxHR
                     UserDefaults.standard.set(maxHR, forKey: "ippo.estimatedMaxHR")
+                }
+                if let petIds = response["ownedPetIds"] as? [String] {
+                    self?.ownedPetIds = Set(petIds)
                 }
             }
         }, errorHandler: { error in

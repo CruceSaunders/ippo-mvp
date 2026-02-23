@@ -1,731 +1,297 @@
 import SwiftUI
-import HealthKit
-import UserNotifications
 
 struct HomeView: View {
     @EnvironmentObject var userData: UserData
-    @State private var showingRunPrompt = false
-    @State private var showingRPBoxOpen = false
-    @State private var showingSettings = false
-    @State private var showingRunHistory = false
-    
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: AppSpacing.lg) {
-                    // Profile Header
-                    profileHeader
-                    
-                    // Start Run CTA
-                    startRunSection
-                    
-                    // RP Boxes Section
-                    rpBoxSection
-                    
-                    // Stats Grid
-                    statsGrid
-                    
-                    // Level Progress
-                    levelSection
-                    
-                    // RP / Rank Progress
-                    rpSection
-                    
-                    // Recent Runs
-                    recentRunsSection
-                }
-                .padding(.horizontal, AppSpacing.screenPadding)
-                .padding(.bottom, AppSpacing.xxl)
-            }
-            .background(AppColors.background)
-            .navigationTitle("Home")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundColor(AppColors.textSecondary)
-                    }
-                }
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsSheet()
-            }
-            .sheet(isPresented: $showingRunHistory) {
-                RunHistorySheet()
-            }
-        }
-    }
-    
-    // MARK: - Profile Header
-    private var profileHeader: some View {
-        VStack(spacing: AppSpacing.md) {
-            // Avatar
-            ZStack {
-                Circle()
-                    .fill(AppColors.brandPrimary.opacity(0.2))
-                    .frame(width: 80, height: 80)
-                
-                Text(String(userData.profile.displayName.prefix(2)).uppercased())
-                    .font(AppTypography.title2)
-                    .foregroundColor(AppColors.brandPrimary)
-            }
-            
-            // Name & Rank Tier
-            VStack(spacing: AppSpacing.xxs) {
-                Text(userData.profile.displayName)
-                    .font(AppTypography.title2)
-                    .foregroundColor(AppColors.textPrimary)
-                
-                HStack(spacing: AppSpacing.sm) {
-                    Text("Level \(userData.profile.level)")
-                        .font(AppTypography.subheadline)
-                        .foregroundColor(AppColors.textSecondary)
-                    
-                    Text("\u{2022}")
-                        .foregroundColor(AppColors.textTertiary)
-                    
-                    HStack(spacing: AppSpacing.xxs) {
-                        Image(systemName: userData.profile.rank.iconName)
-                            .foregroundColor(AppColors.brandPrimary)
-                        Text(userData.profile.rankTier.displayName)
-                            .foregroundColor(AppColors.brandPrimary)
-                    }
-                    .font(AppTypography.subheadline)
-                }
-                
-                // Streak
-                if userData.profile.currentStreak > 0 {
-                    HStack(spacing: AppSpacing.xxs) {
-                        Image(systemName: "flame.fill")
-                            .foregroundColor(AppColors.warning)
-                        Text("\(userData.profile.currentStreak) day streak")
-                            .foregroundColor(AppColors.warning)
-                    }
-                    .font(AppTypography.caption1)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(AppSpacing.lg)
-        .background(AppColors.surface)
-        .cornerRadius(AppSpacing.radiusMd)
-    }
-    
-    // MARK: - Start Run Section
-    private var startRunSection: some View {
-        Button {
-            showingRunPrompt = true
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: AppSpacing.xxs) {
-                    Text("Start Run on Watch")
-                        .font(AppTypography.headline)
-                        .foregroundColor(AppColors.textPrimary)
-                    Text("Sprint. Earn RP Boxes. Rise in rank.")
-                        .font(AppTypography.caption1)
-                        .foregroundColor(AppColors.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "applewatch")
-                    .font(.largeTitle)
-                    .foregroundColor(AppColors.brandPrimary)
-            }
-            .padding(AppSpacing.lg)
-            .background(
-                LinearGradient(
-                    colors: [AppColors.brandPrimary.opacity(0.2), AppColors.surface],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .cornerRadius(AppSpacing.radiusMd)
-            .overlay(
-                RoundedRectangle(cornerRadius: AppSpacing.radiusMd)
-                    .stroke(AppColors.brandPrimary.opacity(0.3), lineWidth: 1)
-            )
-        }
-        .alert("Start Run", isPresented: $showingRunPrompt) {
-            Button("OK") {}
-        } message: {
-            Text("Open the Ippo app on your Apple Watch to start a run.")
-        }
-    }
-    
-    // MARK: - RP Box Section
-    private var rpBoxSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            HStack {
-                Text("RP Boxes")
-                    .font(AppTypography.headline)
-                    .foregroundColor(AppColors.textPrimary)
-                Spacer()
-                Text("\(userData.totalRPBoxes) available")
-                    .font(AppTypography.caption1)
-                    .foregroundColor(AppColors.brandPrimary)
-            }
-            
-            // Open Box Button -- launches full-screen opening experience
-            Button {
-                showingRPBoxOpen = true
-            } label: {
-                HStack(spacing: AppSpacing.md) {
-                    Image(systemName: "gift.fill")
-                        .font(.title)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [AppColors.brandPrimary, Color.purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    
-                    VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
-                        Text("Open RP Box")
-                            .font(AppTypography.headline)
-                            .foregroundColor(AppColors.textPrimary)
-                        Text("1-25 Reputation Points inside")
-                            .font(AppTypography.caption1)
-                            .foregroundColor(AppColors.textSecondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(AppColors.textTertiary)
-                }
-                .padding(AppSpacing.cardPadding)
-                .background(AppColors.brandPrimary.opacity(0.08))
-                .cornerRadius(AppSpacing.radiusMd)
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppSpacing.radiusMd)
-                        .stroke(AppColors.brandPrimary.opacity(0.3), lineWidth: 1)
-                )
-            }
-            .disabled(userData.totalRPBoxes == 0)
-        }
-        .cardStyle()
-        .fullScreenCover(isPresented: $showingRPBoxOpen) {
-            RPBoxOpenView()
-                .environmentObject(userData)
-        }
-    }
-    
-    // MARK: - Stats Grid
-    private var statsGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppSpacing.md) {
-            statCard("Runs", value: "\(userData.profile.totalRuns)", icon: "figure.run")
-            statCard("Sprints", value: "\(userData.profile.totalSprintsValid)", icon: "bolt.fill")
-            statCard("RP", value: "\(userData.profile.rp)", icon: "star.fill")
-            statCard("Streak", value: "\(userData.profile.currentStreak)d", icon: "flame.fill")
-        }
-    }
-    
-    private func statCard(_ title: String, value: String, icon: String) -> some View {
-        VStack(spacing: AppSpacing.xs) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(AppColors.brandPrimary)
-            
-            Text(value)
-                .font(AppTypography.title3)
-                .foregroundColor(AppColors.textPrimary)
-            
-            Text(title)
-                .font(AppTypography.caption1)
-                .foregroundColor(AppColors.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(AppSpacing.md)
-        .background(AppColors.surface)
-        .cornerRadius(AppSpacing.radiusMd)
-    }
-    
-    // MARK: - Level Section
-    private var levelSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Level Progress")
-                .font(AppTypography.headline)
-                .foregroundColor(AppColors.textPrimary)
-            
-            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                HStack {
-                    Text("Level \(userData.profile.level)")
-                        .font(AppTypography.subheadline)
-                        .foregroundColor(AppColors.textSecondary)
-                    Spacer()
-                    Text("\(userData.profile.xp) / \(userData.profile.xpForNextLevel) XP")
-                        .font(AppTypography.caption1)
-                        .foregroundColor(AppColors.textTertiary)
-                }
-                
-                ProgressView(value: userData.profile.xpProgress)
-                    .tint(AppColors.brandPrimary)
-                
-                Text("1 XP per minute of running")
-                    .font(AppTypography.caption2)
-                    .foregroundColor(AppColors.textTertiary)
-            }
-        }
-        .cardStyle()
-    }
-    
-    // MARK: - RP Section
-    private var rpSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            HStack {
-                Text("Reputation Points")
-                    .font(AppTypography.headline)
-                    .foregroundColor(AppColors.textPrimary)
-                Spacer()
-                Text("\(userData.profile.rp) RP")
-                    .font(AppTypography.headline)
-                    .foregroundColor(AppColors.brandPrimary)
-            }
-            
-            // Rank tier display
-            HStack {
-                Image(systemName: userData.profile.rank.iconName)
-                    .foregroundColor(AppColors.brandPrimary)
-                Text(userData.profile.rankTier.displayName)
-                    .font(AppTypography.subheadline)
-                    .foregroundColor(AppColors.brandPrimary)
-            }
-            
-            if let nextRank = userData.profile.rank.nextRank {
-                ProgressView(value: userData.profile.rpProgressInRank)
-                    .tint(AppColors.brandPrimary)
-                
-                if let rpNeeded = userData.profile.rpToNextRank {
-                    Text("\(rpNeeded) RP to \(nextRank.displayName)")
-                        .font(AppTypography.caption2)
-                        .foregroundColor(AppColors.textTertiary)
-                }
-            }
-            
-            // Weekly RP
-            HStack {
-                Text("This week")
-                    .font(AppTypography.caption1)
-                    .foregroundColor(AppColors.textSecondary)
-                Spacer()
-                Text("+\(userData.profile.weeklyRP) RP")
-                    .font(AppTypography.caption1)
-                    .foregroundColor(AppColors.success)
-            }
-        }
-        .cardStyle()
-    }
-    
-    // MARK: - Recent Runs
-    private var recentRunsSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            HStack {
-                Text("Recent Runs")
-                    .font(AppTypography.headline)
-                    .foregroundColor(AppColors.textPrimary)
-                Spacer()
-                if !userData.runHistory.isEmpty {
-                    Button("See All") {
-                        showingRunHistory = true
-                    }
-                    .font(AppTypography.caption1)
-                    .foregroundColor(AppColors.brandPrimary)
-                }
-            }
-            
-            if userData.runHistory.isEmpty {
-                Text("No runs yet. Start your first run!")
-                    .font(AppTypography.subheadline)
-                    .foregroundColor(AppColors.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, AppSpacing.lg)
-            } else {
-                ForEach(userData.runHistory.prefix(3)) { run in
-                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        HStack {
-                            Text(run.date.formatted(.relative(presentation: .named)))
-                                .font(AppTypography.subheadline)
-                                .foregroundColor(AppColors.textPrimary)
-                            Spacer()
-                            Text("\(run.rpBoxesEarned) boxes")
-                                .font(AppTypography.caption1)
-                                .foregroundColor(AppColors.brandPrimary)
-                        }
-                        
-                        // Metrics row
-                        HStack(spacing: AppSpacing.md) {
-                            Label(run.formattedDuration, systemImage: "clock")
-                            Label(run.formattedDistance, systemImage: "figure.run")
-                            if run.averageHR > 0 {
-                                Label("\(run.averageHR)", systemImage: "heart.fill")
-                            }
-                        }
-                        .font(AppTypography.caption1)
-                        .foregroundColor(AppColors.textSecondary)
-                        
-                        HStack(spacing: AppSpacing.md) {
-                            Label(run.formattedPace, systemImage: "gauge.medium")
-                            Label("\(run.sprintsCompleted)/\(run.sprintsTotal) sprints", systemImage: "bolt.fill")
-                            if run.totalCalories > 0 {
-                                Label(run.formattedCalories, systemImage: "flame.fill")
-                            }
-                        }
-                        .font(AppTypography.caption2)
-                        .foregroundColor(AppColors.textTertiary)
-                    }
-                    .padding(.vertical, AppSpacing.xs)
-                    
-                    if run.id != userData.runHistory.prefix(3).last?.id {
-                        Divider()
-                            .background(AppColors.surfaceElevated)
-                    }
-                }
-            }
-        }
-        .cardStyle()
-    }
-    
-}
+    @State private var showSettings = false
+    @State private var showFeedConfirm = false
+    @State private var showWaterConfirm = false
+    @State private var petAnimating = false
+    @State private var showHearts = false
+    @State private var showRunSummary = false
 
-// MARK: - Settings Sheet
-struct SettingsSheet: View {
-    @EnvironmentObject var userData: UserData
-    @Environment(\.dismiss) var dismiss
-    @State private var displayName: String = ""
-    @State private var username: String = ""
-    @State private var usernameError: String?
-    @State private var showingSignOutConfirm = false
-    @State private var showingDeleteConfirm = false
-    @State private var showingDebugPanel = false
-    @State private var isCheckingUsername = false
-    @State private var deleteConfirmText = ""
-    @State private var isDeletingAccount = false
-    @State private var permissionAlert: String?
-    @State private var showingPermissionAlert = false
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
-    @ObservedObject private var themeManager = ThemeManager.shared
-    
-    private var isUsernameValid: Bool {
-        let trimmed = username.trimmingCharacters(in: .whitespaces)
-        guard trimmed.count >= 3, trimmed.count <= 20 else { return false }
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
-        return trimmed.unicodeScalars.allSatisfy { allowed.contains($0) }
-    }
-    
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Profile") {
-                    TextField("Display Name", text: $displayName)
-                        .onAppear {
-                            displayName = userData.profile.displayName
-                            username = userData.profile.username
-                        }
-                    VStack(alignment: .leading, spacing: 4) {
-                        TextField("Username", text: $username)
-                            .autocapitalization(.none)
-                            .autocorrectionDisabled()
-                            .onChange(of: username) { _ in usernameError = nil }
-                        if let error = usernameError {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(AppColors.danger)
-                        } else if !username.isEmpty && !isUsernameValid {
-                            Text("3-20 chars, letters/numbers/underscores")
-                                .font(.caption)
-                                .foregroundColor(AppColors.warning)
-                        }
-                    }
-                    
-                    if let email = AuthService.shared.email {
-                        HStack {
-                            Text("Email")
-                                .foregroundColor(AppColors.textSecondary)
-                            Spacer()
-                            Text(email)
-                                .foregroundColor(AppColors.textTertiary)
-                        }
-                    }
-                }
-                
-                Section("Color Theme") {
-                    HStack(spacing: 12) {
-                        ForEach(AppColorTheme.allCases) { theme in
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    themeManager.current = theme
-                                }
-                            } label: {
-                                VStack(spacing: 4) {
-                                    Circle()
-                                        .fill(theme.previewColor)
-                                        .frame(width: 36, height: 36)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(themeManager.current == theme ? Color.white : Color.clear, lineWidth: 2)
-                                        )
-                                    Text(theme.rawValue)
-                                        .font(.system(size: 9))
-                                        .foregroundColor(themeManager.current == theme ? AppColors.textPrimary : AppColors.textTertiary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
-                }
-                
-                Section("App") {
-                    Button {
-                        let healthStore = HKHealthStore()
-                        let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate)!
-                        let status = healthStore.authorizationStatus(for: hrType)
-                        if status == .sharingAuthorized {
-                            permissionAlert = "Health permissions are already enabled."
-                            showingPermissionAlert = true
+            ZStack {
+                AppColors.background.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 16) {
+                        topBar
+                        if let pet = userData.equippedPet, let def = pet.definition {
+                            petSection(pet: pet, def: def)
+                            xpSection(pet: pet)
+                            careButtons(pet: pet)
+                            boostBanner
                         } else {
-                            let shareTypes: Set<HKSampleType> = [
-                                HKWorkoutType.workoutType(),
-                                HKQuantityType.quantityType(forIdentifier: .heartRate)!,
-                                HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!,
-                                HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
-                            ]
-                            let readTypes: Set<HKObjectType> = [
-                                HKObjectType.quantityType(forIdentifier: .heartRate)!,
-                                HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
-                                HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
-                                HKObjectType.workoutType()
-                            ]
-                            healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { success, _ in
-                                DispatchQueue.main.async {
-                                    if success {
-                                        permissionAlert = "Health permissions granted!"
-                                    } else {
-                                        permissionAlert = "Please enable Health permissions in Settings."
-                                    }
-                                    showingPermissionAlert = true
-                                }
-                            }
-                        }
-                    } label: {
-                        Label("Health Permissions", systemImage: "heart.fill")
-                    }
-                    
-                    Button {
-                        UNUserNotificationCenter.current().getNotificationSettings { settings in
-                            DispatchQueue.main.async {
-                                if settings.authorizationStatus == .authorized {
-                                    permissionAlert = "Notification permissions are already enabled."
-                                    showingPermissionAlert = true
-                                } else if settings.authorizationStatus == .denied {
-                                    permissionAlert = "Notifications are denied. Opening Settings..."
-                                    showingPermissionAlert = true
-                                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                                        UIApplication.shared.open(url)
-                                    }
-                                } else {
-                                    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-                                        DispatchQueue.main.async {
-                                            permissionAlert = granted ? "Notification permissions granted!" : "Notifications denied. Enable in Settings."
-                                            showingPermissionAlert = true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Label("Notification Permissions", systemImage: "bell.fill")
-                    }
-                }
-                
-                // Admin panel -- only visible to crucesaunders@icloud.com
-                if AuthService.shared.isAdmin {
-                    Section("Admin") {
-                        Button("Debug Panel") {
-                            showingDebugPanel = true
-                        }
-                        .foregroundColor(AppColors.brandPrimary)
-                    }
-                }
-                
-                Section("Account") {
-                    Button("Sign Out") {
-                        showingSignOutConfirm = true
-                    }
-                    .foregroundColor(AppColors.danger)
-                    
-                    Button("Delete Account") {
-                        showingDeleteConfirm = true
-                    }
-                    .foregroundColor(AppColors.danger)
-                }
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if isCheckingUsername {
-                        ProgressView()
-                    } else {
-                        Button("Done") {
-                            let trimmedDisplay = displayName.trimmingCharacters(in: .whitespaces)
-                            let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
-                            
-                            guard !trimmedDisplay.isEmpty else {
-                                usernameError = "Display name cannot be empty"
-                                return
-                            }
-                            guard !trimmedUsername.isEmpty else {
-                                usernameError = "Username cannot be empty"
-                                return
-                            }
-                            guard isUsernameValid else {
-                                usernameError = "3-20 chars, letters/numbers/underscores only"
-                                return
-                            }
-                            
-                            let usernameChanged = trimmedUsername.lowercased() != userData.profile.username
-                            
-                            if usernameChanged {
-                                isCheckingUsername = true
-                                Task {
-                                    let result = await FriendService.shared.checkUsernameAvailability(trimmedUsername.lowercased())
-                                    isCheckingUsername = false
-                                    switch result {
-                                    case .available:
-                                        applyProfileChanges(displayName: trimmedDisplay, username: trimmedUsername)
-                                    case .taken:
-                                        usernameError = "Username is already taken"
-                                    case .error(let message):
-                                        usernameError = message
-                                    }
-                                }
-                            } else {
-                                applyProfileChanges(displayName: trimmedDisplay, username: trimmedUsername)
-                            }
+                            noPetView
                         }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
                 }
             }
-            .alert("Sign Out?", isPresented: $showingSignOutConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Sign Out", role: .destructive) {
-                    AuthService.shared.signOut()
-                    dismiss()
-                }
-            } message: {
-                Text("Your data is saved to the cloud. You can sign back in anytime.")
-            }
-            .alert("Delete Account?", isPresented: $showingDeleteConfirm) {
-                TextField("Type your username to confirm", text: $deleteConfirmText)
-                    .autocapitalization(.none)
-                    .autocorrectionDisabled()
-                Button("Cancel", role: .cancel) {
-                    deleteConfirmText = ""
-                }
-                Button("Delete Forever", role: .destructive) {
-                    guard deleteConfirmText.lowercased() == userData.profile.username.lowercased() else { return }
-                    isDeletingAccount = true
-                    Task {
-                        await AuthService.shared.deleteAccount()
-                        deleteConfirmText = ""
-                        isDeletingAccount = false
-                        hasCompletedOnboarding = false
-                        dismiss()
-                    }
-                }
-                .disabled(deleteConfirmText.lowercased() != userData.profile.username.lowercased())
-            } message: {
-                Text("This will permanently delete your account and all data. Type \"\(userData.profile.username)\" to confirm.")
-            }
-            .sheet(isPresented: $showingDebugPanel) {
-                AdminDebugView()
+            .sheet(isPresented: $showSettings) {
+                ProfileView()
                     .environmentObject(userData)
             }
-            .alert("Permissions", isPresented: $showingPermissionAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(permissionAlert ?? "")
-            }
-        }
-    }
-    
-    private func applyProfileChanges(displayName: String, username: String) {
-        userData.profile.displayName = displayName
-        if !username.isEmpty {
-            userData.profile.username = username.trimmingCharacters(in: .whitespaces).lowercased()
-        }
-        userData.save()
-        // Push updated profile (maxHR) to Watch
-        WatchConnectivityService.shared.pushProfileToWatch()
-        dismiss()
-    }
-}
-
-// MARK: - Run History Sheet
-struct RunHistorySheet: View {
-    @EnvironmentObject var userData: UserData
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            List {
-                if userData.runHistory.isEmpty {
-                    Text("No runs yet")
-                        .foregroundColor(AppColors.textSecondary)
-                } else {
-                    ForEach(userData.runHistory) { run in
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            HStack {
-                                Text(run.date.formatted(date: .abbreviated, time: .shortened))
-                                    .font(AppTypography.headline)
-                                Spacer()
-                                Text("\(run.rpBoxesEarned) RP Boxes")
-                                    .foregroundColor(AppColors.brandPrimary)
-                            }
-                            
-                            // Primary metrics
-                            HStack(spacing: AppSpacing.md) {
-                                Label(run.formattedDuration, systemImage: "clock")
-                                Label(run.formattedDistance, systemImage: "figure.run")
-                                Label(run.formattedPace, systemImage: "gauge.medium")
-                            }
-                            .font(AppTypography.caption1)
-                            .foregroundColor(AppColors.textSecondary)
-                            
-                            // Secondary metrics
-                            HStack(spacing: AppSpacing.md) {
-                                Label("\(run.sprintsCompleted)/\(run.sprintsTotal) sprints", systemImage: "bolt.fill")
-                                if run.averageHR > 0 {
-                                    Label("\(run.averageHR) bpm", systemImage: "heart.fill")
-                                }
-                                if run.totalCalories > 0 {
-                                    Label(run.formattedCalories, systemImage: "flame.fill")
-                                }
-                            }
-                            .font(AppTypography.caption2)
-                            .foregroundColor(AppColors.textTertiary)
-                        }
-                        .padding(.vertical, AppSpacing.xs)
+            .fullScreenCover(isPresented: $showRunSummary) {
+                if let run = userData.pendingRunSummary {
+                    PostRunSummaryView(run: run) {
+                        userData.pendingRunSummary = nil
+                        showRunSummary = false
                     }
+                    .environmentObject(userData)
                 }
             }
-            .navigationTitle("Run History")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+            .onAppear {
+                if userData.pendingRunSummary != nil {
+                    showRunSummary = true
+                }
+                NotificationSystem.shared.rescheduleNotifications()
+                userData.inventory.cleanExpiredBoosts()
+            }
+        }
+    }
+
+    // MARK: - Top Bar
+    private var topBar: some View {
+        HStack {
+            HStack(spacing: 4) {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(AppColors.coins)
+                Text("\(userData.profile.coins)")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+            }
+
+            Spacer()
+
+            if userData.profile.currentStreak > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(AppColors.accent)
+                    Text("\(userData.profile.currentStreak)")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                showSettings = true
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(AppColors.textSecondary)
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    // MARK: - Pet Section
+    private func petSection(pet: OwnedPet, def: GamePetDefinition) -> some View {
+        VStack(spacing: 8) {
+            Text(def.name)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            HStack(spacing: 8) {
+                Text("Stage \(pet.evolutionStage) · \(pet.stageName)")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                MoodIndicator(mood: pet.mood)
+            }
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(AppColors.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(
+                                userData.inventory.activeXPBoost != nil
+                                    ? AppColors.xp.opacity(0.5)
+                                    : Color.clear,
+                                lineWidth: 3
+                            )
+                    )
+
+                PetImageView(imageName: pet.currentImageName)
+                    .padding(32)
+                    .offset(y: petAnimating ? -6 : 0)
+                    .animation(
+                        .easeInOut(duration: 1.5).repeatForever(autoreverses: true),
+                        value: petAnimating
+                    )
+
+                if showHearts {
+                    heartsOverlay
+                }
+            }
+            .frame(height: UIScreen.main.bounds.height * 0.38)
+            .onAppear { petAnimating = true }
+        }
+    }
+
+    // MARK: - XP Section
+    private func xpSection(pet: OwnedPet) -> some View {
+        XPProgressBar(
+            progress: pet.xpProgress,
+            currentXP: pet.experience - pet.xpForCurrentStage,
+            targetXP: pet.xpForNextStage - pet.xpForCurrentStage,
+            label: pet.isMaxEvolution ? "Max Level" : "to \(PetConfig.shared.stageName(for: pet.evolutionStage + 1))"
+        )
+    }
+
+    // MARK: - Care Buttons
+    private func careButtons(pet: OwnedPet) -> some View {
+        HStack(spacing: 12) {
+            careButton(
+                icon: "leaf.fill",
+                label: "Feed",
+                count: userData.inventory.food,
+                enabled: pet.canBeFed && userData.inventory.food > 0
+            ) {
+                if userData.feedPet() {
+                    triggerHappyAnimation()
+                }
+            }
+
+            careButton(
+                icon: "drop.fill",
+                label: "Water",
+                count: userData.inventory.water,
+                enabled: pet.canBeWatered && userData.inventory.water > 0
+            ) {
+                if userData.waterPet() {
+                    triggerHappyAnimation()
+                }
+            }
+
+            careButton(
+                icon: "hand.raised.fill",
+                label: "Pet",
+                count: nil,
+                enabled: pet.canBePetted
+            ) {
+                if userData.petPet() {
+                    triggerHappyAnimation()
                 }
             }
         }
     }
-}
 
-#Preview {
-    HomeView()
-        .environmentObject(UserData.shared)
+    private func careButton(icon: String, label: String, count: Int?, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                    .foregroundColor(enabled ? AppColors.accent : AppColors.textTertiary)
+                Text(label)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(enabled ? AppColors.textPrimary : AppColors.textTertiary)
+                if let count {
+                    Text("x\(count)")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(AppColors.surface)
+            .cornerRadius(12)
+        }
+        .disabled(!enabled)
+    }
+
+    // MARK: - Boost Banner
+    @ViewBuilder
+    private var boostBanner: some View {
+        if let boost = userData.inventory.activeXPBoost {
+            HStack {
+                Image(systemName: "arrow.up.circle.fill")
+                    .foregroundColor(AppColors.xp)
+                Text("XP Boost Active")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Spacer()
+                Text(formatTimeRemaining(boost.remainingSeconds))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            .padding(12)
+            .background(AppColors.xp.opacity(0.1))
+            .cornerRadius(12)
+        }
+
+        if userData.inventory.isHibernating {
+            HStack {
+                Image(systemName: "moon.zzz.fill")
+                    .foregroundColor(AppColors.accentSoft)
+                Text("Hibernation Active")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Spacer()
+                Text("Pets protected")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            .padding(12)
+            .background(AppColors.accentSoft.opacity(0.15))
+            .cornerRadius(12)
+        }
+    }
+
+    // MARK: - No Pet View
+    private var noPetView: some View {
+        VStack(spacing: 16) {
+            Spacer().frame(height: 60)
+            Image(systemName: "pawprint.fill")
+                .font(.system(size: 48))
+                .foregroundColor(AppColors.textTertiary)
+            Text("No pet equipped")
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+            Text("Go to your collection and equip a pet!")
+                .font(.system(size: 14, design: .rounded))
+                .foregroundColor(AppColors.textTertiary)
+        }
+    }
+
+    // MARK: - Hearts Overlay
+    private var heartsOverlay: some View {
+        ForEach(0..<5, id: \.self) { i in
+            Image(systemName: "heart.fill")
+                .font(.system(size: 16))
+                .foregroundColor(AppColors.petHappy)
+                .offset(
+                    x: CGFloat.random(in: -40...40),
+                    y: showHearts ? -80 : 0
+                )
+                .opacity(showHearts ? 0 : 1)
+                .animation(
+                    .easeOut(duration: 1.0).delay(Double(i) * 0.1),
+                    value: showHearts
+                )
+        }
+    }
+
+    // MARK: - Helpers
+    private func triggerHappyAnimation() {
+        showHearts = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            showHearts = false
+        }
+    }
+
+    private func formatTimeRemaining(_ seconds: TimeInterval) -> String {
+        let hours = Int(seconds) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+        return "\(minutes)m"
+    }
 }

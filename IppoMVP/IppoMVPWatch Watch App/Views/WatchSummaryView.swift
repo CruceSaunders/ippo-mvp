@@ -61,7 +61,6 @@ struct WatchSummaryView: View {
                         Divider()
                             .background(Color.gray.opacity(0.3))
                         
-                        // Sprints + RP Boxes
                         HStack {
                             metricItem(
                                 icon: "bolt.fill",
@@ -71,22 +70,25 @@ struct WatchSummaryView: View {
                             )
                             Spacer()
                             metricItem(
-                                icon: "gift.fill",
-                                iconColor: .purple,
-                                value: "\(summary.rpBoxesEarned)",
-                                label: "RP Boxes"
+                                icon: "circle.fill",
+                                iconColor: .yellow,
+                                value: "+\(summary.coinsEarned)",
+                                label: "Coins"
                             )
                         }
                     }
                     .padding(.vertical, 4)
                 }
-                
-                // RP Box notification
-                if let summary = runManager.runSummary, summary.rpBoxesEarned > 0 {
-                    Text("Open RP Boxes on your phone!")
-                        .font(.system(size: 10))
-                        .foregroundColor(.cyan)
-                        .padding(.vertical, 2)
+
+                if let summary = runManager.runSummary, summary.petCaughtId != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(.orange)
+                        Text("New friend waiting for you!")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.vertical, 2)
                 }
                 
                 // Done button

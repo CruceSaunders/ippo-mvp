@@ -294,23 +294,20 @@ struct CelebrationModal: View {
 // MARK: - Preset Variants
 
 extension CelebrationModal {
-    /// RP Box opened celebration
-    static func rpBoxOpened(
+    static func petCaught(
         isPresented: Binding<Bool>,
-        rpAmount: Int,
-        tier: RPBoxTier,
+        petName: String,
         onDismiss: @escaping () -> Void = {}
     ) -> CelebrationModal {
-        let tierColor = AppColors.forTier(tier)
         return CelebrationModal(
             isPresented: isPresented,
-            title: "RP BOX OPENED!",
-            subtitle: tier.displayName.uppercased(),
-            primaryStat: "+\(rpAmount) RP",
+            title: "NEW FRIEND!",
+            subtitle: petName.uppercased(),
+            primaryStat: "Caught!",
             secondaryStat: nil,
-            icon: "gift.fill",
-            iconColor: tierColor,
-            accentColor: tierColor,
+            icon: "pawprint.fill",
+            iconColor: AppColors.accent,
+            accentColor: AppColors.accent,
             onDismiss: onDismiss
         )
     }

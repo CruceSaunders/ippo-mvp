@@ -47,15 +47,17 @@ final class HapticsManager {
     }
     
     // MARK: - Custom Patterns
-    func playRPBoxOpen() {
+    func playPetCatch() {
         Task {
             playMedium()
-            try? await Task.sleep(nanoseconds: 500_000_000)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            playHeavy()
+            try? await Task.sleep(nanoseconds: 200_000_000)
             playHeavy()
         }
     }
-    
-    func playRankUp() {
+
+    func playEvolution() {
         Task {
             playLight()
             try? await Task.sleep(nanoseconds: 200_000_000)

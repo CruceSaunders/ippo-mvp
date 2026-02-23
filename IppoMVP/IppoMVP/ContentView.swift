@@ -3,32 +3,32 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var userData: UserData
     @State private var selectedTab = 0
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView()
                 .tabItem {
-                    Label("Home", systemImage: "house.fill")
+                    Label("Home", systemImage: "pawprint.fill")
                 }
                 .tag(0)
-            
-            RanksView()
+
+            CollectionView()
                 .tabItem {
-                    Label("Ranks", systemImage: "shield.fill")
+                    Label("Collection", systemImage: "square.grid.2x2.fill")
                 }
                 .tag(1)
-            
-            SocialView()
-                .tabItem {
-                    Label("Social", systemImage: "person.2.fill")
-                }
-                .tag(2)
         }
-        .tint(AppColors.brandPrimary)
+        .tint(AppColors.accent)
         .onAppear {
-            // Check for RP decay and weekly reset on app launch
-            userData.applyRPDecayIfNeeded()
-            userData.checkWeeklyReset()
+            let appearance = UITabBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = UIColor(AppColors.tabBar)
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+
+            userData.inventory.cleanExpiredBoosts()
+            userData.checkRunaway()
+            NotificationSystem.shared.rescheduleNotifications()
         }
     }
 }
@@ -36,5 +36,6 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(UserData.shared)
+        .environmentObject(AuthService.shared)
         .environmentObject(WatchConnectivityService.shared)
 }

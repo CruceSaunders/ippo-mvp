@@ -130,38 +130,43 @@ struct WatchRunningView: View {
     // MARK: - Sprint Result Overlay
     private var sprintResultOverlay: some View {
         ZStack {
-            // Dark background
             Color.black.opacity(0.85)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 8) {
-                if runManager.lastSprintSuccess {
-                    Image(systemName: "gift.fill")
+                if runManager.didCatchPet {
+                    Image(systemName: "pawprint.fill")
                         .font(.system(size: 36))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.purple, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    
-                    Text("RP Box Earned!")
+                        .foregroundColor(.orange)
+
+                    Text("New friend caught!")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.orange)
+
+                    Text("Check your phone!")
+                        .font(.system(size: 11))
+                        .foregroundColor(.gray)
+                } else if runManager.lastSprintSuccess {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(.green)
+
+                    Text("Sprint Complete!")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.green)
-                    
-                    Text("+1 RP Box")
+
+                    Text("+coins +XP")
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
                 } else {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 36))
                         .foregroundColor(.red.opacity(0.8))
-                    
+
                     Text("Sprint Failed")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.red)
-                    
+
                     Text("Push harder next time!")
                         .font(.system(size: 11))
                         .foregroundColor(.gray)

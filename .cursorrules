@@ -3,89 +3,111 @@ description:
 alwaysApply: true
 ---
 
-# Ippo MVP Project Cursor Rules
-# Swift/SwiftUI iOS + watchOS Fartlek Running Game
+# Ippo Project Cursor Rules
+# Swift/SwiftUI iOS + watchOS Tamagotchi-Style Pet Running App
 
-## CRITICAL: Project Context
+## CRITICAL: Project History and Current Version
 
-This is an **MVP (Minimum Viable Product)** of a larger app called Ippo. 
+This project has gone through THREE versions. Only v3 is active.
 
-### What This Project IS:
-- A simplified fartlek-style running game
-- Sprint prompts during runs (30-45 seconds)
-- Pet collection through sprint rewards
-- Simple sprint validation (HR + cadence)
+### Version History
+- **v1 (archived in `_archived_v1/`):** Full pet-collecting running game with 10 pets, ability trees, coins/gems, shop, achievements, IEI zones. Over-scoped.
+- **v2 (archived in `_archived_v2/`):** Scoped-down RP box running game. Removed pets, added ranks, friends, groups, weekly leaderboards. Submitted to App Store as "Ippo MVP" Build 39.
+- **v3 (CURRENT - active code):** Tamagotchi-style pet running app. Catch fantasy pets during runs, care for them daily (feed, water, pet), watch them evolve through 10 micro-stages. No ranks, no RP, no social features. Warm natural color palette targeting female audience 16-30.
 
-### What This Project IS NOT:
-- The full Ippo product with complex IEI zones
-- A multi-zone chase system
-- Complex calibration flows
+### What to Build From
+**BUILD BASED ON:** The plan at `.cursor/plans/ippo_pet_pivot_plan_*.plan.md`
+**DO NOT** reference old PRDs (MVP_PRD.md, SCOPED_MVP_PRD.md) for the current version.
 
-### Reference Documents
-This project includes reference documents from the full Ippo app:
-- `docs/brainlift.md` - Full product vision and research (REFERENCE ONLY)
-- `docs/idea.md` - Core concept explanation (REFERENCE ONLY)
-- `docs/prd.md` - Full product PRD (REFERENCE ONLY)
-- `docs/UIPRD1.md` - Full UI specifications (REFERENCE ONLY)
-
-**IMPORTANT:** These documents are for CONTEXT only. Do NOT build based on them.
-**BUILD BASED ON:** `docs/MVP_PRD.md` - This is the definitive specification for this project.
+### Archive Folders
+- `IppoMVP/_archived_v1/` - Original full MVP code (pets, abilities, achievements, shop)
+- `IppoMVP/_archived_v2/` - Scoped-down MVP code (ranks, social, RP boxes)
+- These folders are NOT compiled. They exist only as reference for future features.
 
 ---
 
 ## Project Overview
 
-Ippo MVP is a fartlek running game featuring:
-- Random sprint encounters during runs (watchOS)
-- Sprint validation using HR and cadence
-- Pet collection and progression (iOS + watchOS)
-- Simple reward system (pets, loot boxes, RP, coins)
-- Cross-platform Watch Connectivity sync
+**Ippo** is a Tamagotchi-meets-Pokemon-Go running app:
+1. Run with Apple Watch, catch rare fantasy pets during sprint encounters
+2. Care for your equipped pet daily (feed, water, pet)
+3. Happy pets gain XP faster and evolve through 10 micro-evolution stages
+4. Neglected pets get sad, gain XP slower, and eventually run away
+5. Coins earned from running buy food, water, boosts, and hibernation items
+
+---
+
+## App Identifiers
+
+| Identifier | Value |
+|------------|-------|
+| iOS Bundle ID | `com.cruce.IppoMVP` |
+| watchOS Bundle ID | `com.cruce.IppoMVP.watchkitapp` |
+| App Name (App Store) | `Ippo` |
+| Team ID | `HQCUADY3A5` |
+| Firebase Project | IppoMVP |
 
 ---
 
 ## File Organization
 
-### Directory Structure
+### iOS App Structure
 ```
-IppoMVP/
-├── Config/                 # Sendable config structs
-│   ├── SprintConfig.swift
-│   ├── EncounterConfig.swift
-│   └── RewardsConfig.swift
-├── Core/Types/            # Data models, enums, protocols
-│   ├── SprintTypes.swift
-│   ├── PetTypes.swift
-│   ├── RewardTypes.swift
-│   └── PlayerTypes.swift
-├── Data/                  # GameData (static) + UserData (runtime)
-│   ├── GameData.swift
-│   └── UserData.swift
-├── Engine/                # Core algorithms
+IppoMVP/IppoMVP/
+├── Config/
+│   ├── SprintConfig.swift       # Sprint timing and validation thresholds
+│   ├── EncounterConfig.swift    # Encounter probability, catch rates
+│   ├── PetConfig.swift          # Evolution XP thresholds, mood rules
+│   ├── EconomyConfig.swift      # Coin costs, shop prices
+│   └── RewardsConfig.swift      # XP/coin amounts per action
+├── Core/Types/
+│   ├── SprintTypes.swift        # Sprint result types
+│   ├── PetTypes.swift           # GamePetDefinition, OwnedPet, PetMood
+│   ├── RewardTypes.swift        # RunReward, ShopItem
+│   └── PlayerTypes.swift        # PlayerProfile
+├── Data/
+│   ├── GameData.swift           # 10 pet definitions (static)
+│   └── UserData.swift           # User state (pets, coins, care, streak)
+├── Engine/
 │   ├── Sprint/
 │   │   ├── SprintEngine.swift
 │   │   └── SprintValidator.swift
-│   ├── Encounter/
-│   │   └── EncounterManager.swift
-│   └── RunSession/
-│       └── RunSessionManager.swift
-├── Services/              # External integrations
+│   └── Encounter/
+│       └── EncounterManager.swift
+├── Services/
 │   ├── AuthService.swift
 │   ├── CloudService.swift
 │   ├── DataPersistence.swift
 │   └── WatchConnectivityService.swift
-├── Systems/               # Game systems
-│   ├── PetSystem.swift
-│   ├── RewardsSystem.swift
-│   └── LootBoxSystem.swift
+├── Systems/
+│   ├── PetSystem.swift          # Evolution, XP, equipping
+│   ├── CareSystem.swift         # Feeding, watering, petting, mood
+│   ├── CoinSystem.swift         # Earning and spending coins
+│   ├── NotificationSystem.swift # Local push notifications
+│   ├── RewardsSystem.swift      # Run reward calculation
+│   └── LootBoxSystem.swift      # (may be removed/repurposed)
 ├── UI/
-│   ├── Design/            # Design system
-│   │   ├── AppColors.swift
-│   │   ├── AppTypography.swift
+│   ├── Design/
+│   │   ├── AppColors.swift      # Warm natural palette
+│   │   ├── AppTypography.swift  # SF Rounded
 │   │   └── AppSpacing.swift
-│   ├── Components/        # Reusable UI components
-│   └── Views/             # Screen-level views
-└── Utils/                 # Utilities
+│   ├── Components/
+│   │   ├── PetVideoPlayer.swift # Looping video player
+│   │   ├── MoodIndicator.swift  # Leaf-based mood display
+│   │   ├── XPProgressBar.swift  # Evolution progress
+│   │   └── ...
+│   └── Views/
+│       ├── HomeView.swift       # Equipped pet + care actions
+│       ├── CollectionView.swift # Pet grid + shop access
+│       ├── PetDetailView.swift  # Full pet view + evolution timeline
+│       ├── ShopSheet.swift      # Shop modal
+│       ├── PostRunSummaryView.swift
+│       ├── PetRevealView.swift  # Catch reveal animation
+│       ├── OnboardingFlow.swift # 8-screen onboarding
+│       ├── LoginView.swift
+│       ├── ProfileView.swift    # Settings sheet
+│       └── AdminDebugView.swift
+└── Utils/
     ├── HapticsManager.swift
     └── TelemetryLogger.swift
 ```
@@ -93,323 +115,152 @@ IppoMVP/
 ### Watch App Structure
 ```
 IppoMVPWatch Watch App/
-├── Config/
-│   └── HapticsConfig.swift
 ├── Engine/
-│   ├── Sprint/
-│   ├── Encounter/
-│   └── Sensors/
-│       └── SensorBridge.swift
+│   └── WatchRunManager.swift    # Run lifecycle, sprint triggers, pet catches
 ├── Views/
-│   ├── WatchStartView.swift
-│   ├── WatchRunningView.swift
-│   ├── WatchSprintView.swift
-│   └── WatchSummaryView.swift
-└── Services/
-    ├── WorkoutManager.swift
-    └── WatchConnectivityService.swift
+│   ├── WatchContentView.swift
+│   ├── WatchStartView.swift     # Start screen with equipped pet
+│   ├── WatchRunningView.swift   # Run metrics + pet on scroll
+│   ├── WatchSprintView.swift    # Sprint countdown
+│   └── WatchSummaryView.swift   # Post-run summary
+├── Services/
+│   └── WatchConnectivityServiceWatch.swift
+└── Utils/
+    └── WatchHapticsManager.swift
 ```
 
 ---
 
-## Naming Conventions
+## Design System (v3 - Warm Natural)
 
-### Data Model Pattern: Definition vs Instance
-
+### Colors
 ```swift
-// 1. GameXxxDefinition - Static game data (from GameData)
-struct GamePetDefinition: Identifiable, Codable {
-    let id: String
-    let name: String
-    let rarity: Rarity
-    let baseRPBonus: Double
-}
-
-// 2. OwnedXxx - User's instance (in UserData)
-struct OwnedPet: Identifiable, Codable {
-    let id: String           // Unique instance ID
-    let petDefinitionId: String  // References GamePetDefinition.id
-    var level: Int
-    var mood: Int
-    
-    var definition: GamePetDefinition? {
-        GameData.shared.pet(byId: petDefinitionId)
-    }
-}
+AppColors.background         // #FFF8F0 (warm cream)
+AppColors.surface            // #FFF1E6
+AppColors.surfaceElevated    // #FFE8D6
+AppColors.textPrimary        // #2D2A26 (warm dark brown)
+AppColors.textSecondary      // #6B6560
+AppColors.accent             // #E88D5A (warm amber)
+AppColors.accentSoft         // #F5C89A
+AppColors.success            // #6BBF6B
+AppColors.warning            // #E8B44A
+AppColors.danger             // #D96B6B
+AppColors.coins              // #D4A843
+AppColors.xp                 // #7BB8E0 (soft blue)
+AppColors.petHappy           // #8BC68B
+AppColors.petNeutral         // #E8C86B
+AppColors.petSad             // #D98B8B
 ```
 
-### Type Naming
-- **Config structs**: `XxxConfig` (e.g., `SprintConfig`, `EncounterConfig`)
-- **System classes**: `XxxSystem` (e.g., `PetSystem`, `RewardsSystem`)
-- **Manager classes**: `XxxManager` (e.g., `HapticsManager`, `EncounterManager`)
-- **Engine classes**: `XxxEngine` (e.g., `SprintEngine`)
-
-### Enum Naming
-- PascalCase enum names, camelCase cases
-- Conform to `String, Codable` when persistence needed
-
-```swift
-enum Rarity: String, Codable, CaseIterable {
-    case common
-    case uncommon
-    case rare
-    case epic
-    case legendary
-}
-```
-
----
-
-## SwiftUI Patterns
-
-### ObservableObject Classes
-Always use `@MainActor` for ObservableObject classes:
-
-```swift
-@MainActor
-final class SprintEngine: ObservableObject {
-    @Published private(set) var isSprintActive = false
-    @Published private(set) var sprintTimeRemaining: TimeInterval = 0
-    
-    static let shared = SprintEngine()
-    
-    private let haptics: HapticsManager
-    private let config: SprintConfig
-    
-    init(haptics: HapticsManager? = nil, config: SprintConfig? = nil) {
-        self.haptics = haptics ?? HapticsManager.shared
-        self.config = config ?? .shared
-    }
-}
-```
-
-### View Organization
-```swift
-struct MyView: View {
-    // MARK: - Environment & State
-    @EnvironmentObject private var userData: UserData
-    @State private var isLoading = false
-    
-    // MARK: - Body
-    var body: some View {
-        content
-    }
-    
-    // MARK: - Subviews
-    private var content: some View { ... }
-    
-    // MARK: - Actions
-    private func handleTap() { ... }
-}
-```
-
----
-
-## Design System Usage
-
-### Colors (AppColors)
-```swift
-// Backgrounds
-AppColors.background           // #0C0C12
-AppColors.surface              // #1A1A24
-AppColors.surfaceElevated      // #222230
-
-// Text
-AppColors.textPrimary          // White
-AppColors.textSecondary        // #B4B4C4
-AppColors.textTertiary         // #6B6B7B
-
-// Brand
-AppColors.brandPrimary         // #00E5FF (cyan)
-
-// Semantic
-AppColors.success              // #22C55E
-AppColors.warning              // #F59E0B
-AppColors.danger               // #EF4444
-
-// Currencies
-AppColors.gold                 // #FFD700
-AppColors.gems                 // #E879F9
-
-// Rarity
-AppColors.rarityCommon         // Gray
-AppColors.rarityUncommon       // Green
-AppColors.rarityRare           // Blue
-AppColors.rarityEpic           // Purple
-AppColors.rarityLegendary      // Orange
-```
-
-### Spacing (AppSpacing)
-```swift
-AppSpacing.xs     // 6pt
-AppSpacing.sm     // 8pt
-AppSpacing.md     // 12pt
-AppSpacing.lg     // 16pt
-AppSpacing.xl     // 24pt
-AppSpacing.screenPadding // 20pt
-AppSpacing.cardPadding   // 16pt
-AppSpacing.radiusSm      // 8pt
-AppSpacing.radiusMd      // 12pt
-```
-
----
-
-## Sprint System Guidelines
-
-### Sprint Validation
-The MVP uses a simplified sprint validation:
-
-1. **Heart Rate Response (50% weight)**
-   - HR must increase ≥20 BPM from baseline
-   - Must reach Zone 4-5 (>80% max HR)
-   - Must stay elevated for 70%+ of sprint duration
-
-2. **Cadence Increase (35% weight)**
-   - Cadence must increase ≥15% above pre-sprint average
-   - Peak cadence should reach ≥160 SPM
-
-3. **HR Derivative (15% weight)**
-   - HR should rise ≥3 BPM/second in first 10 seconds
-
-**Total score ≥60% = VALID sprint**
-
-### Sprint Timing
-- Duration: Random 30-45 seconds
-- Recovery period: 45 seconds after sprint ends
-- Minimum between encounters: 60 seconds
-
-### Haptics
-- Sprint start: 3 strong vibrations (0.15s apart)
-- Sprint end: 3 strong vibrations (0.15s apart)
-- Last 5 seconds: Tick countdown
-- Success: `.success` haptic
-- Failure: `.failure` haptic
-
----
-
-## Encounter System Guidelines
-
-### Trigger Probability
-Probability increases with time since last sprint:
-- 60-90s: 2% per 10 seconds
-- 90-120s: 5%
-- 120-150s: 8%
-- 150-180s: 12%
-- 180s+: 15% (cap)
-- 180s+: Guaranteed (pity timer)
-
-### Rarity Distribution
-- Common: 55%
-- Uncommon: 25%
-- Rare: 12%
-- Epic: 6%
-- Legendary: 2%
+### Typography
+- SF Rounded throughout for friendly feel
+- Headers: Bold 22-28pt, Body: Regular 16pt, Captions: 13pt
 
 ---
 
 ## Data Patterns
 
-### GameData (Static)
+### GameData (Static - 10 pets)
 ```swift
-// 106 pet definitions - NEVER changes per user
-GameData.shared.allPets
-GameData.shared.pet(byId: "pet_verdant_sproutling")
+GameData.shared.allPets           // 10 GamePetDefinition
+GameData.shared.pet(byId: "pet_01")
+GameData.shared.starterPets       // First 3 (Lumira, Mossworth, Puddlejoy)
 ```
 
 ### UserData (Dynamic)
 ```swift
-// Per-user state - persisted locally and to Firebase
-UserData.shared.profile
-UserData.shared.ownedPets
-UserData.shared.coins
-UserData.shared.lootBoxes
+UserData.shared.profile           // PlayerProfile (name, level, xp, coins, streak)
+UserData.shared.ownedPets         // [OwnedPet] with mood, XP, evolution stage
+UserData.shared.equippedPet       // Currently equipped OwnedPet
+UserData.shared.inventory         // Food count, water count, active boosts
 ```
 
 ### Persistence
 - Local: UserDefaults via DataPersistence.swift
 - Cloud: Firebase Firestore via CloudService.swift
-- Sync: WatchConnectivityService.swift
+- Watch sync: WatchConnectivityService.swift
+
+---
+
+## Core Game Loops
+
+### Sprint/Encounter System
+- Sprint duration: 25-40 seconds (random)
+- Validation: HR increase (50%), Cadence (35%), HR derivative (15%)
+- Pass threshold: 60% total score
+- Each valid sprint: coins + XP + 8% chance to catch a pet
+- Pity timer: Guaranteed catch after 15 sprints with no catch
+
+### Pet Care (Daily)
+- One care notification per day (2-6pm local, random type: hungry/thirsty/lonely)
+- Mood: Happy (3), Content (2), Sad (1) based on running + feeding + petting
+- XP multiplier: Happy=1.0x, Content=0.85x, Sad=0.6x
+- Pet runs away after ~14 days of total neglect
+
+### Economy
+- ~50 coins per 15-min run
+- Food: 3 coins, Water: 2 coins
+- Boosts: 40-60 coins, Hibernation: 80 coins
+
+---
+
+## Pet Integration Framework
+
+To add a new pet, provide:
+1. 10 stage images (PNGs, transparent background)
+2. Add one entry to `GameData.shared.allPets` array
+
+```swift
+GamePetDefinition(
+    id: "pet_XX",
+    name: "PetName",
+    description: "Full description",
+    hintText: "Hint for undiscovered state",
+    stageImageNames: ["petname_01", ..., "petname_10"],
+    hasIdleVideos: false,
+    hasHappyVideos: false
+)
+```
+
+No other code changes needed per pet.
 
 ---
 
 ## Code Quality Standards
 
-### When Asked to Build/Review/Audit:
-1. ✅ Does the code compile?
-2. ✅ Does the logic work correctly?
-3. ✅ Does UI exist for all features?
-4. ✅ Does the UI look professional?
-5. ✅ Is the user experience complete?
-6. ✅ Are all states handled (loading, empty, error)?
+1. Does it compile?
+2. Does the logic work correctly?
+3. Does UI exist for all features?
+4. Does the UI look professional (warm, cute, polished)?
+5. Is the user experience complete?
+6. Are all states handled (loading, empty, error)?
+7. Would this pass App Store review?
 
 ### NO Half-Finished Work
-- Every screen needs loading states
-- Every screen needs error states
-- Every screen needs empty states
-- Every action needs feedback
-
-### After Large Changes
-Run lint check and fix all errors before reporting completion.
-
----
-
-## Quick Reference
-
-### Singleton Access
-```swift
-GameData.shared.pet(byId: "pet_001")
-UserData.shared.profile
-SprintEngine.shared.isSprintActive
-HapticsManager.shared.playSprintSignal()
-```
-
-### Rarity Helpers
-```swift
-AppColors.forRarity(.legendary)
-rarity.shardsToUnlock  // 10, 25, 50, 100, 250
-```
-
-### View Modifiers
-```swift
-.cardStyle()           // Standard card background
-.screenPadding()       // Standard screen margins
-```
-
----
-
-## Important Reminders
-
-1. **Check MVP_PRD.md first** - It's the source of truth
-2. **This is NOT the full Ippo** - Don't implement complex IEI zones
-3. **Sprint validation is simple** - HR increase + cadence increase
-4. **Haptics are crucial** - Strong, unmistakable signals
-5. **106 pets included** - Use the existing pet data
-6. **Firebase for auth/sync** - Apple Sign-In + Firestore
-7. **Watch ↔ Phone sync** - WatchConnectivity for run data
-
----
-
-## Files to Reference
-
-| File | Purpose |
-|------|---------|
-| `docs/MVP_PRD.md` | **PRIMARY** - Build specification |
-| `docs/MVP_AI_CONTEXT.md` | AI context and decisions |
-| `docs/brainlift.md` | Background research (reference) |
-| `docs/idea.md` | Core concept (reference) |
-| `docs/prd.md` | Full product spec (reference) |
-| `docs/UIPRD1.md` | Full UI spec (reference) |
+- Every screen needs loading, error, and empty states
+- Every action needs visual feedback
+- Pet interactions must feel alive and responsive
 
 ---
 
 ## Communication Style
 
 - **Be proactive** - Suggest improvements, catch issues early
-- **Be thorough** - Check all aspects (backend, frontend, UX)
-- **Be practical** - Focus on what's in MVP_PRD.md
-- **Don't over-engineer** - This is an MVP, keep it simple
-- **Update docs** - Keep MVP_AI_CONTEXT.md current
+- **Be thorough** - Backend + Frontend + UI + UX + Polish
+- **Keep it simple** - 2 tabs, minimal UI, focus on pet interaction
+- **Target audience** - Female runners 16-30, cute/warm aesthetic
+- **No over-engineering** - Ship fast, iterate later
 
 ---
 
-*Last Updated: January 20, 2026*
+## API Keys (Art Generation)
+
+Keys are stored in `.env.local` (gitignored, never committed). Read that file to get:
+- **Nanobanana API key** -- for image generation (Gemini-based, REST API)
+- **Higgsfield API key ID + secret** -- for video generation (idle loops, happy animations)
+
+Art guide with prompts: `IppoMVP/PET_ART_GUIDE.md`
+
+---
+
+*Last Updated: February 22, 2026 - v3 Pet Pivot*

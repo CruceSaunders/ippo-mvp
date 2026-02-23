@@ -55,8 +55,9 @@ final class TelemetryLogger {
     
     func logRewards(_ rewards: SprintRewards) {
         var parts: [String] = []
-        if rewards.rpBoxEarned { parts.append("RP Box earned") }
+        if rewards.coins > 0 { parts.append("+\(rewards.coins) coins") }
         if rewards.xp > 0 { parts.append("+\(rewards.xp) XP") }
+        if rewards.petCaughtId != nil { parts.append("Pet caught!") }
         log("Rewards: \(parts.joined(separator: ", "))", level: .info)
     }
 }

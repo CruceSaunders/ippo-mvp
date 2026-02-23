@@ -106,21 +106,22 @@ final class EncounterManager: ObservableObject {
         encounter.sprintResult = result
         
         var rewards: SprintRewards?
-        
+
         if result.isValid {
-            // Award 1 RP Box for valid sprint
-            rewards = SprintRewards(rpBoxEarned: true, xp: 0)
-            encounter.rpBoxEarned = true
+            let coins = Int.random(in: 8...12)
+            let xp = Int.random(in: 15...25)
+            rewards = SprintRewards(coins: coins, xp: xp)
+            encounter.coinsEarned = coins
+            encounter.xpEarned = xp
         }
-        
+
         currentEncounter = encounter
         isEncounterActive = false
-        
-        // Apply rewards
+
         if let r = rewards {
             applyRewards(r)
         }
-        
+
         onEncounterComplete?(result, rewards)
         
         // Start recovery period
@@ -130,11 +131,9 @@ final class EncounterManager: ObservableObject {
     // MARK: - Apply Rewards
     private func applyRewards(_ rewards: SprintRewards) {
         let userData = UserData.shared
-        
-        if rewards.rpBoxEarned {
-            userData.addRPBox()
+        if rewards.coins > 0 {
+            userData.addCoins(rewards.coins)
         }
-        
         if rewards.xp > 0 {
             userData.addXP(rewards.xp)
         }
