@@ -5,7 +5,6 @@ struct HomeView: View {
     @State private var showSettings = false
     @State private var showFeedConfirm = false
     @State private var showWaterConfirm = false
-    @State private var petAnimating = false
     @State private var showHearts = false
     @State private var showRunSummary = false
     @State private var showEvolution = false
@@ -27,6 +26,8 @@ struct HomeView: View {
                         } else {
                             noPetView
                         }
+
+                        recentRunsSection
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 24)
@@ -35,6 +36,7 @@ struct HomeView: View {
             .sheet(isPresented: $showSettings) {
                 ProfileView()
                     .environmentObject(userData)
+                    .environmentObject(AuthService.shared)
             }
             .fullScreenCover(isPresented: $showRunSummary) {
                 if let run = userData.pendingRunSummary {
@@ -140,16 +142,9 @@ struct HomeView: View {
 
                 PetImageView(imageName: pet.currentImageName)
                     .padding(32)
-                    .offset(y: petAnimating ? -6 : 0)
-                    .scaleEffect(happyBounce ? 1.12 : 1.0)
+                    .scaleEffect(happyBounce ? 1.08 : 1.0)
                     .animation(
-                        .easeInOut(duration: 1.5).repeatForever(autoreverses: true),
-                        value: petAnimating
-                    )
-                    .animation(
-                        happyBounce
-                            ? .spring(response: 0.3, dampingFraction: 0.4)
-                            : .spring(response: 0.3, dampingFraction: 0.7),
+                        .spring(response: 0.3, dampingFraction: 0.5),
                         value: happyBounce
                     )
 
@@ -158,7 +153,6 @@ struct HomeView: View {
                 }
             }
             .frame(height: UIScreen.main.bounds.height * 0.38)
-            .onAppear { petAnimating = true }
         }
     }
 
@@ -287,6 +281,43 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Recent Runs
+    @ViewBuilder
+    private var recentRunsSection: some View {
+        if !userData.runHistory.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Recent Runs")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+
+                ForEach(userData.runHistory.prefix(5)) { run in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(run.date, style: .date)
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary)
+                            Text("\(formatDuration(run.durationSeconds)) · \(run.sprintsCompleted) sprints")
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("+\(run.coinsEarned)")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundColor(AppColors.coins)
+                            Text("+\(run.xpEarned) XP")
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundColor(AppColors.xp)
+                        }
+                    }
+                    .padding(12)
+                    .background(AppColors.surface)
+                    .cornerRadius(12)
+                }
+            }
+        }
+    }
+
     // MARK: - Hearts Overlay
     private var heartsOverlay: some View {
         ForEach(0..<6, id: \.self) { i in
@@ -317,6 +348,12 @@ struct HomeView: View {
             showHearts = false
         }
         userData.recordInteraction()
+    }
+
+    private func formatDuration(_ totalSeconds: Int) -> String {
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 
     private func formatTimeRemaining(_ seconds: TimeInterval) -> String {

@@ -84,19 +84,15 @@ struct ProfileView: View {
             .alert("Sign Out?", isPresented: $showLogoutConfirm) {
                 Button("Cancel", role: .cancel) {}
                 Button("Sign Out", role: .destructive) {
-                    Task {
-                        try? await authService.signOut()
-                        userData.logout()
-                        dismiss()
-                    }
+                    authService.signOut()
+                    dismiss()
                 }
             }
             .alert("Delete Account?", isPresented: $showDeleteConfirm) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) {
                     Task {
-                        try? await authService.deleteAccount()
-                        userData.logout()
+                        await authService.deleteAccount()
                         dismiss()
                     }
                 }
