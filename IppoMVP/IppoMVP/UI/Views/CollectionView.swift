@@ -31,7 +31,7 @@ struct CollectionView: View {
                 ShopSheet()
                     .environmentObject(userData)
             }
-            .sheet(item: $selectedPetBinding) { pet in
+            .sheet(item: selectedPetBinding) { pet in
                 PetDetailView(pet: pet)
                     .environmentObject(userData)
             }

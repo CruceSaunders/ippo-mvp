@@ -7,7 +7,7 @@ final class GameData {
     nonisolated let allPets: [GamePetDefinition] = GameData.petDefinitions
 
     nonisolated var starterPets: [GamePetDefinition] {
-        petDefinitions.filter { $0.isStarter }
+        Self.petDefinitions.filter { $0.isStarter }
     }
 
     static let petDefinitions: [GamePetDefinition] = [
