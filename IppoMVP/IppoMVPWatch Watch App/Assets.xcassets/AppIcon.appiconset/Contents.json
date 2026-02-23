@@ -5,6 +5,11 @@
       "idiom" : "universal",
       "platform" : "watchos",
       "size" : "1024x1024"
+    },
+    {
+      "filename" : "icon_1024.png",
+      "idiom" : "universal",
+      "size" : "1024x1024"
     }
   ],
   "info" : {
