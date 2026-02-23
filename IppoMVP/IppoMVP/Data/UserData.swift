@@ -13,6 +13,7 @@ final class UserData: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var pendingRunSummary: CompletedRun?
     @Published var starterPetId: String?
+    @Published var pendingEvolution: (petName: String, newStage: Int, stageName: String)?
 
     // MARK: - Derived Properties
     var equippedPet: OwnedPet? {
@@ -110,10 +111,18 @@ final class UserData: ObservableObject {
         }
 
         if let pet = equippedPet, let idx = ownedPets.firstIndex(where: { $0.id == pet.id }) {
+            let oldStage = ownedPets[idx].evolutionStage
             ownedPets[idx].experience += Int(adjustedAmount)
             let newStage = PetConfig.shared.currentStage(forXP: ownedPets[idx].experience)
-            if newStage > ownedPets[idx].evolutionStage {
+            if newStage > oldStage {
                 ownedPets[idx].evolutionStage = newStage
+                if let def = ownedPets[idx].definition {
+                    pendingEvolution = (
+                        petName: def.name,
+                        newStage: newStage,
+                        stageName: PetConfig.shared.stageName(for: newStage)
+                    )
+                }
             }
         }
 
@@ -169,10 +178,18 @@ final class UserData: ObservableObject {
             adjustedAmount *= (1.0 + EconomyConfig.shared.xpBoostMultiplier)
         }
 
+        let oldStage = ownedPets[idx].evolutionStage
         ownedPets[idx].experience += Int(adjustedAmount)
         let newStage = PetConfig.shared.currentStage(forXP: ownedPets[idx].experience)
-        if newStage > ownedPets[idx].evolutionStage {
+        if newStage > oldStage {
             ownedPets[idx].evolutionStage = newStage
+            if let def = ownedPets[idx].definition {
+                pendingEvolution = (
+                    petName: def.name,
+                    newStage: newStage,
+                    stageName: PetConfig.shared.stageName(for: newStage)
+                )
+            }
         }
     }
 

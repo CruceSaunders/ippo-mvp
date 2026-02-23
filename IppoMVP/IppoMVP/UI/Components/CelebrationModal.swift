@@ -331,21 +331,23 @@ extension CelebrationModal {
         )
     }
     
-    /// Rank up celebration
-    static func rankUp(
+    /// Pet evolution celebration
+    static func evolution(
         isPresented: Binding<Bool>,
-        newRank: String,
+        petName: String,
+        newStage: Int,
+        stageName: String,
         onDismiss: @escaping () -> Void = {}
     ) -> CelebrationModal {
         CelebrationModal(
             isPresented: isPresented,
-            title: "RANK UP!",
-            subtitle: "You've been promoted!",
-            primaryStat: newRank,
-            secondaryStat: "Keep climbing!",
-            icon: "shield.fill",
-            iconColor: AppColors.gold,
-            accentColor: AppColors.gold,
+            title: "EVOLVING!",
+            subtitle: "\(petName) is growing up!",
+            primaryStat: "Stage \(newStage) · \(stageName)",
+            secondaryStat: "Keep running together!",
+            icon: "sparkles",
+            iconColor: AppColors.accent,
+            accentColor: AppColors.accent,
             onDismiss: onDismiss
         )
     }

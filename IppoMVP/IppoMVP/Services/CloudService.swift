@@ -94,10 +94,11 @@ final class CloudService {
     }
 
     // MARK: - Delete
-    func deleteUserData() async {
-        guard let uid = AuthService.shared.userId else { return }
+    func deleteUserData(uid: String? = nil) async {
+        let targetUid = uid ?? AuthService.shared.userId
+        guard let targetUid else { return }
         do {
-            try await db.collection("users").document(uid).delete()
+            try await db.collection("users").document(targetUid).delete()
         } catch {
             print("CloudService: Failed to delete - \(error)")
         }

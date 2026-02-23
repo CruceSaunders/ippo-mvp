@@ -20,6 +20,11 @@ struct AppColors {
     static let warning = Color(hex: "#E8B44A")
     static let danger = Color(hex: "#D96B6B")
 
+    // MARK: - Brand (aliases for legacy references)
+    static let brandPrimary = accent
+    static let brandSecondary = accentSoft
+    static let gold = Color(hex: "#D4A843")
+
     // MARK: - Currency
     static let coins = Color(hex: "#D4A843")
 

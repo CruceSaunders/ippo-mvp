@@ -220,30 +220,22 @@ struct IppoCompleteOnboardingFlow: View {
     }
 
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        switch result {
-        case .success(let authorization):
-            isSigningIn = true
-            signInError = nil
-            Task {
-                do {
-                    try await authService.signInWithApple(authorization: authorization)
-                    if let fullName = (authorization.credential as? ASAuthorizationAppleIDCredential)?.fullName {
-                        let name = [fullName.givenName, fullName.familyName]
-                            .compactMap { $0 }
-                            .joined(separator: " ")
-                        if !name.isEmpty { displayName = name }
-                    }
-                    userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
-                    userData.isLoggedIn = true
-                    isSigningIn = false
-                    step = 4
-                } catch {
-                    signInError = "Sign in failed. Please try again."
-                    isSigningIn = false
+        isSigningIn = true
+        signInError = nil
+        Task {
+            await authService.handleSignInWithApple(result)
+            if authService.isAuthenticated {
+                if let name = authService.displayName, !name.isEmpty {
+                    displayName = name
                 }
+                userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
+                userData.isLoggedIn = true
+                isSigningIn = false
+                step = 4
+            } else {
+                signInError = authService.errorMessage ?? "Sign in failed. Please try again."
+                isSigningIn = false
             }
-        case .failure:
-            signInError = "Sign in was cancelled."
         }
     }
 

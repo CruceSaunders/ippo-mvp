@@ -53,7 +53,7 @@ struct LoginView: View {
                         .font(.system(size: 42, weight: .bold, design: .rounded))
                         .foregroundColor(AppColors.textPrimary)
                     
-                    Text("Sprint. Earn. Rise.")
+                    Text("Run. Catch. Grow.")
                         .font(AppTypography.body)
                         .foregroundColor(AppColors.textSecondary)
                 }

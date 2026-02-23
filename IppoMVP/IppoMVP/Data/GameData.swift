@@ -30,10 +30,10 @@ final class GameData {
         ),
         GamePetDefinition(
             id: "pet_03",
-            name: "Puddlejoy",
-            description: "A bubbly splash that dances in puddles",
-            hintText: "A playful ripple in a rainy puddle...",
-            stageImageNames: (1...10).map { "puddlejoy_\(String(format: "%02d", $0))" },
+            name: "Dewdrop",
+            description: "A little sea dragon who dreams of the deep",
+            hintText: "A playful ripple in the tide pools...",
+            stageImageNames: (1...10).map { "dewdrop_\(String(format: "%02d", $0))" },
             isStarter: true
         ),
 

@@ -8,6 +8,8 @@ struct HomeView: View {
     @State private var petAnimating = false
     @State private var showHearts = false
     @State private var showRunSummary = false
+    @State private var showEvolution = false
+    @State private var happyBounce = false
 
     var body: some View {
         NavigationStack {
@@ -43,12 +45,30 @@ struct HomeView: View {
                     .environmentObject(userData)
                 }
             }
+            .fullScreenCover(isPresented: $showEvolution) {
+                if let evo = userData.pendingEvolution {
+                    CelebrationModal.evolution(
+                        isPresented: $showEvolution,
+                        petName: evo.petName,
+                        newStage: evo.newStage,
+                        stageName: evo.stageName
+                    ) {
+                        userData.pendingEvolution = nil
+                        showEvolution = false
+                    }
+                }
+            }
             .onAppear {
                 if userData.pendingRunSummary != nil {
                     showRunSummary = true
                 }
                 NotificationSystem.shared.rescheduleNotifications()
                 userData.inventory.cleanExpiredBoosts()
+            }
+            .onChange(of: userData.pendingEvolution != nil) { hasEvolution in
+                if hasEvolution {
+                    showEvolution = true
+                }
             }
         }
     }
@@ -121,9 +141,16 @@ struct HomeView: View {
                 PetImageView(imageName: pet.currentImageName)
                     .padding(32)
                     .offset(y: petAnimating ? -6 : 0)
+                    .scaleEffect(happyBounce ? 1.12 : 1.0)
                     .animation(
                         .easeInOut(duration: 1.5).repeatForever(autoreverses: true),
                         value: petAnimating
+                    )
+                    .animation(
+                        happyBounce
+                            ? .spring(response: 0.3, dampingFraction: 0.4)
+                            : .spring(response: 0.3, dampingFraction: 0.7),
+                        value: happyBounce
                     )
 
                 if showHearts {
@@ -262,17 +289,18 @@ struct HomeView: View {
 
     // MARK: - Hearts Overlay
     private var heartsOverlay: some View {
-        ForEach(0..<5, id: \.self) { i in
+        ForEach(0..<6, id: \.self) { i in
             Image(systemName: "heart.fill")
-                .font(.system(size: 16))
-                .foregroundColor(AppColors.petHappy)
+                .font(.system(size: CGFloat.random(in: 14...24)))
+                .foregroundColor(i % 2 == 0 ? AppColors.petHappy : AppColors.accent.opacity(0.7))
                 .offset(
-                    x: CGFloat.random(in: -40...40),
-                    y: showHearts ? -80 : 0
+                    x: CGFloat([-50, -20, 10, 35, -35, 25][i]),
+                    y: showHearts ? CGFloat.random(in: -100 ... -60) : 0
                 )
                 .opacity(showHearts ? 0 : 1)
+                .scaleEffect(showHearts ? 1.3 : 0.5)
                 .animation(
-                    .easeOut(duration: 1.0).delay(Double(i) * 0.1),
+                    .easeOut(duration: 1.2).delay(Double(i) * 0.08),
                     value: showHearts
                 )
         }
@@ -281,9 +309,14 @@ struct HomeView: View {
     // MARK: - Helpers
     private func triggerHappyAnimation() {
         showHearts = true
+        happyBounce = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            happyBounce = false
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             showHearts = false
         }
+        userData.recordInteraction()
     }
 
     private func formatTimeRemaining(_ seconds: TimeInterval) -> String {
