@@ -25,7 +25,7 @@ struct IppoMVPApp: App {
                     .environmentObject(userData)
                     .environmentObject(watchConnectivity)
                     .environmentObject(authService)
-                } else if !authService.isAuthenticated {
+                } else if !authService.isAuthenticated && !userData.isLoggedIn {
                     LoginView()
                         .environmentObject(authService)
                 } else if needsProfileSetup {

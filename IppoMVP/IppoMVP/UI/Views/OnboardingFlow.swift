@@ -214,6 +214,18 @@ struct IppoCompleteOnboardingFlow: View {
                     .tint(AppColors.accent)
             }
 
+            #if DEBUG
+            Button("Skip Sign-In (Debug)") {
+                userData.profile.displayName = "QA Tester"
+                userData.isLoggedIn = true
+                displayName = "QA Tester"
+                step = 4
+            }
+            .font(.system(size: 14, design: .rounded))
+            .foregroundColor(AppColors.textSecondary)
+            .padding(.top, 8)
+            #endif
+
             Spacer()
         }
         .padding(.horizontal, 32)
