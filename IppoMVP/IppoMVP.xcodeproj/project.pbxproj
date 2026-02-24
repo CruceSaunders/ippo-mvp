@@ -119,6 +119,8 @@
 				BERU00012F214A000000001B /* FirebaseAuth */,
 				BERU00012F214A000000002B /* FirebaseCore */,
 				BERU00012F214A000000003B /* FirebaseFirestore */,
+				BERU00022F214A000000001B /* GoogleSignIn */,
+				BERU00022F214A000000002B /* GoogleSignInSwift */,
 			);
 			productName = IppoMVP;
 			productReference = ED6BAE692F207C440013C16D /* IppoMVP.app */;
@@ -175,6 +177,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				BERU00012F214A0000000000 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				BERU00022F214A0000000000 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = ED6BAE6A2F207C440013C16D /* Products */;
@@ -360,6 +363,7 @@
 				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ippo saves your workout data to track your progress.";
@@ -396,6 +400,7 @@
 				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ippo saves your workout data to track your progress.";
@@ -536,6 +541,14 @@
 				minimumVersion = 11.0.0;
 			};
 		};
+		BERU00022F214A0000000000 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -553,6 +566,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = BERU00012F214A0000000000 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		BERU00022F214A000000001B /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BERU00022F214A0000000000 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		BERU00022F214A000000002B /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BERU00022F214A0000000000 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
