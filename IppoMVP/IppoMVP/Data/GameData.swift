@@ -1,15 +1,6 @@
 import Foundation
 
-@MainActor
-final class GameData {
-    static let shared = GameData()
-
-    nonisolated let allPets: [GamePetDefinition] = GameData.petDefinitions
-
-    nonisolated var starterPets: [GamePetDefinition] {
-        Self.petDefinitions.filter { $0.isStarter }
-    }
-
+enum GameData {
     static let petDefinitions: [GamePetDefinition] = [
         // MARK: - Starters (3)
         GamePetDefinition(
@@ -89,21 +80,12 @@ final class GameData {
         ),
     ]
 
-    // MARK: - Lookup (instance)
-    func pet(byId id: String) -> GamePetDefinition? {
-        allPets.first { $0.id == id }
-    }
-
-    // MARK: - Static Lookup
-    nonisolated static func pet(byId id: String) -> GamePetDefinition? {
+    static func pet(byId id: String) -> GamePetDefinition? {
         petDefinitions.first { $0.id == id }
     }
 
-    // MARK: - Random Unowned Pet
-    func randomUnownedPet(ownedPetIds: Set<String>) -> GamePetDefinition? {
-        let unowned = allPets.filter { !$0.isStarter && !ownedPetIds.contains($0.id) }
+    static func randomUnownedPet(ownedPetIds: Set<String>) -> GamePetDefinition? {
+        let unowned = petDefinitions.filter { !$0.isStarter && !ownedPetIds.contains($0.id) }
         return unowned.randomElement()
     }
-
-    private init() {}
 }

@@ -491,6 +491,12 @@ Typical 15-min run: ~15 + ~30-36 = ~50 coins
 
 ---
 
+## 9.1 Future Considerations
+
+1. **Exportable pet cards** -- Let users generate a shareable card image (pet art, name, stage, stats, XP) that they can save to camera roll or share to Instagram Stories / social media. Great for organic virality -- users flex their evolved pets and drive awareness.
+
+---
+
 ## 10. QA Test Checklist
 
 ### Onboarding

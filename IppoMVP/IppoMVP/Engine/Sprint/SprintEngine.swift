@@ -39,8 +39,8 @@ final class SprintEngine: ObservableObject {
         state = .countdown
         
         // Start countdown
-        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            Task { @MainActor [weak self] in
                 self?.tickCountdown()
             }
         }
@@ -65,8 +65,8 @@ final class SprintEngine: ObservableObject {
         onSprintStart?()
         
         // Start sprint timer
-        sprintTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        sprintTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            Task { @MainActor [weak self] in
                 self?.updateSprint()
             }
         }
@@ -93,9 +93,7 @@ final class SprintEngine: ObservableObject {
         
         state = .validating
         
-        // Validate the sprint
-        // Note: maxHR should come from user profile, defaulting to 190 for MVP
-        let maxHR = 190
+        let maxHR = UserData.shared.profile.estimatedMaxHR
         let result = validator.validate(data, maxHR: maxHR)
         
         lastResult = result

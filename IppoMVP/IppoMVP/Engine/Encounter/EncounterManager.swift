@@ -39,8 +39,8 @@ final class EncounterManager: ObservableObject {
         isInRecovery = false
         
         // Start probability check timer
-        checkTimer = Timer.scheduledTimer(withTimeInterval: config.probabilityCheckInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        checkTimer = Timer.scheduledTimer(withTimeInterval: config.probabilityCheckInterval, repeats: true) { _ in
+            Task { @MainActor [weak self] in
                 self?.checkForEncounter()
             }
         }
@@ -145,8 +145,8 @@ final class EncounterManager: ObservableObject {
         recoveryEndTime = Date().addingTimeInterval(SprintConfig.shared.recoveryDuration)
         recoveryTimeRemaining = SprintConfig.shared.recoveryDuration
         
-        recoveryTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        recoveryTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            Task { @MainActor [weak self] in
                 self?.updateRecovery()
             }
         }

@@ -3,6 +3,7 @@ import AuthenticationServices
 
 struct LoginView: View {
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var userData: UserData
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
@@ -76,6 +77,26 @@ struct LoginView: View {
                     .frame(height: 50)
                     .cornerRadius(25)
                     
+                    Button {
+                        Task { await authService.signInWithGoogle() }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "g.circle.fill")
+                                .font(.system(size: 20))
+                            Text("Sign in with Google")
+                                .font(.system(size: 17, weight: .medium))
+                        }
+                        .foregroundColor(AppColors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(AppColors.surface)
+                        .cornerRadius(25)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 25)
+                                .stroke(AppColors.textTertiary.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    
                     // Error message
                     if let error = authService.errorMessage {
                         Text(error)
@@ -102,10 +123,16 @@ struct LoginView: View {
                     .padding(.bottom, AppSpacing.xxxl)
             }
         }
+        .onChange(of: authService.isAuthenticated) { _, isAuth in
+            if isAuth {
+                Task { await userData.syncFromCloud() }
+            }
+        }
     }
 }
 
 #Preview {
     LoginView()
         .environmentObject(AuthService.shared)
+        .environmentObject(UserData.shared)
 }

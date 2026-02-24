@@ -10,10 +10,13 @@ struct IppoCompleteOnboardingFlow: View {
     @State private var selectedStarterPetId: String?
     @State private var age: Int = 25
     @State private var displayName: String = ""
+    @State private var username: String = ""
+    @State private var usernameError: String?
+    @State private var isCheckingUsername = false
     @State private var isSigningIn = false
     @State private var signInError: String?
 
-    private let totalSteps = 8
+    private let totalSteps = 10
 
     var body: some View {
         ZStack {
@@ -27,10 +30,12 @@ struct IppoCompleteOnboardingFlow: View {
                     howItWorksScreen.tag(1)
                     starterPetScreen.tag(2)
                     createAccountScreen.tag(3)
-                    ageScreen.tag(4)
-                    healthPermissionScreen.tag(5)
-                    notificationScreen.tag(6)
-                    readyScreen.tag(7)
+                    chooseUsernameScreen.tag(4)
+                    ageScreen.tag(5)
+                    healthPermissionScreen.tag(6)
+                    notificationScreen.tag(7)
+                    careTutorialScreen.tag(8)
+                    readyScreen.tag(9)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: step)
@@ -195,13 +200,35 @@ struct IppoCompleteOnboardingFlow: View {
                 .foregroundColor(AppColors.textSecondary)
 
             SignInWithAppleButton(.signIn) { request in
-                request.requestedScopes = [.fullName, .email]
+                let appleRequest = authService.startSignInWithApple()
+                request.requestedScopes = appleRequest.requestedScopes
+                request.nonce = appleRequest.nonce
             } onCompletion: { result in
                 handleAppleSignIn(result)
             }
             .signInWithAppleButtonStyle(.black)
             .frame(height: 50)
             .cornerRadius(12)
+
+            Button {
+                handleGoogleSignIn()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "g.circle.fill")
+                        .font(.system(size: 20))
+                    Text("Sign in with Google")
+                        .font(.system(size: 17, weight: .medium))
+                }
+                .foregroundColor(AppColors.textPrimary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(AppColors.surface)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(AppColors.textTertiary.opacity(0.3), lineWidth: 1)
+                )
+            }
 
             if let error = signInError {
                 Text(error)
@@ -213,18 +240,6 @@ struct IppoCompleteOnboardingFlow: View {
                 ProgressView()
                     .tint(AppColors.accent)
             }
-
-            #if DEBUG
-            Button("Skip Sign-In (Debug)") {
-                userData.profile.displayName = "QA Tester"
-                userData.isLoggedIn = true
-                displayName = "QA Tester"
-                step = 4
-            }
-            .font(.system(size: 14, design: .rounded))
-            .foregroundColor(AppColors.textSecondary)
-            .padding(.top, 8)
-            #endif
 
             Spacer()
         }
@@ -251,7 +266,122 @@ struct IppoCompleteOnboardingFlow: View {
         }
     }
 
-    // MARK: - Screen 5: Age
+    private func handleGoogleSignIn() {
+        isSigningIn = true
+        signInError = nil
+        Task {
+            await authService.signInWithGoogle()
+            if authService.isAuthenticated {
+                if let name = authService.displayName, !name.isEmpty {
+                    displayName = name
+                }
+                userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
+                userData.isLoggedIn = true
+                isSigningIn = false
+                step = 4
+            } else {
+                signInError = authService.errorMessage ?? "Sign in failed. Please try again."
+                isSigningIn = false
+            }
+        }
+    }
+
+    // MARK: - Screen 5: Choose Username
+    private var chooseUsernameScreen: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "at")
+                .font(.system(size: 56, weight: .medium))
+                .foregroundColor(AppColors.accent)
+
+            Text("Pick a Username")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            Text("Friends will find you by your username")
+                .font(.system(size: 15, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("@")
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                    TextField("username", text: $username)
+                        .font(.system(size: 18, design: .rounded))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .onChange(of: username) { _, newValue in
+                            username = newValue.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+                            if username.count > 20 { username = String(username.prefix(20)) }
+                            usernameError = nil
+                        }
+                }
+                .padding(14)
+                .background(AppColors.surface)
+                .cornerRadius(12)
+
+                if let error = usernameError {
+                    Text(error)
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundColor(AppColors.danger)
+                }
+
+                Text("Letters, numbers, underscores, and periods only")
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(AppColors.textTertiary)
+            }
+
+            if isCheckingUsername {
+                ProgressView()
+                    .tint(AppColors.accent)
+            }
+
+            Spacer()
+
+            onboardingButton("Continue") {
+                validateAndSetUsername()
+            }
+            .disabled(username.count < 3 || isCheckingUsername)
+            .opacity(username.count < 3 ? 0.5 : 1)
+        }
+        .padding(.horizontal, 32)
+    }
+
+    private func validateAndSetUsername() {
+        let trimmed = username.lowercased().trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 3 else {
+            usernameError = "Username must be at least 3 characters"
+            return
+        }
+
+        isCheckingUsername = true
+        usernameError = nil
+
+        Task {
+            let taken = await CloudService.shared.isUsernameTaken(trimmed)
+            if taken {
+                usernameError = "That username is already taken"
+                isCheckingUsername = false
+                return
+            }
+
+            let reserved = await CloudService.shared.reserveUsername(trimmed)
+            if !reserved {
+                usernameError = "Failed to reserve username. Try again."
+                isCheckingUsername = false
+                return
+            }
+
+            userData.profile.username = trimmed
+            userData.save()
+            isCheckingUsername = false
+            step = 5
+        }
+    }
+
+    // MARK: - Screen 6: Age
     private var ageScreen: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -281,7 +411,7 @@ struct IppoCompleteOnboardingFlow: View {
 
             onboardingButton("Continue") {
                 userData.profile.age = age
-                step = 5
+                step = 6
             }
         }
         .padding(.horizontal, 32)
@@ -309,7 +439,7 @@ struct IppoCompleteOnboardingFlow: View {
 
             onboardingButton("Continue") {
                 requestHealthPermissions()
-                step = 6
+                step = 7
             }
         }
         .padding(.horizontal, 32)
@@ -356,14 +486,22 @@ struct IppoCompleteOnboardingFlow: View {
             onboardingButton("Allow Notifications") {
                 Task {
                     _ = await NotificationSystem.shared.requestPermission()
-                    step = 7
+                    step = 8
                 }
             }
         }
         .padding(.horizontal, 32)
     }
 
-    // MARK: - Screen 8: Ready
+    // MARK: - Screen 8: Care Tutorial
+    private var careTutorialScreen: some View {
+        TutorialOverlayView(
+            petImageName: selectedStarterPetId.flatMap { GameData.pet(byId: $0)?.stageImageNames.first } ?? "pet_placeholder",
+            onComplete: { step = 9 }
+        )
+    }
+
+    // MARK: - Screen 9: Ready
     private var readyScreen: some View {
         VStack(spacing: 24) {
             Spacer()

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CollectionView: View {
     @EnvironmentObject var userData: UserData
-    @State private var showShop = false
     @State private var selectedPetId: String?
 
     private let columns = [
@@ -26,10 +25,6 @@ struct CollectionView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 24)
                 }
-            }
-            .sheet(isPresented: $showShop) {
-                ShopSheet()
-                    .environmentObject(userData)
             }
             .sheet(item: selectedPetBinding) { pet in
                 PetDetailView(pet: pet)
@@ -60,20 +55,6 @@ struct CollectionView: View {
                     .foregroundColor(AppColors.textSecondary)
             }
             Spacer()
-            Button {
-                showShop = true
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "bag.fill")
-                    Text("Shop")
-                }
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(AppColors.accent)
-                .cornerRadius(10)
-            }
         }
         .padding(.top, 8)
     }
@@ -97,7 +78,7 @@ struct CollectionView: View {
     @ViewBuilder
     private var undiscoveredSection: some View {
         let undiscovered = GameData.petDefinitions.filter { def in
-            !userData.ownedPetDefinitionIds.contains(def.id) && !def.isStarter
+            !userData.ownedPetDefinitionIds.contains(def.id)
         }
 
         if !undiscovered.isEmpty {

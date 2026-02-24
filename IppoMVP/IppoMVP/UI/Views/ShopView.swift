@@ -1,8 +1,7 @@
 import SwiftUI
 
-struct ShopSheet: View {
+struct ShopView: View {
     @EnvironmentObject var userData: UserData
-    @Environment(\.dismiss) private var dismiss
     @State private var purchaseMessage: String?
     @State private var showPurchaseMessage = false
 
@@ -14,7 +13,6 @@ struct ShopSheet: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         coinBalance
-
                         shopSection(title: "Essentials", items: [.food, .water, .foodPack, .waterPack])
                         shopSection(title: "Boosts", items: [.xpBoost, .encounterBoost])
                         shopSection(title: "Special", items: [.hibernation])
@@ -25,12 +23,6 @@ struct ShopSheet: View {
             }
             .navigationTitle("Shop")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .foregroundColor(AppColors.accent)
-                }
-            }
             .overlay {
                 if showPurchaseMessage, let msg = purchaseMessage {
                     VStack {

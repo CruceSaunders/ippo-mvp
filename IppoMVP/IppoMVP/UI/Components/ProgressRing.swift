@@ -102,7 +102,7 @@ struct ProgressRing: View {
                 }
             }
         }
-        .onChange(of: progress) { newValue in
+        .onChange(of: progress) { _, newValue in
             if reduceMotion {
                 animatedProgress = newValue
             } else {
@@ -361,7 +361,7 @@ struct EffortRing: View {
                 }
             }
         }
-        .onChange(of: currentEffort) { newValue in
+        .onChange(of: currentEffort) { _, newValue in
             if reduceMotion {
                 animatedEffort = newValue
             } else {

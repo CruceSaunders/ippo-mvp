@@ -93,6 +93,60 @@ final class CloudService {
         )
     }
 
+    // MARK: - Username Uniqueness
+
+    func isUsernameTaken(_ username: String) async -> Bool {
+        let normalized = username.lowercased().trimmingCharacters(in: .whitespaces)
+        guard !normalized.isEmpty else { return true }
+
+        do {
+            let snapshot = try await db.collection("usernames")
+                .document(normalized)
+                .getDocument()
+            if let data = snapshot.data(), let ownerUid = data["uid"] as? String {
+                return ownerUid != AuthService.shared.userId
+            }
+            return false
+        } catch {
+            print("CloudService: Failed to check username - \(error)")
+            return true
+        }
+    }
+
+    func reserveUsername(_ username: String) async -> Bool {
+        let normalized = username.lowercased().trimmingCharacters(in: .whitespaces)
+        guard !normalized.isEmpty,
+              let uid = AuthService.shared.userId else { return false }
+
+        do {
+            let oldUsername = await loadCurrentUsername(uid: uid)
+            if let old = oldUsername, !old.isEmpty, old != normalized {
+                try await db.collection("usernames").document(old).delete()
+            }
+
+            try await db.collection("usernames").document(normalized).setData([
+                "uid": uid,
+                "createdAt": FieldValue.serverTimestamp()
+            ])
+            return true
+        } catch {
+            print("CloudService: Failed to reserve username - \(error)")
+            return false
+        }
+    }
+
+    private func loadCurrentUsername(uid: String) async -> String? {
+        do {
+            let doc = try await db.collection("users").document(uid).getDocument()
+            guard let data = doc.data(),
+                  let searchFields = data["searchFields"] as? [String: Any],
+                  let username = searchFields["username"] as? String else { return nil }
+            return username
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Delete
     func deleteUserData(uid: String? = nil) async {
         let targetUid = uid ?? AuthService.shared.userId

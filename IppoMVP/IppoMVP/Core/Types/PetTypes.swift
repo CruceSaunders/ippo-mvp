@@ -107,17 +107,17 @@ struct OwnedPet: Identifiable, Codable, Equatable {
         }
     }
 
-    var canBeFed: Bool {
+    var canEarnFeedXP: Bool {
         guard let lastFed = lastFedDate else { return true }
         return !Calendar.current.isDateInToday(lastFed)
     }
 
-    var canBeWatered: Bool {
+    var canEarnWaterXP: Bool {
         guard let lastWatered = lastWateredDate else { return true }
         return !Calendar.current.isDateInToday(lastWatered)
     }
 
-    var canBePetted: Bool {
+    var canEarnPetXP: Bool {
         guard let lastPetted = lastPettedDate else { return true }
         return !Calendar.current.isDateInToday(lastPetted)
     }

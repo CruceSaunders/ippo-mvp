@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		ED6BAE852F207E300013C16D /* IppoMVP Watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ED6BAE7B2F207E2F0013C16D /* IppoMVP Watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BERU00012F214A000000001A /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000001B /* FirebaseAuth */; };
 		BERU00012F214A000000002A /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000002B /* FirebaseCore */; };
 		BERU00012F214A000000003A /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000003B /* FirebaseFirestore */; };
+		ED6BAE852F207E300013C16D /* IppoMVP Watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ED6BAE7B2F207E2F0013C16D /* IppoMVP Watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,7 +80,7 @@
 			isa = PBXGroup;
 			children = (
 				ED6BAE6B2F207C440013C16D /* IppoMVP */,
-				ED6BAE7C2F207E2F0013C16D /* IppoMVP Watch Watch App */,
+				ED6BAE7C2F207E2F0013C16D /* IppoMVPWatch Watch App */,
 				ED6BAE6A2F207C440013C16D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -137,7 +137,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				ED6BAE7C2F207E2F0013C16D /* IppoMVP Watch Watch App */,
+				ED6BAE7C2F207E2F0013C16D /* IppoMVPWatch Watch App */,
 			);
 			name = "IppoMVP Watch Watch App";
 			packageProductDependencies = (
@@ -432,8 +432,8 @@
 				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_CFBundleDisplayName = "IppoMVP Watch";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ippo saves your workout data to track your progress.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
@@ -469,8 +469,8 @@
 				DEVELOPMENT_TEAM = HQCUADY3A5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_CFBundleDisplayName = "IppoMVP Watch";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Ippo needs to read your heart rate during runs.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Ippo saves your workout data to track your progress.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";

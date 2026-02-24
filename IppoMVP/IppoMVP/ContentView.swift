@@ -17,6 +17,12 @@ struct ContentView: View {
                     Label("Collection", systemImage: "square.grid.2x2.fill")
                 }
                 .tag(1)
+
+            ShopView()
+                .tabItem {
+                    Label("Shop", systemImage: "bag.fill")
+                }
+                .tag(2)
         }
         .tint(AppColors.accent)
         .onAppear {

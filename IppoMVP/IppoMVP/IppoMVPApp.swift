@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseCore
 import HealthKit
+import GoogleSignIn
 
 @main
 struct IppoMVPApp: App {
@@ -23,19 +24,24 @@ struct IppoMVPApp: App {
                     .environmentObject(userData)
                     .environmentObject(watchConnectivity)
                     .environmentObject(authService)
+                } else if !authService.isAuthenticated {
+                    LoginView()
+                        .environmentObject(authService)
+                        .environmentObject(userData)
                 } else {
                     ContentView()
                         .environmentObject(userData)
                         .environmentObject(watchConnectivity)
                         .environmentObject(authService)
                         .task {
-                            if authService.isAuthenticated {
-                                await userData.syncFromCloud()
-                            }
+                            await userData.syncFromCloud()
                         }
                 }
             }
             .preferredColorScheme(.light)
+            .onOpenURL { url in
+                GIDSignIn.sharedInstance.handle(url)
+            }
         }
     }
 }

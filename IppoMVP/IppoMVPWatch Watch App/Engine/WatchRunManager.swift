@@ -161,21 +161,22 @@ final class WatchRunManager: NSObject, ObservableObject {
             HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
         ]
         
-        healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { [weak self] success, error in
-            Task { @MainActor in
+        healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { success, error in
+            let errorMessage = error?.localizedDescription
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 if success {
-                    // Re-check actual status (requestAuthorization returns true even if user denied)
-                    let hrStatus = self?.healthStore.authorizationStatus(for: HKQuantityType.quantityType(forIdentifier: .heartRate)!)
-                    self?.healthKitAuthorized = (hrStatus == .sharingAuthorized)
+                    let hrStatus = self.healthStore.authorizationStatus(for: HKQuantityType.quantityType(forIdentifier: .heartRate)!)
+                    self.healthKitAuthorized = (hrStatus == .sharingAuthorized)
                     
-                    if self?.healthKitAuthorized == false {
-                        self?.healthKitError = "Please enable Health access in Settings > Privacy > Health > Ippo"
+                    if !self.healthKitAuthorized {
+                        self.healthKitError = "Please enable Health access in Settings > Privacy > Health > Ippo"
                     } else {
-                        self?.healthKitError = nil
+                        self.healthKitError = nil
                     }
                 } else {
-                    self?.healthKitAuthorized = false
-                    self?.healthKitError = error?.localizedDescription ?? "Health access denied"
+                    self.healthKitAuthorized = false
+                    self.healthKitError = errorMessage ?? "Health access denied"
                 }
             }
         }

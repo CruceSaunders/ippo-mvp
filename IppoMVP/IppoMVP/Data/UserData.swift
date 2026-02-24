@@ -95,8 +95,7 @@ final class UserData: ObservableObject {
     func addXP(_ amount: Int) {
         var adjustedAmount = Double(amount)
 
-        if let boost = inventory.activeXPBoost {
-            _ = boost
+        if inventory.activeXPBoost != nil {
             adjustedAmount *= (1.0 + EconomyConfig.shared.xpBoostMultiplier)
         }
 
@@ -133,12 +132,13 @@ final class UserData: ObservableObject {
     func feedPet() -> Bool {
         guard let pet = equippedPet,
               let idx = ownedPets.firstIndex(where: { $0.id == pet.id }),
-              pet.canBeFed,
               inventory.food > 0 else { return false }
 
         inventory.food -= 1
-        ownedPets[idx].lastFedDate = Date()
-        addPetXP(idx: idx, amount: PetConfig.shared.xpPerFeeding)
+        if pet.canEarnFeedXP {
+            ownedPets[idx].lastFedDate = Date()
+            addPetXP(idx: idx, amount: PetConfig.shared.xpPerFeeding)
+        }
         recalculateMood(at: idx)
         save()
         return true
@@ -147,12 +147,13 @@ final class UserData: ObservableObject {
     func waterPet() -> Bool {
         guard let pet = equippedPet,
               let idx = ownedPets.firstIndex(where: { $0.id == pet.id }),
-              pet.canBeWatered,
               inventory.water > 0 else { return false }
 
         inventory.water -= 1
-        ownedPets[idx].lastWateredDate = Date()
-        addPetXP(idx: idx, amount: PetConfig.shared.xpPerWatering)
+        if pet.canEarnWaterXP {
+            ownedPets[idx].lastWateredDate = Date()
+            addPetXP(idx: idx, amount: PetConfig.shared.xpPerWatering)
+        }
         recalculateMood(at: idx)
         save()
         return true
@@ -160,11 +161,12 @@ final class UserData: ObservableObject {
 
     func petPet() -> Bool {
         guard let pet = equippedPet,
-              let idx = ownedPets.firstIndex(where: { $0.id == pet.id }),
-              pet.canBePetted else { return false }
+              let idx = ownedPets.firstIndex(where: { $0.id == pet.id }) else { return false }
 
-        ownedPets[idx].lastPettedDate = Date()
-        addPetXP(idx: idx, amount: PetConfig.shared.xpPerPetting)
+        if pet.canEarnPetXP {
+            ownedPets[idx].lastPettedDate = Date()
+            addPetXP(idx: idx, amount: PetConfig.shared.xpPerPetting)
+        }
         recalculateMood(at: idx)
         save()
         return true
@@ -340,16 +342,22 @@ final class UserData: ObservableObject {
     }
 
     func recordInteraction() {
-        profile.lastInteractionDate = Date()
         let calendar = Calendar.current
-        if let lastInteraction = profile.lastInteractionDate {
+        let previousInteractionDate = profile.lastInteractionDate
+        profile.lastInteractionDate = Date()
+
+        if let lastInteraction = previousInteractionDate {
             let lastDay = calendar.startOfDay(for: lastInteraction)
             let today = calendar.startOfDay(for: Date())
             let daysDiff = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
-            if daysDiff == 1 || profile.currentStreak == 0 {
+            if daysDiff == 1 {
                 profile.currentStreak += 1
                 profile.longestStreak = max(profile.longestStreak, profile.currentStreak)
+            } else if daysDiff > 1 {
+                profile.currentStreak = 1
             }
+        } else if profile.currentStreak == 0 {
+            profile.currentStreak = 1
         }
         save()
     }

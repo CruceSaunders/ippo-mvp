@@ -9,6 +9,7 @@ struct ConfettiParticle: View {
     let color: Color
     let size: CGFloat
     let reduceMotion: Bool
+    let containerSize: CGSize
     
     @State private var position: CGPoint = .zero
     @State private var rotation: Double = 0
@@ -28,9 +29,8 @@ struct ConfettiParticle: View {
     }
     
     private func startAnimation() {
-        let screenWidth = UIScreen.main.bounds.width
         position = CGPoint(
-            x: CGFloat.random(in: 0...screenWidth),
+            x: CGFloat.random(in: 0...containerSize.width),
             y: -20
         )
         rotation = Double.random(in: 0...360)
@@ -42,7 +42,7 @@ struct ConfettiParticle: View {
             }
         } else {
             withAnimation(.easeIn(duration: Double.random(in: 2.5...4.0))) {
-                position.y = UIScreen.main.bounds.height + 50
+                position.y = containerSize.height + 50
                 position.x += CGFloat.random(in: -100...100)
                 rotation += Double.random(in: 180...720)
             }
@@ -75,13 +75,16 @@ struct ConfettiView: View {
     }
     
     var body: some View {
-        ZStack {
-            ForEach(0..<particleCount, id: \.self) { index in
-                ConfettiParticle(
-                    color: colors[index % colors.count],
-                    size: CGFloat.random(in: 6...12),
-                    reduceMotion: reduceMotion
-                )
+        GeometryReader { geo in
+            ZStack {
+                ForEach(0..<particleCount, id: \.self) { index in
+                    ConfettiParticle(
+                        color: colors[index % colors.count],
+                        size: CGFloat.random(in: 6...12),
+                        reduceMotion: reduceMotion,
+                        containerSize: geo.size
+                    )
+                }
             }
         }
         .allowsHitTesting(false)

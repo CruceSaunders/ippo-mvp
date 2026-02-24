@@ -111,9 +111,7 @@ struct PostRunSummaryView: View {
     @ViewBuilder
     private func petHappySection(def: GamePetDefinition, pet: OwnedPet) -> some View {
         VStack(spacing: 8) {
-            Image(pet.currentImageName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+            PetImageView(imageName: pet.currentImageName, size: 80)
                 .frame(height: 80)
 
             Text("\(def.name) is happy you ran together!")
