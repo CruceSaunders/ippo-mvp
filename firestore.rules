@@ -15,6 +15,13 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
+    // Usernames - uniqueness registry
+    match /usernames/{username} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+    
     // Groups - members can read/write, anyone authenticated can create
     match /groups/{groupId} {
       // Allow reading groups you're a member of
