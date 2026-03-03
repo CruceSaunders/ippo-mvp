@@ -6,6 +6,7 @@ struct IppoCompleteOnboardingFlow: View {
     let onComplete: () -> Void
     @EnvironmentObject var userData: UserData
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var watchConnectivity: WatchConnectivityService
     @State private var step = 0
     @State private var selectedStarterPetId: String?
     @State private var age: Int = 25
@@ -15,8 +16,29 @@ struct IppoCompleteOnboardingFlow: View {
     @State private var isCheckingUsername = false
     @State private var isSigningIn = false
     @State private var signInError: String?
+    @State private var isReturningUser = false
+    @State private var isCheckingCloudData = false
 
-    private let totalSteps = 10
+    // Permission state
+    @State private var healthPermissionGranted = false
+    @State private var healthPermissionDenied = false
+    @State private var isCheckingHealthPermission = false
+    @State private var notificationPermissionGranted = false
+
+    // Sprint demo state
+    @State private var sprintDemoPhase: SprintDemoPhase = .idle
+    @State private var sprintDemoCountdown: Int = 5
+    @State private var sprintDemoTimer: Timer?
+    @State private var sprintDemoProgress: CGFloat = 0
+
+    // Care tutorial intro
+    @State private var showCareTutorialIntro = true
+
+    private let totalSteps = 15
+
+    enum SprintDemoPhase {
+        case idle, buzzing, sprinting, complete
+    }
 
     var body: some View {
         ZStack {
@@ -25,19 +47,30 @@ struct IppoCompleteOnboardingFlow: View {
             VStack(spacing: 0) {
                 progressBar
 
-                TabView(selection: $step) {
-                    welcomeScreen.tag(0)
-                    howItWorksScreen.tag(1)
-                    starterPetScreen.tag(2)
-                    createAccountScreen.tag(3)
-                    chooseUsernameScreen.tag(4)
-                    ageScreen.tag(5)
-                    healthPermissionScreen.tag(6)
-                    notificationScreen.tag(7)
-                    careTutorialScreen.tag(8)
-                    readyScreen.tag(9)
+                Group {
+                    switch step {
+                    case 0: welcomeScreen
+                    case 1: authScreen
+                    case 2: chooseUsernameScreen
+                    case 3: ageScreen
+                    case 4: starterPetScreen
+                    case 5: permissionsScreen
+                    case 6: watchSetupScreen
+                    case 7: howRunsWorkScreen
+                    case 8: vibrationsAndSprintsScreen
+                    case 9: theChaseScreen
+                    case 10: catchingPetsScreen
+                    case 11: coinsAndXPScreen
+                    case 12: careTutorialScreen
+                    case 13: evolutionScreen
+                    case 14: readyScreen
+                    default: welcomeScreen
+                    }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
                 .animation(.easeInOut(duration: 0.3), value: step)
             }
         }
@@ -45,6 +78,7 @@ struct IppoCompleteOnboardingFlow: View {
     }
 
     // MARK: - Progress Bar
+
     private var progressBar: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
@@ -54,6 +88,7 @@ struct IppoCompleteOnboardingFlow: View {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(AppColors.accent)
                     .frame(width: geo.size.width * CGFloat(step + 1) / CGFloat(totalSteps), height: 4)
+                    .animation(.easeInOut(duration: 0.3), value: step)
             }
         }
         .frame(height: 4)
@@ -61,10 +96,12 @@ struct IppoCompleteOnboardingFlow: View {
         .padding(.top, 12)
     }
 
-    // MARK: - Screen 1: Welcome
+    // MARK: - Step 0: Welcome
+
     private var welcomeScreen: some View {
         VStack(spacing: 24) {
             Spacer()
+
             Image(systemName: "pawprint.fill")
                 .font(.system(size: 64))
                 .foregroundColor(AppColors.accent)
@@ -80,110 +117,27 @@ struct IppoCompleteOnboardingFlow: View {
 
             Spacer()
 
-            onboardingButton("Get Started") { step = 1 }
+            onboardingButton("Get Started") {
+                isReturningUser = false
+                step = 1
+            }
+
+            Button {
+                isReturningUser = true
+                step = 1
+            } label: {
+                Text("I already have an account")
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.accent)
+            }
+            .padding(.bottom, 16)
         }
         .padding(.horizontal, 32)
     }
 
-    // MARK: - Screen 2: How It Works
-    private var howItWorksScreen: some View {
-        VStack(spacing: 24) {
-            Spacer()
+    // MARK: - Step 1: Sign In
 
-            VStack(spacing: 32) {
-                howItWorksItem(
-                    icon: "applewatch",
-                    text: "Run with your Apple Watch. Feel a vibration? Sprint!"
-                )
-                howItWorksItem(
-                    icon: "sparkles",
-                    text: "Sprint fast enough and you might catch a new friend"
-                )
-                howItWorksItem(
-                    icon: "heart.fill",
-                    text: "Take care of your pets daily. Watch them grow up."
-                )
-            }
-
-            Spacer()
-            onboardingButton("Next") { step = 2 }
-        }
-        .padding(.horizontal, 32)
-    }
-
-    private func howItWorksItem(icon: String, text: String) -> some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 28))
-                .foregroundColor(AppColors.accent)
-                .frame(width: 44)
-
-            Text(text)
-                .font(.system(size: 16, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
-        }
-    }
-
-    // MARK: - Screen 3: Starter Pet
-    private var starterPetScreen: some View {
-        VStack(spacing: 20) {
-            Spacer().frame(height: 20)
-
-            Text("Choose your first companion")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
-
-            Spacer()
-
-            HStack(spacing: 12) {
-                ForEach(GameData.petDefinitions.filter { $0.isStarter }) { pet in
-                    starterPetCard(pet)
-                }
-            }
-
-            Spacer()
-
-            onboardingButton("Choose") { step = 3 }
-                .disabled(selectedStarterPetId == nil)
-                .opacity(selectedStarterPetId == nil ? 0.5 : 1)
-        }
-        .padding(.horizontal, 20)
-    }
-
-    private func starterPetCard(_ pet: GamePetDefinition) -> some View {
-        let isSelected = selectedStarterPetId == pet.id
-        return VStack(spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? AppColors.accentSoft.opacity(0.3) : AppColors.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(isSelected ? AppColors.accent : Color.clear, lineWidth: 3)
-                    )
-
-                Image(pet.stageImageNames.first ?? "pet_placeholder")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .padding(16)
-            }
-            .frame(height: 120)
-
-            Text(pet.name)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
-
-            Text(pet.description)
-                .font(.system(size: 10, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
-                .lineLimit(3)
-        }
-        .frame(maxWidth: .infinity)
-        .onTapGesture { selectedStarterPetId = pet.id }
-    }
-
-    // MARK: - Screen 4: Create Account
-    private var createAccountScreen: some View {
+    private var authScreen: some View {
         VStack(spacing: 24) {
             Spacer()
 
@@ -191,11 +145,11 @@ struct IppoCompleteOnboardingFlow: View {
                 .font(.system(size: 56))
                 .foregroundColor(AppColors.accent)
 
-            Text("Create Your Account")
+            Text(isReturningUser ? "Welcome Back" : "Create Your Account")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
-            Text("Sign in to save your progress")
+            Text(isReturningUser ? "Sign in to restore your pets" : "Sign in to save your progress")
                 .font(.system(size: 16, design: .rounded))
                 .foregroundColor(AppColors.textSecondary)
 
@@ -236,9 +190,16 @@ struct IppoCompleteOnboardingFlow: View {
                     .foregroundColor(AppColors.danger)
             }
 
-            if isSigningIn {
-                ProgressView()
-                    .tint(AppColors.accent)
+            if isSigningIn || isCheckingCloudData {
+                VStack(spacing: 8) {
+                    ProgressView()
+                        .tint(AppColors.accent)
+                    if isCheckingCloudData {
+                        Text("Checking for your data...")
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                }
             }
 
             Spacer()
@@ -247,22 +208,26 @@ struct IppoCompleteOnboardingFlow: View {
     }
 
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        if case .failure(let error) = result,
+           (error as NSError).code == ASAuthorizationError.canceled.rawValue {
+            return
+        }
+
         isSigningIn = true
         signInError = nil
         Task {
             await authService.handleSignInWithApple(result)
-            if authService.isAuthenticated {
-                if let name = authService.displayName, !name.isEmpty {
-                    displayName = name
-                }
-                userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
-                userData.isLoggedIn = true
-                isSigningIn = false
-                step = 4
-            } else {
+            isSigningIn = false
+            guard authService.isAuthenticated, authService.userId != nil else {
                 signInError = authService.errorMessage ?? "Sign in failed. Please try again."
-                isSigningIn = false
+                return
             }
+            if let name = authService.displayName, !name.isEmpty {
+                displayName = name
+            }
+            userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
+            userData.isLoggedIn = true
+            await handlePostSignIn()
         }
     }
 
@@ -271,22 +236,43 @@ struct IppoCompleteOnboardingFlow: View {
         signInError = nil
         Task {
             await authService.signInWithGoogle()
-            if authService.isAuthenticated {
-                if let name = authService.displayName, !name.isEmpty {
-                    displayName = name
+            isSigningIn = false
+            guard authService.isAuthenticated, authService.userId != nil else {
+                if authService.errorMessage != nil {
+                    signInError = authService.errorMessage
                 }
-                userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
-                userData.isLoggedIn = true
-                isSigningIn = false
-                step = 4
-            } else {
-                signInError = authService.errorMessage ?? "Sign in failed. Please try again."
-                isSigningIn = false
+                return
             }
+            if let name = authService.displayName, !name.isEmpty {
+                displayName = name
+            }
+            userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
+            userData.isLoggedIn = true
+            await handlePostSignIn()
         }
     }
 
-    // MARK: - Screen 5: Choose Username
+    private func handlePostSignIn() async {
+        isCheckingCloudData = true
+        if let cloudData = await CloudService.shared.loadUserData(),
+           !cloudData.ownedPets.isEmpty {
+            userData.profile = cloudData.profile
+            userData.ownedPets = cloudData.ownedPets
+            userData.inventory = cloudData.inventory
+            userData.runHistory = cloudData.runHistory
+            userData.isLoggedIn = true
+            userData.save()
+            isCheckingCloudData = false
+            // Returning user: skip profile setup but still do permissions + tutorial
+            step = 5
+            return
+        }
+        isCheckingCloudData = false
+        step = 2
+    }
+
+    // MARK: - Step 2: Choose Username
+
     private var chooseUsernameScreen: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -299,7 +285,7 @@ struct IppoCompleteOnboardingFlow: View {
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
-            Text("Friends will find you by your username")
+            Text("This is how other runners will know you")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundColor(AppColors.textSecondary)
 
@@ -377,11 +363,12 @@ struct IppoCompleteOnboardingFlow: View {
             userData.profile.username = trimmed
             userData.save()
             isCheckingUsername = false
-            step = 5
+            step = 3
         }
     }
 
-    // MARK: - Screen 6: Age
+    // MARK: - Step 3: Age
+
     private var ageScreen: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -411,42 +398,209 @@ struct IppoCompleteOnboardingFlow: View {
 
             onboardingButton("Continue") {
                 userData.profile.age = age
-                step = 6
+                step = 4
             }
         }
         .padding(.horizontal, 32)
     }
 
-    // MARK: - Screen 6: Health Permission
-    private var healthPermissionScreen: some View {
-        VStack(spacing: 24) {
-            Spacer()
+    // MARK: - Step 4: Starter Pet
 
-            Image(systemName: "heart.text.square.fill")
-                .font(.system(size: 56))
-                .foregroundColor(AppColors.success)
+    private var starterPetScreen: some View {
+        VStack(spacing: 20) {
+            Spacer().frame(height: 20)
 
-            Text("Health Access")
+            Text("Choose your first companion")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
-            Text("Ippo needs access to your heart rate and workout data to validate your sprints.")
-                .font(.system(size: 15, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
+            Spacer()
+
+            HStack(spacing: 12) {
+                ForEach(GameData.petDefinitions.filter { $0.isStarter }) { pet in
+                    starterPetCard(pet)
+                }
+            }
 
             Spacer()
 
-            onboardingButton("Continue") {
-                requestHealthPermissions()
-                step = 7
+            onboardingButton("Choose") { step = 5 }
+                .disabled(selectedStarterPetId == nil)
+                .opacity(selectedStarterPetId == nil ? 0.5 : 1)
+        }
+        .padding(.horizontal, 20)
+    }
+
+    private func starterPetCard(_ pet: GamePetDefinition) -> some View {
+        let isSelected = selectedStarterPetId == pet.id
+        return VStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? AppColors.accentSoft.opacity(0.3) : AppColors.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(isSelected ? AppColors.accent : Color.clear, lineWidth: 3)
+                    )
+
+                Image(pet.stageImageNames.first ?? "pet_placeholder")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .padding(16)
+            }
+            .frame(height: 120)
+
+            Text(pet.name)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            Text(pet.description)
+                .font(.system(size: 10, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity)
+        .onTapGesture { selectedStarterPetId = pet.id }
+    }
+
+    // MARK: - Step 5: Permissions (Hardened)
+
+    private var permissionsScreen: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            HStack(spacing: 16) {
+                Image(systemName: "heart.text.square.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(AppColors.success)
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(AppColors.accent)
+            }
+
+            Text("Almost There")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            VStack(spacing: 16) {
+                permissionRow(
+                    icon: "heart.fill",
+                    color: healthPermissionGranted ? AppColors.success : (healthPermissionDenied ? AppColors.danger : AppColors.success),
+                    title: "Health Access",
+                    subtitle: healthPermissionDenied
+                        ? "Required to detect sprints. Tap below to enable in Settings."
+                        : "Heart rate and workout data to validate your sprints",
+                    checkmark: healthPermissionGranted
+                )
+                permissionRow(
+                    icon: "bell.fill",
+                    color: AppColors.accent,
+                    title: "Notifications",
+                    subtitle: "Your pet will let you know when they need you",
+                    checkmark: notificationPermissionGranted
+                )
+            }
+            .padding(.horizontal, 8)
+
+            if healthPermissionDenied {
+                VStack(spacing: 12) {
+                    Text("Ippo needs Health access to detect your sprints during runs.")
+                        .font(.system(size: 14, design: .rounded))
+                        .foregroundColor(AppColors.danger)
+                        .multilineTextAlignment(.center)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            Text("Open Settings")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(AppColors.accent)
+                                .cornerRadius(10)
+                        }
+
+                        Button {
+                            checkHealthPermissionStatus()
+                        } label: {
+                            Text("Check Again")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundColor(AppColors.accent)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(AppColors.accentSoft.opacity(0.3))
+                                .cornerRadius(10)
+                        }
+                    }
+                }
+            }
+
+            if isCheckingHealthPermission {
+                ProgressView()
+                    .tint(AppColors.accent)
+            }
+
+            Spacer()
+
+            if !healthPermissionDenied {
+                onboardingButton("Allow & Continue") {
+                    requestAllPermissions()
+                }
+            } else {
+                onboardingButton("Continue") {
+                    step = 6
+                }
+                .disabled(!healthPermissionGranted)
+                .opacity(healthPermissionGranted ? 1 : 0.5)
             }
         }
         .padding(.horizontal, 32)
+        .onAppear {
+            checkHealthPermissionStatus()
+        }
     }
 
-    private func requestHealthPermissions() {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
+    private func permissionRow(icon: String, color: Color, title: String, subtitle: String, checkmark: Bool = false) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(color.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: checkmark ? "checkmark.circle.fill" : icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(checkmark ? AppColors.success : color)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 13, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+            }
+
+            Spacer()
+        }
+    }
+
+    private func requestAllPermissions() {
+        isCheckingHealthPermission = true
+
+        guard HKHealthStore.isHealthDataAvailable() else {
+            healthPermissionGranted = true
+            isCheckingHealthPermission = false
+            Task {
+                notificationPermissionGranted = await NotificationSystem.shared.requestPermission()
+                step = 6
+            }
+            return
+        }
+
         let healthStore = HKHealthStore()
         let shareTypes: Set<HKSampleType> = [
             HKWorkoutType.workoutType(),
@@ -460,53 +614,758 @@ struct IppoCompleteOnboardingFlow: View {
             HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
             HKObjectType.workoutType()
         ]
-        healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { _, _ in }
+
+        healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { success, _ in
+            DispatchQueue.main.async {
+                checkHealthPermissionStatus()
+                Task {
+                    notificationPermissionGranted = await NotificationSystem.shared.requestPermission()
+                    if healthPermissionGranted {
+                        step = 6
+                    }
+                }
+            }
+        }
     }
 
-    // MARK: - Screen 7: Notifications
-    private var notificationScreen: some View {
+    private func checkHealthPermissionStatus() {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            healthPermissionGranted = true
+            healthPermissionDenied = false
+            return
+        }
+
+        let healthStore = HKHealthStore()
+        guard let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
+
+        let status = healthStore.authorizationStatus(for: heartRateType)
+        switch status {
+        case .sharingAuthorized:
+            healthPermissionGranted = true
+            healthPermissionDenied = false
+        case .sharingDenied:
+            healthPermissionGranted = false
+            healthPermissionDenied = true
+        case .notDetermined:
+            healthPermissionGranted = false
+            healthPermissionDenied = false
+        @unknown default:
+            break
+        }
+        isCheckingHealthPermission = false
+    }
+
+    // MARK: - Step 6: Watch Setup
+
+    private var watchSetupScreen: some View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "bell.badge.fill")
-                .font(.system(size: 56))
+            Image(systemName: "applewatch")
+                .font(.system(size: 64))
                 .foregroundColor(AppColors.accent)
 
-            Text("Stay Connected")
+            Text("Connect Your Watch")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
-            Text("Your pet will let you know when they need you")
+            Text("Ippo runs on your Apple Watch during workouts")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundColor(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
 
+            VStack(spacing: 16) {
+                watchStatusRow(
+                    title: "Watch Paired",
+                    isOK: watchConnectivity.isPaired,
+                    helpText: "Open the Watch app on your iPhone to pair"
+                )
+                watchStatusRow(
+                    title: "Ippo Installed on Watch",
+                    isOK: watchConnectivity.isWatchAppInstalled,
+                    helpText: "Open the Watch app → My Watch → find Ippo → Install"
+                )
+            }
+            .padding(20)
+            .background(AppColors.surface)
+            .cornerRadius(16)
+
+            if watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(AppColors.success)
+                    Text("Your Watch is ready!")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.success)
+                }
+            }
+
             Spacer()
 
-            onboardingButton("Allow Notifications") {
-                Task {
-                    _ = await NotificationSystem.shared.requestPermission()
-                    step = 8
-                }
+            onboardingButton(watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled ? "Continue" : "Continue Anyway") {
+                step = 7
+            }
+
+            if !(watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled) {
+                Text("You'll need Apple Watch to go on runs")
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(AppColors.textTertiary)
+                    .padding(.bottom, 8)
             }
         }
         .padding(.horizontal, 32)
     }
 
-    // MARK: - Screen 8: Care Tutorial
-    private var careTutorialScreen: some View {
-        TutorialOverlayView(
-            petImageName: selectedStarterPetId.flatMap { GameData.pet(byId: $0)?.stageImageNames.first } ?? "pet_placeholder",
-            onComplete: { step = 9 }
-        )
+    private func watchStatusRow(title: String, isOK: Bool, helpText: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: isOK ? "checkmark.circle.fill" : "xmark.circle")
+                .font(.system(size: 22))
+                .foregroundColor(isOK ? AppColors.success : AppColors.textTertiary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                if !isOK {
+                    Text(helpText)
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                }
+            }
+            Spacer()
+        }
     }
 
-    // MARK: - Screen 9: Ready
+    // MARK: - Step 7: How Runs Work
+
+    private var howRunsWorkScreen: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Text("How a Run Works")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            // Mock Watch face
+            watchMockup {
+                VStack(spacing: 8) {
+                    Text("IPPO")
+                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .foregroundColor(.cyan)
+
+                    Text("Run. Catch. Grow.")
+                        .font(.system(size: 8, design: .rounded))
+                        .foregroundColor(.white.opacity(0.7))
+
+                    Circle()
+                        .fill(.cyan)
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Text("START\nRUN")
+                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                .foregroundColor(.black)
+                                .multilineTextAlignment(.center)
+                        )
+                }
+            }
+
+            VStack(spacing: 16) {
+                stepBullet(number: 1, text: "Open Ippo on your Apple Watch")
+                stepBullet(number: 2, text: "Tap Start Run and begin running")
+                stepBullet(number: 3, text: "Ippo handles everything else automatically")
+            }
+
+            Spacer()
+
+            onboardingButton("Next") { step = 8 }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    // MARK: - Step 8: Vibrations & Sprints (Interactive)
+
+    private var vibrationsAndSprintsScreen: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Text("Feel the Buzz? Sprint!")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            Text("During your run, your Watch vibrates 3 times.\nThat's your signal to sprint!")
+                .font(.system(size: 15, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+
+            // Interactive sprint demo
+            ZStack {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(AppColors.surface)
+                    .frame(height: 200)
+
+                switch sprintDemoPhase {
+                case .idle:
+                    VStack(spacing: 16) {
+                        Image(systemName: "hand.tap.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(AppColors.accent)
+                        Text("Tap to feel what it's like")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+
+                case .buzzing:
+                    VStack(spacing: 12) {
+                        Image(systemName: "iphone.radiowaves.left.and.right")
+                            .font(.system(size: 44))
+                            .foregroundColor(AppColors.accent)
+                            .symbolEffect(.pulse, options: .repeating)
+                        Text("Buzz! Buzz! Buzz!")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundColor(AppColors.accent)
+                    }
+
+                case .sprinting:
+                    VStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .stroke(AppColors.surfaceElevated, lineWidth: 6)
+                                .frame(width: 80, height: 80)
+                            Circle()
+                                .trim(from: 0, to: sprintDemoProgress)
+                                .stroke(AppColors.accent, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                                .frame(width: 80, height: 80)
+                                .rotationEffect(.degrees(-90))
+                            Text("\(sprintDemoCountdown)s")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary)
+                        }
+                        Text("SPRINT!")
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                            .foregroundColor(AppColors.accent)
+                    }
+
+                case .complete:
+                    VStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 44))
+                            .foregroundColor(AppColors.success)
+                        Text("Sprint Complete!")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(AppColors.success)
+                        HStack(spacing: 16) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "circle.fill")
+                                    .font(.system(size: 8))
+                                Text("+10")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundColor(AppColors.coins)
+                            HStack(spacing: 3) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 10))
+                                Text("+20 XP")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundColor(AppColors.xp)
+                        }
+                    }
+                }
+            }
+            .onTapGesture {
+                if sprintDemoPhase == .idle || sprintDemoPhase == .complete {
+                    startSprintDemo()
+                }
+            }
+
+            Text("~30 seconds per sprint. Your heart rate proves you're pushing it.")
+                .font(.system(size: 13, design: .rounded))
+                .foregroundColor(AppColors.textTertiary)
+                .multilineTextAlignment(.center)
+
+            Spacer()
+
+            onboardingButton("Next") { step = 9 }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    private func startSprintDemo() {
+        sprintDemoPhase = .buzzing
+        sprintDemoCountdown = 5
+        sprintDemoProgress = 0
+
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.warning)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            generator.notificationOccurred(.warning)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
+            generator.notificationOccurred(.warning)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            sprintDemoPhase = .sprinting
+            sprintDemoCountdown = 5
+
+            sprintDemoTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                if sprintDemoCountdown > 1 {
+                    sprintDemoCountdown -= 1
+                    withAnimation(.linear(duration: 0.9)) {
+                        sprintDemoProgress = CGFloat(5 - sprintDemoCountdown + 1) / 5.0
+                    }
+                    if sprintDemoCountdown <= 3 {
+                        let tick = UIImpactFeedbackGenerator(style: .light)
+                        tick.impactOccurred()
+                    }
+                } else {
+                    timer.invalidate()
+                    sprintDemoTimer = nil
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        sprintDemoProgress = 1.0
+                    }
+                    let success = UINotificationFeedbackGenerator()
+                    success.notificationOccurred(.success)
+                    sprintDemoPhase = .complete
+                }
+            }
+            withAnimation(.linear(duration: 0.9)) {
+                sprintDemoProgress = 1.0 / 5.0
+            }
+        }
+    }
+
+    // MARK: - Step 9: The Chase
+
+    private var theChaseScreen: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Text("Sprint Encounters")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            // Timeline visualization
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    timelineNode(icon: "figure.run", label: "Run", color: AppColors.accent)
+                    timelineLine()
+                    timelineNode(icon: "iphone.radiowaves.left.and.right", label: "Vibrate", color: AppColors.warning)
+                    timelineLine()
+                    timelineNode(icon: "bolt.fill", label: "Sprint!", color: AppColors.danger)
+                    timelineLine()
+                    timelineNode(icon: "gift.fill", label: "Reward", color: AppColors.success)
+                }
+            }
+            .padding(.vertical, 20)
+
+            VStack(spacing: 16) {
+                infoBubble(
+                    icon: "timer",
+                    text: "Encounters happen every 1\u{2013}3 minutes during your run"
+                )
+                infoBubble(
+                    icon: "bolt.heart.fill",
+                    text: "Sprint hard for ~30 seconds. Your heart rate proves the effort."
+                )
+                infoBubble(
+                    icon: "sparkles",
+                    text: "Every successful sprint earns coins and XP. But sometimes..."
+                )
+            }
+
+            Spacer()
+
+            onboardingButton("What happens next?") { step = 10 }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    // MARK: - Step 10: Catching Pets
+
+    private var catchingPetsScreen: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Text("Catch New Friends!")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            // Mock Watch catch screen
+            watchMockup {
+                VStack(spacing: 6) {
+                    Image(systemName: "pawprint.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.orange)
+                    Text("New friend\ncaught!")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    Text("Check your phone!")
+                        .font(.system(size: 7, design: .rounded))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+
+            VStack(spacing: 12) {
+                infoBubble(
+                    icon: "waveform",
+                    text: "5 quick vibrations = you caught a pet!"
+                )
+                infoBubble(
+                    icon: "questionmark.circle",
+                    text: "Each sprint has a chance to catch a rare pet"
+                )
+            }
+
+            // Pet silhouette grid
+            VStack(spacing: 8) {
+                Text("10 pets to discover")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
+                    ForEach(0..<10, id: \.self) { i in
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(AppColors.surfaceElevated)
+                                .frame(height: 48)
+                            if i < 3 {
+                                let starters = GameData.petDefinitions.filter { $0.isStarter }
+                                if let pet = starters[safe: i] {
+                                    Image(pet.stageImageNames.first ?? "")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .padding(6)
+                                        .opacity(0.4)
+                                }
+                            } else {
+                                Image(systemName: "questionmark")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(AppColors.textTertiary)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .background(AppColors.surface)
+            .cornerRadius(16)
+
+            Spacer()
+
+            onboardingButton("Next") { step = 11 }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    // MARK: - Step 11: Coins, XP & Shop
+
+    private var coinsAndXPScreen: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Text("Earn & Spend")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            // Earn section
+            VStack(spacing: 12) {
+                Text("EARN")
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundColor(AppColors.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 16) {
+                    earnCard(icon: "bolt.fill", label: "Sprint", coinAmount: "8\u{2013}12", xpAmount: "15\u{2013}25")
+                    earnCard(icon: "pawprint.fill", label: "Catch", coinAmount: "+25", xpAmount: nil)
+                    earnCard(icon: "figure.run", label: "Per Min", coinAmount: "+1", xpAmount: "+5")
+                }
+            }
+            .padding(16)
+            .background(AppColors.surface)
+            .cornerRadius(16)
+
+            // Spend section
+            VStack(spacing: 12) {
+                Text("SPEND")
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundColor(AppColors.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 12) {
+                    shopPreviewItem(icon: "leaf.fill", name: "Food", price: 3)
+                    shopPreviewItem(icon: "drop.fill", name: "Water", price: 2)
+                    shopPreviewItem(icon: "bolt.circle.fill", name: "XP Boost", price: 40)
+                }
+            }
+            .padding(16)
+            .background(AppColors.surface)
+            .cornerRadius(16)
+
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: "gift.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(AppColors.accent)
+                    Text("You start with 20 coins, 3 food, and 3 water")
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                }
+            }
+
+            Spacer()
+
+            onboardingButton("Next") { step = 12 }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    private func earnCard(icon: String, label: String, coinAmount: String, xpAmount: String?) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 22))
+                .foregroundColor(AppColors.accent)
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+            HStack(spacing: 2) {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 7))
+                    .foregroundColor(AppColors.coins)
+                Text(coinAmount)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.coins)
+            }
+            if let xp = xpAmount {
+                HStack(spacing: 2) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(AppColors.xp)
+                    Text(xp)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.xp)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(AppColors.surfaceElevated)
+        .cornerRadius(12)
+    }
+
+    private func shopPreviewItem(icon: String, name: String, price: Int) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(AppColors.accent)
+            Text(name)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+            HStack(spacing: 2) {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 7))
+                    .foregroundColor(AppColors.coins)
+                Text("\(price)")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.coins)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(AppColors.surfaceElevated)
+        .cornerRadius(12)
+    }
+
+    // MARK: - Step 12: Care Tutorial
+
+    private var careTutorialScreen: some View {
+        Group {
+            if showCareTutorialIntro {
+                careTutorialIntroView
+            } else {
+                TutorialOverlayView(
+                    petImageName: currentStarterPetImageName,
+                    onComplete: { step = 13 }
+                )
+            }
+        }
+    }
+
+    private var careTutorialIntroView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "heart.fill")
+                .font(.system(size: 48))
+                .foregroundColor(AppColors.petHappy)
+
+            Text("Take Care of Your Pet")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            VStack(spacing: 16) {
+                careTip(
+                    icon: "leaf.fill",
+                    color: AppColors.success,
+                    title: "Feed daily",
+                    subtitle: "Drag food onto your pet"
+                )
+                careTip(
+                    icon: "drop.fill",
+                    color: AppColors.xp,
+                    title: "Water daily",
+                    subtitle: "Drag water onto your pet"
+                )
+                careTip(
+                    icon: "hand.draw.fill",
+                    color: AppColors.accent,
+                    title: "Pet daily",
+                    subtitle: "Rub your pet to show love"
+                )
+            }
+
+            VStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(AppColors.warning)
+                    Text("Neglected pets get sad and eventually run away!")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                }
+
+                HStack(spacing: 24) {
+                    moodPreview(icon: "leaf.fill", label: "Happy", color: AppColors.petHappy, multiplier: "1.0x XP")
+                    moodPreview(icon: "leaf", label: "Content", color: AppColors.petNeutral, multiplier: "0.85x")
+                    moodPreview(icon: "leaf.arrow.triangle.circlepath", label: "Sad", color: AppColors.petSad, multiplier: "0.6x")
+                }
+                .padding(.top, 8)
+            }
+
+            Spacer()
+
+            onboardingButton("Try It Now") {
+                showCareTutorialIntro = false
+            }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    private func careTip(icon: String, color: Color, title: String, subtitle: String) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(color)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 13, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            Spacer()
+        }
+    }
+
+    private func moodPreview(icon: String, label: String, color: Color, multiplier: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundColor(color)
+            Text(multiplier)
+                .font(.system(size: 10, design: .rounded))
+                .foregroundColor(AppColors.textTertiary)
+        }
+    }
+
+    // MARK: - Step 13: Evolution & Growth
+
+    private var evolutionScreen: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Text("Watch Them Grow")
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+
+            if let starterId = selectedStarterPetId ?? userData.ownedPets.first?.petDefinitionId,
+               let pet = GameData.pet(byId: starterId) {
+                // Evolution stages display
+                HStack(spacing: 4) {
+                    ForEach(Array(pet.stageImageNames.enumerated()), id: \.offset) { index, imageName in
+                        VStack(spacing: 8) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(AppColors.surface)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(AppColors.accentSoft.opacity(0.5), lineWidth: 1)
+                                    )
+
+                                Image(imageName)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .padding(12)
+                            }
+                            .frame(height: 110)
+
+                            Text(PetConfig.shared.stageNames[safe: index] ?? "")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary)
+
+                            Text("\(PetConfig.shared.xpThresholds[safe: index] ?? 0) XP")
+                                .font(.system(size: 11, design: .rounded))
+                                .foregroundColor(AppColors.textTertiary)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        if index < pet.stageImageNames.count - 1 {
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppColors.accentSoft)
+                                .padding(.bottom, 30)
+                        }
+                    }
+                }
+            }
+
+            VStack(spacing: 12) {
+                infoBubble(
+                    icon: "star.fill",
+                    text: "Earn XP from running, sprinting, and caring for your pet"
+                )
+                infoBubble(
+                    icon: "heart.fill",
+                    text: "Happy pets earn XP faster. Keep them fed and loved!"
+                )
+            }
+
+            Spacer()
+
+            onboardingButton("Next") { step = 14 }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    // MARK: - Step 14: Ready
+
     private var readyScreen: some View {
         VStack(spacing: 24) {
             Spacer()
 
-            if let starterId = selectedStarterPetId, let pet = GameData.pet(byId: starterId) {
+            if let starterId = selectedStarterPetId ?? userData.ownedPets.first?.petDefinitionId,
+               let pet = GameData.pet(byId: starterId) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(AppColors.accentSoft.opacity(0.2))
@@ -524,10 +1383,22 @@ struct IppoCompleteOnboardingFlow: View {
                     .multilineTextAlignment(.center)
             }
 
-            Text("Start your first run on Apple Watch, or explore the app")
-                .font(.system(size: 14, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
+            // Loop recap
+            HStack(spacing: 0) {
+                loopStep(icon: "figure.run", label: "Run")
+                loopArrow
+                loopStep(icon: "bolt.fill", label: "Sprint")
+                loopArrow
+                loopStep(icon: "pawprint.fill", label: "Catch")
+                loopArrow
+                loopStep(icon: "heart.fill", label: "Care")
+                loopArrow
+                loopStep(icon: "sparkles", label: "Grow")
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 8)
+            .background(AppColors.surface)
+            .cornerRadius(16)
 
             Spacer()
 
@@ -543,7 +1414,8 @@ struct IppoCompleteOnboardingFlow: View {
         .padding(.horizontal, 32)
     }
 
-    // MARK: - Reusable Button
+    // MARK: - Reusable Components
+
     private func onboardingButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
@@ -555,5 +1427,113 @@ struct IppoCompleteOnboardingFlow: View {
                 .cornerRadius(14)
         }
         .padding(.bottom, 16)
+    }
+
+    private func watchMockup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 28)
+                .fill(Color.black)
+                .frame(width: 160, height: 190)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28)
+                        .stroke(Color.gray.opacity(0.4), lineWidth: 3)
+                )
+
+            RoundedRectangle(cornerRadius: 22)
+                .fill(Color.black)
+                .frame(width: 140, height: 170)
+
+            content()
+        }
+    }
+
+    private func stepBullet(number: Int, text: String) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(AppColors.accent)
+                    .frame(width: 28, height: 28)
+                Text("\(number)")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+            Text(text)
+                .font(.system(size: 15, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+            Spacer()
+        }
+    }
+
+    private func infoBubble(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(AppColors.accent)
+                .frame(width: 24)
+            Text(text)
+                .font(.system(size: 14, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+            Spacer()
+        }
+        .padding(14)
+        .background(AppColors.surface)
+        .cornerRadius(12)
+    }
+
+    private func timelineNode(icon: String, label: String, color: Color) -> some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(color)
+            }
+            Text(label)
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func timelineLine() -> some View {
+        Rectangle()
+            .fill(AppColors.surfaceElevated)
+            .frame(height: 2)
+            .frame(maxWidth: 20)
+            .offset(y: -10)
+    }
+
+    private func loopStep(icon: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(AppColors.accent)
+            Text(label)
+                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var loopArrow: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 8, weight: .bold))
+            .foregroundColor(AppColors.textTertiary)
+    }
+
+    private var currentStarterPetImageName: String {
+        if let starterId = selectedStarterPetId,
+           let pet = GameData.pet(byId: starterId),
+           let first = pet.stageImageNames.first {
+            return first
+        }
+        if let firstOwned = userData.ownedPets.first,
+           let def = firstOwned.definition,
+           let first = def.stageImageNames.first {
+            return first
+        }
+        return "lumira_01"
     }
 }
