@@ -11,10 +11,12 @@ final class AuthService: NSObject, ObservableObject {
     static let shared = AuthService()
     
     static let adminUserIds: Set<String> = ["xcBSbYY6lNToyzsxB7m0Jh6dgkZ2"]
+    static let adminEmails: Set<String> = ["cruce.saunders@alpha.school"]
     
     var isAdmin: Bool {
-        guard let uid = userId else { return false }
-        return Self.adminUserIds.contains(uid)
+        if let uid = userId, Self.adminUserIds.contains(uid) { return true }
+        if let email = email, Self.adminEmails.contains(email.lowercased()) { return true }
+        return false
     }
     
     @Published var isAuthenticated = false
@@ -65,10 +67,11 @@ final class AuthService: NSObject, ObservableObject {
     func startSignInWithApple() -> ASAuthorizationAppleIDRequest {
         let nonce = randomNonceString()
         currentNonce = nonce
+        let hashedNonce = sha256(nonce)
         
         let request = ASAuthorizationAppleIDProvider().createRequest()
         request.requestedScopes = [.fullName, .email]
-        request.nonce = sha256(nonce)
+        request.nonce = hashedNonce
         return request
     }
     

@@ -3,26 +3,67 @@ import Foundation
 struct PetConfig: Sendable {
     static let shared = PetConfig()
 
-    let maxStages = 10
-
-    // Cumulative XP thresholds for each stage (index 0 = stage 1 threshold)
-    let xpThresholds: [Int] = [
-        0,       // Stage 1: Newborn
-        200,     // Stage 2: Sprout
-        500,     // Stage 3: Seedling
-        1_000,   // Stage 4: Bloom
-        1_800,   // Stage 5: Juvenile
-        3_000,   // Stage 6: Adolescent
-        4_500,   // Stage 7: Young
-        6_500,   // Stage 8: Mature
-        9_000,   // Stage 9: Prime
-        12_000   // Stage 10: Elder
-    ]
+    // MARK: - Stages
+    let maxStages = 3
 
     let stageNames: [String] = [
-        "Newborn", "Sprout", "Seedling", "Bloom", "Juvenile",
-        "Adolescent", "Young", "Mature", "Prime", "Elder"
+        "Baby", "Teen", "Adult"
     ]
+
+    // MARK: - Pet Levels
+
+    let petMaxLevel = 20
+
+    /// Levels at which the pet evolves to the next stage.
+    /// Key = new stage number, Value = level that triggers it.
+    let evolutionLevels: [Int: Int] = [
+        2: 8,   // Baby -> Teen at level 8  (~2,170 XP, ~3 hrs running)
+        3: 14   // Teen -> Adult at level 14 (~5,590 XP, ~9.5 hrs total)
+    ]
+
+    /// Cumulative XP required to reach a given pet level.
+    /// Level 1 = 0 XP. Uses a quadratic curve so each level takes progressively more XP.
+    ///
+    /// Approximate totals:
+    ///   Lv  8 → 2,170 XP  (~3 hrs running, first evolution)
+    ///   Lv 14 → 5,590 XP  (~9.5 hrs running, second evolution)
+    ///   Lv 20 → 10,450 XP
+    func xpRequiredForLevel(_ level: Int) -> Int {
+        guard level > 1 else { return 0 }
+        var total = 0
+        for lv in 2...level {
+            total += xpToReachNextLevel(from: lv - 1)
+        }
+        return total
+    }
+
+    /// XP needed to go from `level` to `level + 1`.
+    func xpToReachNextLevel(from level: Int) -> Int {
+        guard level >= 1 else { return 0 }
+        let base = 150
+        let growth = 40
+        return base + (level - 1) * growth
+    }
+
+    /// Compute pet level from cumulative XP.
+    func levelForXP(_ xp: Int) -> Int {
+        var level = 1
+        while level < petMaxLevel && xpRequiredForLevel(level + 1) <= xp {
+            level += 1
+        }
+        return level
+    }
+
+    /// Derive evolution stage from pet level.
+    func stageForLevel(_ level: Int) -> Int {
+        var stage = 1
+        for (stageNum, triggerLevel) in evolutionLevels.sorted(by: { $0.key < $1.key }) {
+            if level >= triggerLevel {
+                stage = stageNum
+            }
+        }
+        return min(stage, maxStages)
+    }
 
     // MARK: - XP Sources
     let xpPerMinuteRunning: Int = 5
@@ -37,38 +78,27 @@ struct PetConfig: Sendable {
     let sadMultiplier: Double = 0.6
 
     // MARK: - Catch Rate
-    let baseCatchRate: Double = 0.08         // 8% per sprint
-    let encounterBoostRate: Double = 0.12    // 12% with boost
-    let pityTimerSprints: Int = 15           // guaranteed after 15 dry sprints
+    let baseCatchRate: Double = 0.08
+    let encounterCharmRate: Double = 0.11  // 8% + 3% from charm
+    let pityTimerSprints: Int = 15
 
     // MARK: - Runaway
     let runawayDaysSad: Int = 14
     let runawayDaysNoInteraction: Int = 14
-    let runawayDaysAccelerated: Int = 10     // sad + no care + no run
+    let runawayDaysAccelerated: Int = 10
 
     // MARK: - Rescue Costs
     func rescueCost(forStage stage: Int) -> Int {
         switch stage {
-        case 1...3: return 50
-        case 4...6: return 100
-        case 7...9: return 200
-        default: return 300
+        case 1: return 50
+        case 2: return 100
+        default: return 200
         }
     }
 
     // MARK: - Helpers
     func stageName(for stage: Int) -> String {
         stageNames[safe: stage - 1] ?? "Unknown"
-    }
-
-    func currentStage(forXP xp: Int) -> Int {
-        var stage = 1
-        for i in 1..<xpThresholds.count {
-            if xp >= xpThresholds[i] {
-                stage = i + 1
-            }
-        }
-        return min(stage, maxStages)
     }
 
     func xpMultiplier(forMood mood: Int) -> Double {

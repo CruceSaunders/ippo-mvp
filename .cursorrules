@@ -31,7 +31,7 @@ This project has gone through THREE versions. Only v3 is active.
 **Ippo** is a Tamagotchi-meets-Pokemon-Go running app:
 1. Run with Apple Watch, catch rare fantasy pets during sprint encounters
 2. Care for your equipped pet daily (feed, water, pet)
-3. Happy pets gain XP faster and evolve through 10 micro-evolution stages
+3. Happy pets gain XP faster and evolve through 3 stages (Baby → Teen → Adult) with per-pet thresholds
 4. Neglected pets get sad, gain XP slower, and eventually run away
 5. Coins earned from running buy food, water, boosts, and hibernation items
 
@@ -160,11 +160,12 @@ AppColors.petSad             // #D98B8B
 
 ## Data Patterns
 
-### GameData (Static - 10 pets)
+### GameData (Static)
 ```swift
-GameData.shared.allPets           // 10 GamePetDefinition
-GameData.shared.pet(byId: "pet_01")
-GameData.shared.starterPets       // First 3 (Lumira, Mossworth, Puddlejoy)
+GameData.petDefinitions                          // All GamePetDefinition entries
+GameData.pet(byId: "pet_01")                     // Lookup by ID
+GameData.petDefinitions.filter { $0.isStarter }  // Starters (Lumira, Mossworth, Dewdrop)
+GameData.catchablePetIds                         // Non-starter IDs for catch system
 ```
 
 ### UserData (Dynamic)
@@ -204,25 +205,102 @@ UserData.shared.inventory         // Food count, water count, active boosts
 
 ---
 
-## Pet Integration Framework
+## Adding a New Pet — Complete Protocol
 
-To add a new pet, provide:
-1. 10 stage images (PNGs, transparent background)
-2. Add one entry to `GameData.shared.allPets` array
+When adding a new catchable pet to the game, follow every step below. No step is optional.
+
+### Prerequisites
+
+- 3 stage PNG images (transparent background, 1024x1024):
+  - `stage_01.png` (Baby), `stage_02.png` (Teen), `stage_03.png` (Adult)
+- A unique pet name (lowercase for file names, e.g. `cinders`)
+- A unique pet ID (sequential: `pet_04`, `pet_05`, etc.)
+
+### Step 1: Add Source Art to `PetAssets/`
+
+```
+IppoMVP/PetAssets/<petname>/
+├── stage_01.png   (Baby - smallest/cutest)
+├── stage_02.png   (Teen - mid-evolution)
+└── stage_03.png   (Adult - final form)
+```
+
+Verify: all 3 PNGs have transparent backgrounds, no white fringing, sparkle details intact.
+
+### Step 2: Add Image Assets to Xcode Asset Catalog
+
+Create 3 imagesets in `IppoMVP/IppoMVP/Assets.xcassets/Pets/`:
+
+For each stage (01, 02, 03), create a folder `<petname>_XX.imageset/` containing:
+
+**Contents.json** (same for each, just change the filename):
+```json
+{
+  "images": [
+    { "filename": "<petname>_XX.png", "idiom": "universal", "scale": "1x" },
+    { "idiom": "universal", "scale": "2x" },
+    { "idiom": "universal", "scale": "3x" }
+  ],
+  "info": { "author": "xcode", "version": 1 }
+}
+```
+
+Copy each stage PNG into its imageset folder, renamed to `<petname>_XX.png`.
+
+### Step 3: Add Pet Definition to `GameData.swift`
+
+Add an entry to the `petDefinitions` array in `IppoMVP/IppoMVP/Data/GameData.swift`:
 
 ```swift
 GamePetDefinition(
-    id: "pet_XX",
-    name: "PetName",
-    description: "Full description",
-    hintText: "Hint for undiscovered state",
-    stageImageNames: ["petname_01", ..., "petname_10"],
-    hasIdleVideos: false,
-    hasHappyVideos: false
+    id: "pet_XX",                    // Sequential ID
+    name: "PetName",                 // Display name
+    description: "Brief personality/lore description",
+    hintText: "Mysterious hint shown when undiscovered",
+    stageImageNames: (1...3).map { "<petname>_\(String(format: "%02d", $0))" },
+    evolutionLevels: [2: N, 3: M]   // UNIQUE per pet — see guidelines below
 )
 ```
 
-No other code changes needed per pet.
+**Evolution level guidelines** — every pet MUST have different thresholds:
+- Baby → Teen: level 6–10 (vary by ±1–2 from default 8)
+- Teen → Adult: level 12–16 (vary by ±1–2 from default 14)
+- Current pets: Lumira [2:8, 3:14], Mossworth [2:7, 3:13], Dewdrop [2:9, 3:15]
+- New pets should not duplicate existing thresholds
+
+### Step 4: Verify — No Other Code Changes Needed
+
+The architecture is designed so that adding a pet definition to `GameData.swift` automatically:
+- Makes it appear in the Collection view (as "Undiscovered" until caught)
+- Makes it catchable during runs (via `GameData.catchablePetIds` → synced to Watch)
+- Makes it displayable in Home, Detail, and Summary views (via `PetImageView`)
+- Handles its evolution using per-pet `evolutionLevels`
+
+**You do NOT need to edit:**
+- `WatchRunManager.swift` (catches derive from synced `catchablePetIds`)
+- `WatchConnectivityService.swift` / `WatchConnectivityServiceWatch.swift`
+- `PetConfig.swift`, `UserData.swift`, or any UI view files
+
+### Step 5: Verification Checklist
+
+After adding a pet, verify ALL of the following:
+
+1. **Build succeeds** — `xcodebuild` for both iOS and watchOS schemes, 0 errors
+2. **Image loads** — In AdminDebugView, add the pet. Confirm it shows the correct Baby image, not a pawprint fallback
+3. **Evolution stages** — Use AdminDebugView to add XP. Confirm Teen and Adult images load at the correct levels
+4. **Collection view** — Before catching: shows as "Undiscovered" with `hintText`. After catching: shows pet image
+5. **Catch works** — Use AdminDebugView run simulator with `runIncludesCatch = true` and the new pet ID. Confirm it appears in `ownedPets`
+6. **Home view** — Equip the pet. Confirm image, name, mood indicator, XP bar all display correctly
+7. **Watch sync** — Confirm `GameData.catchablePetIds` includes the new ID. After sync, the Watch should be able to catch it
+8. **No regressions** — Existing starter pets still display and evolve correctly
+
+### Common Pitfalls
+
+- **White fringing on art:** Background removal tools often leave white halos. Check edges at 200% zoom.
+- **Wrong image naming:** Asset catalog names must exactly match `stageImageNames` in `GameData`. Case-sensitive.
+- **Duplicate evolution levels:** Every pet must have unique `evolutionLevels`. Check existing pets before choosing.
+- **Forgetting asset catalog:** Adding PNGs to `PetAssets/` is not enough — they must also be in `Assets.xcassets/Pets/` imagesets for Xcode to bundle them.
+- **Stale Watch data:** After adding a pet, the Watch gets the updated catchable list on next `syncRequest`. Kill and relaunch the Watch app to force a fresh sync during testing.
 
 ---
 

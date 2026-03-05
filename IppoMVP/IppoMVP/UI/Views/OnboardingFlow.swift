@@ -1021,25 +1021,24 @@ struct IppoCompleteOnboardingFlow: View {
 
             // Pet silhouette grid
             VStack(spacing: 8) {
-                Text("10 pets to discover")
+                let totalPets = GameData.petDefinitions.count
+                Text("\(totalPets) pets to discover")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundColor(AppColors.textSecondary)
 
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
-                    ForEach(0..<10, id: \.self) { i in
+                let starters = GameData.petDefinitions.filter { $0.isStarter }
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: min(totalPets, 5)), spacing: 8) {
+                    ForEach(Array(GameData.petDefinitions.enumerated()), id: \.offset) { i, def in
                         ZStack {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(AppColors.surfaceElevated)
                                 .frame(height: 48)
-                            if i < 3 {
-                                let starters = GameData.petDefinitions.filter { $0.isStarter }
-                                if let pet = starters[safe: i] {
-                                    Image(pet.stageImageNames.first ?? "")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .padding(6)
-                                        .opacity(0.4)
-                                }
+                            if starters.contains(where: { $0.id == def.id }) {
+                                Image(def.stageImageNames.first ?? "")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .padding(6)
+                                    .opacity(0.4)
                             } else {
                                 Image(systemName: "questionmark")
                                     .font(.system(size: 16, weight: .medium))
@@ -1324,7 +1323,7 @@ struct IppoCompleteOnboardingFlow: View {
                                 .font(.system(size: 13, weight: .bold, design: .rounded))
                                 .foregroundColor(AppColors.textPrimary)
 
-                            Text("\(PetConfig.shared.xpThresholds[safe: index] ?? 0) XP")
+                            Text("Stage \(index + 1)")
                                 .font(.system(size: 11, design: .rounded))
                                 .foregroundColor(AppColors.textTertiary)
                         }

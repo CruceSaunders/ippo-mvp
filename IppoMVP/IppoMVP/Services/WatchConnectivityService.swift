@@ -109,6 +109,8 @@ extension WatchConnectivityService: WCSessionDelegate {
                 ]
                 let petIds = UserData.shared.ownedPets.map { $0.petDefinitionId }
                 response["ownedPetIds"] = petIds
+                response["catchablePetIds"] = GameData.catchablePetIds
+                response["hasEncounterCharm"] = UserData.shared.inventory.activeEncounterCharm != nil
                 replyHandler(response)
             } else {
                 replyHandler([:])

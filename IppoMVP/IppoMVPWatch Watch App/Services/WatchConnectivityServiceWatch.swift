@@ -9,6 +9,8 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     @Published var isConnected: Bool = false
     @Published var estimatedMaxHR: Int = 0
     var ownedPetIds: Set<String> = []
+    var catchablePetIds: [String] = []
+    var hasEncounterCharm: Bool = false
     
     private var session: WCSession?
     
@@ -61,6 +63,12 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
                 }
                 if let petIds = response["ownedPetIds"] as? [String] {
                     self?.ownedPetIds = Set(petIds)
+                }
+                if let catchable = response["catchablePetIds"] as? [String] {
+                    self?.catchablePetIds = catchable
+                }
+                if let charm = response["hasEncounterCharm"] as? Bool {
+                    self?.hasEncounterCharm = charm
                 }
             }
         }, errorHandler: { error in

@@ -9,5 +9,6 @@ struct RewardsConfig: Sendable {
     let xpPerSprint: ClosedRange<Int> = 15...25
     let coinsForCatchingPet: Int = 25
     let baseCatchRate: Double = 0.08
+    let encounterCharmRate: Double = 0.11
     let pityTimerSprints: Int = 15
 }

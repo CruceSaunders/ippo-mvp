@@ -20,7 +20,7 @@ struct ContentView: View {
 
             ShopView()
                 .tabItem {
-                    Label("Shop", systemImage: "bag.fill")
+                    Label("Market", systemImage: "bag.fill")
                 }
                 .tag(2)
         }

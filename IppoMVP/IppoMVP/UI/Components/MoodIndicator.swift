@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MoodIndicator: View {
     let mood: Int
+    @State private var showTip = false
 
     private var iconName: String {
         switch mood {
@@ -23,18 +24,33 @@ struct MoodIndicator: View {
         }
     }
 
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: iconName)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(color)
-            Text(label)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundColor(color)
+    private var tipText: String {
+        switch mood {
+        case 3: return "Your pet is happy! Keep running and caring for them."
+        case 2: return "Feed, water, and pet them daily to boost their mood."
+        default: return "Run together and care for your pet to cheer them up!"
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(color.opacity(0.15))
-        .clipShape(Capsule())
+    }
+
+    var body: some View {
+        Button { showTip = true } label: {
+            HStack(spacing: 4) {
+                Image(systemName: iconName)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundColor(color)
+                Text(label)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(color)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.15))
+            .clipShape(Capsule())
+        }
+        .alert(label, isPresented: $showTip) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(tipText)
+        }
     }
 }

@@ -1,19 +1,5 @@
 import SwiftUI
 
-struct PetFrameKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
-    }
-}
-
-private struct RootFrameKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
-    }
-}
-
 struct HomeView: View {
     @EnvironmentObject var userData: UserData
     @EnvironmentObject var authService: AuthService
@@ -25,7 +11,6 @@ struct HomeView: View {
     @State private var showAllRuns = false
 
     @State private var petFrame: CGRect = .zero
-    @State private var rootFrame: CGRect = .zero
     @State private var foodDragLocation: CGPoint = .zero
     @State private var waterDragLocation: CGPoint = .zero
     @State private var isDraggingFood = false
@@ -38,6 +23,7 @@ struct HomeView: View {
     @State private var lastStrokeLocation: CGPoint?
     @State private var heartAnimationPhase = false
     @State private var isBouncing = false
+    @State private var sleepAnimationCycle = 0
 
     @AppStorage("hasSeenCareHint") private var hasSeenCareHint = false
 
@@ -74,31 +60,32 @@ struct HomeView: View {
                                 .padding(.bottom, 24)
                         }
                     }
-                    .onPreferenceChange(PetFrameKey.self) { frame in
-                        petFrame = frame
+                    if let xp = floatingXP {
+                        floatingXPLabel(xp)
                     }
 
                     if isDraggingFood {
-                        dragGhostIcon("leaf.fill", globalLocation: foodDragLocation)
+                        Image(systemName: "leaf.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(AppColors.accent)
+                            .shadow(color: AppColors.accent.opacity(0.5), radius: 8)
+                            .position(x: foodDragLocation.x, y: foodDragLocation.y)
+                            .allowsHitTesting(false)
                     }
                     if isDraggingWater {
-                        dragGhostIcon("drop.fill", globalLocation: waterDragLocation)
-                    }
-
-                    if let xp = floatingXP {
-                        floatingXPLabel(xp)
+                        Image(systemName: "drop.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(AppColors.accent)
+                            .shadow(color: AppColors.accent.opacity(0.5), radius: 8)
+                            .position(x: waterDragLocation.x, y: waterDragLocation.y)
+                            .allowsHitTesting(false)
                     }
 
                     if !hasSeenCareHint && userData.equippedPet != nil {
                         careHintOverlay
                     }
                 }
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(key: RootFrameKey.self, value: geo.frame(in: .global))
-                    }
-                )
-                .onPreferenceChange(RootFrameKey.self) { rootFrame = $0 }
+                .coordinateSpace(name: "home")
                 .onAppear { screenSize = rootGeo.size }
                 .onChange(of: rootGeo.size) { _, newSize in screenSize = newSize }
             }
@@ -118,11 +105,9 @@ struct HomeView: View {
             }
             .fullScreenCover(isPresented: $showEvolution) {
                 if let evo = userData.pendingEvolution {
-                    CelebrationModal.evolution(
+                    EvolutionAnimationView(
                         isPresented: $showEvolution,
-                        petName: evo.petName,
-                        newStage: evo.newStage,
-                        stageName: evo.stageName
+                        evolution: evo
                     ) {
                         userData.pendingEvolution = nil
                         showEvolution = false
@@ -173,7 +158,7 @@ struct HomeView: View {
             .padding(.top, 10)
 
             HStack(spacing: 6) {
-                Text("Stage \(pet.evolutionStage) · \(pet.stageName)")
+                Text("Lv. \(pet.level) · \(pet.stageName)")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundColor(AppColors.textSecondary)
 
@@ -192,12 +177,22 @@ struct HomeView: View {
                 if showHearts {
                     heartsOverlay
                 }
+
+                if userData.inventory.isHibernating {
+                    SleepingZzzOverlay(cycle: sleepAnimationCycle)
+                        .onAppear { startSleepAnimation() }
+                }
             }
             .frame(height: screenSize.height * 0.44)
             .background(
                 GeometryReader { geo in
                     Color.clear
-                        .preference(key: PetFrameKey.self, value: geo.frame(in: .global))
+                        .onAppear {
+                            petFrame = geo.frame(in: .named("home"))
+                        }
+                        .onChange(of: geo.frame(in: .named("home"))) { _, newFrame in
+                            petFrame = newFrame
+                        }
                 }
             )
             .highPriorityGesture(
@@ -235,9 +230,9 @@ struct HomeView: View {
     private func xpBar(pet: OwnedPet) -> some View {
         XPProgressBar(
             progress: pet.xpProgress,
-            currentXP: pet.experience - pet.xpForCurrentStage,
-            targetXP: pet.xpForNextStage - pet.xpForCurrentStage,
-            label: pet.isMaxEvolution ? "Max Level" : "to \(PetConfig.shared.stageName(for: pet.evolutionStage + 1))"
+            currentXP: pet.experience - pet.xpForCurrentLevel,
+            targetXP: max(1, pet.xpForNextLevel - pet.xpForCurrentLevel),
+            label: pet.isMaxLevel ? "Max Level" : "Lv. \(pet.level + 1)"
         )
     }
 
@@ -325,7 +320,7 @@ struct HomeView: View {
         .opacity(isDragging.wrappedValue ? 0.4 : 1.0)
         .gesture(
             enabled
-            ? DragGesture(coordinateSpace: .global)
+            ? DragGesture(coordinateSpace: .named("home"))
                 .onChanged { value in
                     dragLocation.wrappedValue = value.location
                     isDragging.wrappedValue = true
@@ -345,20 +340,6 @@ struct HomeView: View {
         )
     }
 
-    // MARK: - Drag Ghost Icon
-
-    private func dragGhostIcon(_ icon: String, globalLocation: CGPoint) -> some View {
-        Image(systemName: icon)
-            .font(.system(size: 32))
-            .foregroundColor(AppColors.accent)
-            .shadow(color: AppColors.accent.opacity(0.5), radius: 8)
-            .position(
-                x: globalLocation.x - rootFrame.minX,
-                y: globalLocation.y - rootFrame.minY
-            )
-            .allowsHitTesting(false)
-    }
-
     // MARK: - Floating XP Label
 
     private func floatingXPLabel(_ text: String) -> some View {
@@ -370,7 +351,7 @@ struct HomeView: View {
             .background(AppColors.surface)
             .cornerRadius(10)
             .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-            .position(x: screenSize.width / 2, y: petFrame.midY - rootFrame.minY - 20)
+            .position(x: screenSize.width / 2, y: screenSize.height * 0.25)
             .transition(.opacity.combined(with: .move(edge: .bottom)))
             .allowsHitTesting(false)
     }
@@ -426,38 +407,71 @@ struct HomeView: View {
     @ViewBuilder
     private var boostBanners: some View {
         if let boost = userData.inventory.activeXPBoost {
-            HStack {
-                Image(systemName: "arrow.up.circle.fill")
-                    .foregroundColor(AppColors.xp)
-                Text("XP Boost Active")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                Spacer()
-                Text(formatTimeRemaining(boost.remainingSeconds))
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
-            }
-            .padding(10)
-            .background(AppColors.xp.opacity(0.1))
-            .cornerRadius(10)
+            boostBanner(
+                icon: "arrow.up.circle.fill",
+                iconColor: AppColors.xp,
+                title: "XP Boost Active",
+                detail: formatTimeRemaining(boost.remainingSeconds),
+                bgColor: AppColors.xp
+            )
+        }
+
+        if userData.inventory.activeEncounterCharm != nil {
+            boostBanner(
+                icon: "sparkles",
+                iconColor: AppColors.accent,
+                title: "Encounter Charm",
+                detail: "Active until next run",
+                bgColor: AppColors.accent
+            )
+        }
+
+        if userData.inventory.activeCoinBoost != nil {
+            boostBanner(
+                icon: "star.circle.fill",
+                iconColor: AppColors.coins,
+                title: "Golden Stride",
+                detail: "Active until next run",
+                bgColor: AppColors.coins
+            )
         }
 
         if userData.inventory.isHibernating {
-            HStack {
-                Image(systemName: "moon.zzz.fill")
-                    .foregroundColor(AppColors.accentSoft)
-                Text("Hibernation Active")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                Spacer()
-                Text("Pets protected")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
-            }
-            .padding(10)
-            .background(AppColors.accentSoft.opacity(0.15))
-            .cornerRadius(10)
+            boostBanner(
+                icon: "moon.zzz.fill",
+                iconColor: AppColors.accentSoft,
+                title: "Hibernation Active",
+                detail: "Pets protected",
+                bgColor: AppColors.accentSoft
+            )
         }
+
+        if userData.inventory.isStreakFrozen {
+            boostBanner(
+                icon: "shield.fill",
+                iconColor: AppColors.success,
+                title: "Streak Shield",
+                detail: formatDaysRemaining(userData.inventory.streakFreezeEndsAt),
+                bgColor: AppColors.success
+            )
+        }
+    }
+
+    private func boostBanner(icon: String, iconColor: Color, title: String, detail: String, bgColor: Color) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(iconColor)
+            Text(title)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+            Spacer()
+            Text(detail)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+        }
+        .padding(10)
+        .background(bgColor.opacity(0.1))
+        .cornerRadius(10)
     }
 
     // MARK: - Stats Bar
@@ -486,9 +500,21 @@ struct HomeView: View {
                     Text("\(userData.profile.currentStreak)")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundColor(AppColors.textPrimary)
-                    Text("day streak")
-                        .font(.system(size: 13, design: .rounded))
-                        .foregroundColor(AppColors.textSecondary)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("day streak")
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundColor(AppColors.textSecondary)
+                        if streakXPBonusPercent > 0 {
+                            Text("+\(streakXPBonusPercent, specifier: "%.1f")% XP")
+                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .foregroundColor(AppColors.xp)
+                        }
+                    }
+                    if userData.inventory.isStreakFrozen {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(AppColors.success)
+                    }
                 }
             }
 
@@ -701,5 +727,106 @@ struct HomeView: View {
         let minutes = (Int(seconds) % 3600) / 60
         if hours > 0 { return "\(hours)h \(minutes)m" }
         return "\(minutes)m"
+    }
+
+    private func formatDaysRemaining(_ date: Date?) -> String {
+        guard let date else { return "" }
+        let days = max(0, Calendar.current.dateComponents([.day], from: Date(), to: date).day ?? 0)
+        if days == 0 { return "< 1 day left" }
+        return "\(days)d left"
+    }
+
+    private var streakXPBonusPercent: Double {
+        let config = EconomyConfig.shared
+        let streakDays = min(userData.profile.currentStreak, config.streakBonusCap)
+        guard streakDays > 0 else { return 0 }
+        return (Double(streakDays) / Double(config.streakBonusCap)) * config.maxStreakBonusPercent * 100
+    }
+
+    private func startSleepAnimation() {
+        Timer.scheduledTimer(withTimeInterval: 6.0, repeats: true) { _ in
+            Task { @MainActor in
+                sleepAnimationCycle += 1
+            }
+        }
+    }
+}
+
+// MARK: - Sleeping Zzz Animation
+
+struct SleepingZzzOverlay: View {
+    let cycle: Int
+
+    var body: some View {
+        ZStack {
+            FloatingZ(size: 16, xBase: 35, delay: 0)
+            FloatingZ(size: 20, xBase: 48, delay: 1.3)
+            FloatingZ(size: 25, xBase: 62, delay: 2.6)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+private struct FloatingZ: View {
+    let size: CGFloat
+    let xBase: CGFloat
+    let delay: TimeInterval
+
+    @State private var phase: CGFloat = 0
+
+    private let floatDuration: TimeInterval = 3.5
+
+    var body: some View {
+        Text("z")
+            .font(.system(size: size, weight: .black, design: .rounded))
+            .foregroundColor(AppColors.textPrimary.opacity(0.55))
+            .shadow(color: .black.opacity(0.10), radius: 2, x: 0, y: 1)
+            .shadow(color: AppColors.accent.opacity(0.25), radius: 6, x: 0, y: 0)
+            .modifier(FloatModifier(phase: phase, xBase: xBase))
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    startLoop()
+                }
+            }
+    }
+
+    private func startLoop() {
+        phase = 0
+        withAnimation(.easeInOut(duration: floatDuration)) {
+            phase = 1
+        }
+
+        Timer.scheduledTimer(withTimeInterval: floatDuration, repeats: true) { _ in
+            Task { @MainActor in
+                phase = 0
+                withAnimation(.easeInOut(duration: floatDuration)) {
+                    phase = 1
+                }
+            }
+        }
+    }
+}
+
+private struct FloatModifier: Animatable, ViewModifier {
+    var phase: CGFloat
+    let xBase: CGFloat
+
+    var animatableData: CGFloat {
+        get { phase }
+        set { phase = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        let drift = sin(phase * .pi) * 6
+        let yOffset = -10 - (phase * 100)
+        let opacity = phase < 0.15
+            ? phase / 0.15
+            : (phase > 0.75 ? (1 - phase) / 0.25 : 1.0)
+        let scale = 0.5 + phase * 0.6
+
+        content
+            .offset(x: xBase + drift, y: yOffset)
+            .opacity(opacity * 0.85)
+            .scaleEffect(scale)
     }
 }

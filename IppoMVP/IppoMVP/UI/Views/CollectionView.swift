@@ -139,7 +139,7 @@ struct PetGridCell: View {
                 .foregroundColor(AppColors.textPrimary)
                 .lineLimit(1)
 
-            Text("Stg. \(pet.evolutionStage)")
+            Text("Lv. \(pet.level)")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(AppColors.textSecondary)
         }

@@ -454,7 +454,8 @@ final class WatchRunManager: NSObject, ObservableObject {
             earnedXP += sprintXP
 
             sprintsSinceLastCatch += 1
-            let catchRate: Double = sprintsSinceLastCatch >= 15 ? 1.0 : 0.08
+            let baseCatch: Double = WatchConnectivityServiceWatch.shared.hasEncounterCharm ? 0.11 : 0.08
+            let catchRate: Double = sprintsSinceLastCatch >= 15 ? 1.0 : baseCatch
             let roll = Double.random(in: 0...1)
             if roll < catchRate {
                 let caughtId = selectRandomUnownedPet()
@@ -463,6 +464,7 @@ final class WatchRunManager: NSObject, ObservableObject {
                     didCatchPet = true
                     sprintsSinceLastCatch = 0
                     earnedCoins += 25
+                    WatchConnectivityServiceWatch.shared.ownedPetIds.insert(caughtId)
                     WatchHapticsManager.shared.playPetCatch()
                 }
             }
@@ -493,9 +495,8 @@ final class WatchRunManager: NSObject, ObservableObject {
     }
 
     private func selectRandomUnownedPet() -> String? {
-        let ownedIds = WatchConnectivityServiceWatch.shared.ownedPetIds
-        let allIds = ["pet_04", "pet_05", "pet_06", "pet_07", "pet_08", "pet_09", "pet_10"]
-        let available = allIds.filter { !ownedIds.contains($0) }
+        let connectivity = WatchConnectivityServiceWatch.shared
+        let available = connectivity.catchablePetIds.filter { !connectivity.ownedPetIds.contains($0) }
         return available.randomElement()
     }
     

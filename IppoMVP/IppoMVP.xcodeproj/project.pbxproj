@@ -10,6 +10,8 @@
 		BERU00012F214A000000001A /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000001B /* FirebaseAuth */; };
 		BERU00012F214A000000002A /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000002B /* FirebaseCore */; };
 		BERU00012F214A000000003A /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00012F214A000000003B /* FirebaseFirestore */; };
+		ED12778D2F4D88CC00DC2D68 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00022F214A000000001B /* GoogleSignIn */; };
+		ED12778E2F4D88CC00DC2D68 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = BERU00022F214A000000002B /* GoogleSignInSwift */; };
 		ED6BAE852F207E300013C16D /* IppoMVP Watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = ED6BAE7B2F207E2F0013C16D /* IppoMVP Watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -60,6 +62,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED12778E2F4D88CC00DC2D68 /* GoogleSignInSwift in Frameworks */,
+				ED12778D2F4D88CC00DC2D68 /* GoogleSignIn in Frameworks */,
 				BERU00012F214A000000002A /* FirebaseCore in Frameworks */,
 				BERU00012F214A000000001A /* FirebaseAuth in Frameworks */,
 				BERU00012F214A000000003A /* FirebaseFirestore in Frameworks */,

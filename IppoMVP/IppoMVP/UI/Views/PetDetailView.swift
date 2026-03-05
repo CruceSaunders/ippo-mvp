@@ -57,7 +57,7 @@ struct PetDetailView: View {
             HStack(spacing: 12) {
                 MoodIndicator(mood: pet.mood)
 
-                Text("Stage \(pet.evolutionStage) · \(pet.stageName)")
+                Text("Lv. \(pet.level) · \(pet.stageName)")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundColor(AppColors.textSecondary)
             }
@@ -67,44 +67,44 @@ struct PetDetailView: View {
     private var xpProgress: some View {
         XPProgressBar(
             progress: pet.xpProgress,
-            currentXP: pet.experience - pet.xpForCurrentStage,
-            targetXP: max(1, pet.xpForNextStage - pet.xpForCurrentStage),
-            label: pet.isMaxEvolution ? "Max Level" : "to \(PetConfig.shared.stageName(for: pet.evolutionStage + 1))"
+            currentXP: pet.experience - pet.xpForCurrentLevel,
+            targetXP: max(1, pet.xpForNextLevel - pet.xpForCurrentLevel),
+            label: pet.isMaxLevel ? "Max Level" : "Lv. \(pet.level + 1)"
         )
     }
 
     private var evolutionTimeline: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Evolution Timeline")
+            Text("Evolution")
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
-            HStack(spacing: 4) {
+            HStack(spacing: 0) {
                 ForEach(1...PetConfig.shared.maxStages, id: \.self) { stage in
-                    VStack(spacing: 4) {
-                        Circle()
-                            .fill(stage <= pet.evolutionStage ? AppColors.accent : AppColors.surfaceElevated)
-                            .frame(width: stage == pet.evolutionStage ? 16 : 10,
-                                   height: stage == pet.evolutionStage ? 16 : 10)
-                            .overlay(
-                                stage <= pet.evolutionStage
-                                    ? Image(systemName: "checkmark")
-                                        .font(.system(size: 6, weight: .bold))
-                                        .foregroundColor(.white)
-                                    : nil
-                            )
-
-                        if stage == pet.evolutionStage || stage == 1 || stage == PetConfig.shared.maxStages {
-                            Text("\(stage)")
-                                .font(.system(size: 9, design: .rounded))
-                                .foregroundColor(AppColors.textTertiary)
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .fill(stage <= pet.evolutionStage ? AppColors.accent : AppColors.surfaceElevated)
+                                .frame(width: stage == pet.evolutionStage ? 28 : 20,
+                                       height: stage == pet.evolutionStage ? 28 : 20)
+                            if stage <= pet.evolutionStage {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: stage == pet.evolutionStage ? 12 : 8, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
                         }
+
+                        Text(PetConfig.shared.stageName(for: stage))
+                            .font(.system(size: 11, weight: stage == pet.evolutionStage ? .semibold : .regular, design: .rounded))
+                            .foregroundColor(stage <= pet.evolutionStage ? AppColors.textPrimary : AppColors.textTertiary)
                     }
+                    .frame(maxWidth: .infinity)
 
                     if stage < PetConfig.shared.maxStages {
                         Rectangle()
                             .fill(stage < pet.evolutionStage ? AppColors.accent : AppColors.surfaceElevated)
                             .frame(height: 2)
+                            .padding(.bottom, 20)
                     }
                 }
             }

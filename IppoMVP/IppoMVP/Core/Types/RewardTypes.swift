@@ -16,8 +16,10 @@ enum ShopItemType: String, Codable, CaseIterable {
     case foodPack
     case waterPack
     case xpBoost
-    case encounterBoost
+    case encounterCharm
+    case coinBoost
     case hibernation
+    case streakFreeze
 }
 
 struct ShopItem: Identifiable {
@@ -60,16 +62,28 @@ struct ShopItem: Identifiable {
                 cost: config.xpBoostCost, iconName: "arrow.up.circle.fill"
             ),
             ShopItem(
-                id: "encounter_boost", type: .encounterBoost,
-                name: "Lucky Charm",
-                description: "+50% catch rate next run",
-                cost: config.encounterBoostCost, iconName: "sparkles"
+                id: "encounter_charm", type: .encounterCharm,
+                name: "Encounter Charm",
+                description: "Better chance to find a pet next run",
+                cost: config.encounterCharmCost, iconName: "sparkles"
+            ),
+            ShopItem(
+                id: "coin_boost", type: .coinBoost,
+                name: "Golden Stride",
+                description: "+40% coins earned next run",
+                cost: config.coinBoostCost, iconName: "star.circle.fill"
             ),
             ShopItem(
                 id: "hibernation", type: .hibernation,
                 name: "Hibernation",
                 description: "Freeze mood & runaway for 7 days",
                 cost: config.hibernationCost, iconName: "moon.zzz.fill"
+            ),
+            ShopItem(
+                id: "streak_freeze", type: .streakFreeze,
+                name: "Streak Shield",
+                description: "Protect your streak for 3 days",
+                cost: config.streakFreezeCost, iconName: "shield.fill"
             ),
         ]
     }()
@@ -81,17 +95,20 @@ struct PlayerInventory: Codable, Equatable {
     var water: Int
     var activeBoosts: [ActiveBoost]
     var hibernationEndsAt: Date?
+    var streakFreezeEndsAt: Date?
 
     init(
         food: Int = EconomyConfig.shared.startingFood,
         water: Int = EconomyConfig.shared.startingWater,
         activeBoosts: [ActiveBoost] = [],
-        hibernationEndsAt: Date? = nil
+        hibernationEndsAt: Date? = nil,
+        streakFreezeEndsAt: Date? = nil
     ) {
         self.food = food
         self.water = water
         self.activeBoosts = activeBoosts
         self.hibernationEndsAt = hibernationEndsAt
+        self.streakFreezeEndsAt = streakFreezeEndsAt
     }
 
     var isHibernating: Bool {
@@ -99,10 +116,24 @@ struct PlayerInventory: Codable, Equatable {
         return Date() < ends
     }
 
+    var isStreakFrozen: Bool {
+        guard let ends = streakFreezeEndsAt else { return false }
+        return Date() < ends
+    }
+
     var activeXPBoost: ActiveBoost? {
         activeBoosts.first { $0.type == .xpBoost && $0.isActive }
     }
 
+    var activeEncounterCharm: ActiveBoost? {
+        activeBoosts.first { $0.type == .encounterCharm && $0.isActive }
+    }
+
+    var activeCoinBoost: ActiveBoost? {
+        activeBoosts.first { $0.type == .coinBoost && $0.isActive }
+    }
+
+    // Legacy support
     var activeEncounterBoost: ActiveBoost? {
         activeBoosts.first { $0.type == .encounterBoost && $0.isActive }
     }
@@ -112,5 +143,12 @@ struct PlayerInventory: Codable, Equatable {
         if let ends = hibernationEndsAt, Date() >= ends {
             hibernationEndsAt = nil
         }
+        if let ends = streakFreezeEndsAt, Date() >= ends {
+            streakFreezeEndsAt = nil
+        }
+    }
+
+    mutating func consumePerRunBoosts() {
+        activeBoosts.removeAll { $0.type == .encounterCharm || $0.type == .coinBoost }
     }
 }

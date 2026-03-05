@@ -13,7 +13,12 @@ final class UserData: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var pendingRunSummary: CompletedRun?
     @Published var starterPetId: String?
-    @Published var pendingEvolution: (petName: String, newStage: Int, stageName: String)?
+    @Published var pendingEvolution: PendingEvolution?
+
+    /// Timestamp of the most recent local mutation (run completion, purchase, etc.).
+    /// Cloud sync will skip overwriting local state if it started before this timestamp.
+    private var lastLocalMutationDate: Date = .distantPast
+    private var cloudSyncInFlight: Bool = false
 
     // MARK: - Derived Properties
     var equippedPet: OwnedPet? {
@@ -47,6 +52,25 @@ final class UserData: ObservableObject {
             self.runHistory = []
         }
         inventory.cleanExpiredBoosts()
+        migrateEvolutionStages()
+    }
+
+    private func migrateEvolutionStages() {
+        var needsSave = false
+        let config = PetConfig.shared
+        for i in ownedPets.indices {
+            let correctedLevel = config.levelForXP(ownedPets[i].experience)
+            let correctedStage = ownedPets[i].definition?.stageForLevel(correctedLevel) ?? config.stageForLevel(correctedLevel)
+            if ownedPets[i].level != correctedLevel {
+                ownedPets[i].level = correctedLevel
+                needsSave = true
+            }
+            if ownedPets[i].evolutionStage != correctedStage {
+                ownedPets[i].evolutionStage = correctedStage
+                needsSave = true
+            }
+        }
+        if needsSave { save() }
     }
 
     // MARK: - Pet Management
@@ -99,27 +123,43 @@ final class UserData: ObservableObject {
             adjustedAmount *= (1.0 + EconomyConfig.shared.xpBoostMultiplier)
         }
 
+        let econConfig = EconomyConfig.shared
+        let streakDays = min(profile.currentStreak, econConfig.streakBonusCap)
+        if streakDays > 0 {
+            let streakBonus = 1.0 + (Double(streakDays) / Double(econConfig.streakBonusCap)) * econConfig.maxStreakBonusPercent
+            adjustedAmount *= streakBonus
+        }
+
         if let pet = equippedPet {
             adjustedAmount *= pet.xpMultiplier
         }
 
         profile.xp += Int(adjustedAmount)
-        let newLevel = PlayerLevelConfig.level(forXP: profile.xp)
-        if newLevel > profile.level {
-            profile.level = newLevel
+        let newPlayerLevel = PlayerLevelConfig.level(forXP: profile.xp)
+        if newPlayerLevel > profile.level {
+            profile.level = newPlayerLevel
         }
 
         if let pet = equippedPet, let idx = ownedPets.firstIndex(where: { $0.id == pet.id }) {
+            let petConfig = PetConfig.shared
             let oldStage = ownedPets[idx].evolutionStage
+            let oldImageName = ownedPets[idx].currentImageName
             ownedPets[idx].experience += Int(adjustedAmount)
-            let newStage = PetConfig.shared.currentStage(forXP: ownedPets[idx].experience)
+
+            let newLevel = petConfig.levelForXP(ownedPets[idx].experience)
+            ownedPets[idx].level = newLevel
+
+            let newStage = ownedPets[idx].definition?.stageForLevel(newLevel) ?? petConfig.stageForLevel(newLevel)
             if newStage > oldStage {
                 ownedPets[idx].evolutionStage = newStage
                 if let def = ownedPets[idx].definition {
-                    pendingEvolution = (
+                    pendingEvolution = PendingEvolution(
                         petName: def.name,
+                        petDefinitionId: def.id,
                         newStage: newStage,
-                        stageName: PetConfig.shared.stageName(for: newStage)
+                        stageName: petConfig.stageName(for: newStage),
+                        oldImageName: oldImageName,
+                        newImageName: def.stageImageNames[safe: newStage - 1] ?? oldImageName
                     )
                 }
             }
@@ -180,16 +220,32 @@ final class UserData: ObservableObject {
             adjustedAmount *= (1.0 + EconomyConfig.shared.xpBoostMultiplier)
         }
 
+        let econConfig = EconomyConfig.shared
+        let streakDays = min(profile.currentStreak, econConfig.streakBonusCap)
+        if streakDays > 0 {
+            let streakBonus = 1.0 + (Double(streakDays) / Double(econConfig.streakBonusCap)) * econConfig.maxStreakBonusPercent
+            adjustedAmount *= streakBonus
+        }
+
+        let petConfig = PetConfig.shared
         let oldStage = ownedPets[idx].evolutionStage
+        let oldImageName = ownedPets[idx].currentImageName
         ownedPets[idx].experience += Int(adjustedAmount)
-        let newStage = PetConfig.shared.currentStage(forXP: ownedPets[idx].experience)
+
+        let newLevel = petConfig.levelForXP(ownedPets[idx].experience)
+        ownedPets[idx].level = newLevel
+
+        let newStage = ownedPets[idx].definition?.stageForLevel(newLevel) ?? petConfig.stageForLevel(newLevel)
         if newStage > oldStage {
             ownedPets[idx].evolutionStage = newStage
             if let def = ownedPets[idx].definition {
-                pendingEvolution = (
+                pendingEvolution = PendingEvolution(
                     petName: def.name,
+                    petDefinitionId: def.id,
                     newStage: newStage,
-                    stageName: PetConfig.shared.stageName(for: newStage)
+                    stageName: petConfig.stageName(for: newStage),
+                    oldImageName: oldImageName,
+                    newImageName: def.stageImageNames[safe: newStage - 1] ?? oldImageName
                 )
             }
         }
@@ -272,8 +328,10 @@ final class UserData: ObservableObject {
         case .foodPack: cost = config.foodPackCost
         case .waterPack: cost = config.waterPackCost
         case .xpBoost: cost = config.xpBoostCost
-        case .encounterBoost: cost = config.encounterBoostCost
+        case .encounterCharm: cost = config.encounterCharmCost
+        case .coinBoost: cost = config.coinBoostCost
         case .hibernation: cost = config.hibernationCost
+        case .streakFreeze: cost = config.streakFreezeCost
         }
 
         guard spendCoins(cost) else { return false }
@@ -289,11 +347,21 @@ final class UserData: ObservableObject {
                 expiresAt: Date().addingTimeInterval(TimeInterval(config.xpBoostDurationHours * 3600))
             )
             inventory.activeBoosts.append(boost)
-        case .encounterBoost:
-            let boost = ActiveBoost(type: .encounterBoost, expiresAt: Date().addingTimeInterval(86400))
+        case .encounterCharm:
+            // Per-run boost: expires in 24h as a fallback, but consumed after next run
+            let boost = ActiveBoost(type: .encounterCharm, expiresAt: Date().addingTimeInterval(86400))
+            inventory.activeBoosts.append(boost)
+        case .coinBoost:
+            let boost = ActiveBoost(type: .coinBoost, expiresAt: Date().addingTimeInterval(86400))
             inventory.activeBoosts.append(boost)
         case .hibernation:
             inventory.hibernationEndsAt = Date().addingTimeInterval(TimeInterval(config.hibernationDays * 86400))
+        case .streakFreeze:
+            if let existing = inventory.streakFreezeEndsAt, Date() < existing {
+                inventory.streakFreezeEndsAt = existing.addingTimeInterval(TimeInterval(config.streakFreezeDays * 86400))
+            } else {
+                inventory.streakFreezeEndsAt = Date().addingTimeInterval(TimeInterval(config.streakFreezeDays * 86400))
+            }
         }
 
         save()
@@ -302,6 +370,8 @@ final class UserData: ObservableObject {
 
     // MARK: - Run Completion
     func completeRun(_ run: CompletedRun) {
+        lastLocalMutationDate = Date()
+
         runHistory.insert(run, at: 0)
         if runHistory.count > 50 { runHistory = Array(runHistory.prefix(50)) }
 
@@ -312,9 +382,17 @@ final class UserData: ObservableObject {
         profile.totalDistanceMeters += run.distanceMeters
         profile.lastRunDate = Date()
 
-        addCoins(run.coinsEarned)
+        var adjustedCoins = Double(run.coinsEarned)
+        if inventory.activeCoinBoost != nil {
+            adjustedCoins *= (1.0 + EconomyConfig.shared.coinBoostMultiplier)
+        }
+        addCoins(Int(adjustedCoins))
+
         addXP(run.xpEarned)
         updateStreak()
+
+        inventory.consumePerRunBoosts()
+
         save()
     }
 
@@ -333,7 +411,7 @@ final class UserData: ObservableObject {
                     profile.currentStreak += 1
                 }
                 profile.longestStreak = max(profile.longestStreak, profile.currentStreak)
-            } else if daysDiff > 1 && !inventory.isHibernating {
+            } else if daysDiff > 1 && !inventory.isHibernating && !inventory.isStreakFrozen {
                 profile.currentStreak = 1
             }
         } else {
@@ -353,7 +431,7 @@ final class UserData: ObservableObject {
             if daysDiff == 1 {
                 profile.currentStreak += 1
                 profile.longestStreak = max(profile.longestStreak, profile.currentStreak)
-            } else if daysDiff > 1 {
+            } else if daysDiff > 1 && !inventory.isHibernating && !inventory.isStreakFrozen {
                 profile.currentStreak = 1
             }
         } else if profile.currentStreak == 0 {
@@ -369,18 +447,33 @@ final class UserData: ObservableObject {
     }
 
     func syncFromCloud() async {
+        guard !cloudSyncInFlight else { return }
+        cloudSyncInFlight = true
+        let syncStartDate = Date()
+
+        defer { cloudSyncInFlight = false }
+
         guard let cloudData = await CloudService.shared.loadUserData() else {
             await CloudService.shared.saveUserData(self)
             return
         }
 
+        // If a local mutation happened while we were fetching from the cloud,
+        // the cloud data is stale. Push local state to cloud instead.
+        if lastLocalMutationDate > syncStartDate {
+            await CloudService.shared.saveUserData(self)
+            return
+        }
+
+        let localSnapshot = SaveableUserData(
+            profile: profile,
+            ownedPets: ownedPets,
+            inventory: inventory,
+            runHistory: runHistory
+        )
+
         let merged = CloudService.shared.mergeData(
-            local: SaveableUserData(
-                profile: profile,
-                ownedPets: ownedPets,
-                inventory: inventory,
-                runHistory: runHistory
-            ),
+            local: localSnapshot,
             cloud: cloudData
         )
 
@@ -422,14 +515,16 @@ final class UserData: ObservableObject {
         let pet1 = OwnedPet(
             petDefinitionId: "pet_01",
             evolutionStage: 3,
-            experience: 650,
+            level: 14,
+            experience: 5600,
             mood: 3,
             isEquipped: true,
             caughtDate: Date().addingTimeInterval(-604800)
         )
         let pet2 = OwnedPet(
-            petDefinitionId: "pet_04",
+            petDefinitionId: "pet_02",
             evolutionStage: 1,
+            level: 1,
             experience: 80,
             mood: 2,
             caughtDate: Date().addingTimeInterval(-172800)
@@ -448,6 +543,16 @@ final class UserData: ObservableObject {
         save()
     }
     #endif
+}
+
+// MARK: - Pending Evolution
+struct PendingEvolution {
+    let petName: String
+    let petDefinitionId: String
+    let newStage: Int
+    let stageName: String
+    let oldImageName: String
+    let newImageName: String
 }
 
 // MARK: - Saveable Data Structure

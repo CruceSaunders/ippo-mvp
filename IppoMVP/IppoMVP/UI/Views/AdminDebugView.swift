@@ -22,7 +22,7 @@ struct AdminDebugView: View {
     @State private var runCoins: String = "50"
     @State private var runXP: String = "80"
     @State private var runIncludesCatch = false
-    @State private var runCatchPetId: String = "pet_04"
+    @State private var runCatchPetId: String = "pet_01"
 
     var body: some View {
         List {
@@ -87,6 +87,7 @@ struct AdminDebugView: View {
             labelRow("Water", value: "\(userData.inventory.water)")
             if let pet = userData.equippedPet {
                 labelRow("Equipped", value: pet.definition?.name ?? "?")
+                labelRow("Pet Level", value: "\(pet.level)")
                 labelRow("Pet Stage", value: "\(pet.evolutionStage) (\(pet.stageName))")
                 labelRow("Pet XP", value: "\(pet.experience)")
                 labelRow("Pet Mood", value: pet.moodName)
@@ -95,14 +96,26 @@ struct AdminDebugView: View {
                 labelRow("Can Water XP", value: pet.canEarnWaterXP ? "Yes" : "No")
                 labelRow("Can Pet XP", value: pet.canEarnPetXP ? "Yes" : "No")
             }
+            let streakDays = min(userData.profile.currentStreak, EconomyConfig.shared.streakBonusCap)
+            let streakBonus = streakDays > 0
+                ? (Double(streakDays) / Double(EconomyConfig.shared.streakBonusCap)) * EconomyConfig.shared.maxStreakBonusPercent * 100
+                : 0
+            labelRow("Streak XP Bonus", value: "+\(String(format: "%.1f", streakBonus))%")
+
             if userData.inventory.isHibernating {
                 labelRow("Hibernating Until", value: userData.inventory.hibernationEndsAt?.formatted() ?? "?")
+            }
+            if userData.inventory.isStreakFrozen {
+                labelRow("Streak Freeze Until", value: userData.inventory.streakFreezeEndsAt?.formatted() ?? "?")
             }
             if let boost = userData.inventory.activeXPBoost {
                 labelRow("XP Boost", value: "\(Int(boost.remainingSeconds / 60))m left")
             }
-            if userData.inventory.activeEncounterBoost != nil {
-                labelRow("Encounter Boost", value: "Active")
+            if userData.inventory.activeEncounterCharm != nil {
+                labelRow("Encounter Charm", value: "Active (next run)")
+            }
+            if userData.inventory.activeCoinBoost != nil {
+                labelRow("Golden Stride", value: "Active (next run)")
             }
         }
         .listRowBackground(AppColors.surface)
@@ -174,7 +187,7 @@ struct AdminDebugView: View {
     private var petXPSection: some View {
         Section("Pet XP & Evolution") {
             if let pet = userData.equippedPet, let idx = userData.ownedPets.firstIndex(where: { $0.id == pet.id }) {
-                Text("\(pet.definition?.name ?? "Pet") - Stage \(pet.evolutionStage), XP: \(pet.experience)")
+                Text("\(pet.definition?.name ?? "Pet") - Lv. \(pet.level), \(pet.stageName), XP: \(pet.experience)")
                     .font(.system(size: 13, design: .rounded))
                     .foregroundColor(AppColors.textSecondary)
 
@@ -196,10 +209,29 @@ struct AdminDebugView: View {
                     .buttonStyle(.bordered)
                 }
 
+                Button("+1 Level") {
+                    let nextLevel = pet.level + 1
+                    guard nextLevel <= PetConfig.shared.petMaxLevel else {
+                        showFeedback("Already at max level")
+                        return
+                    }
+                    let xpNeeded = PetConfig.shared.xpRequiredForLevel(nextLevel) - pet.experience
+                    if xpNeeded > 0 {
+                        addPetXP(idx: idx, amount: xpNeeded)
+                    }
+                }
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+
+                Button("Force Evolution") {
+                    forceEvolution(idx: idx)
+                }
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundColor(AppColors.accent)
+
                 HStack {
                     Text("Set Stage:").font(.system(size: 14, design: .rounded))
                     Picker("Stage", selection: $selectedStage) {
-                        ForEach(1...10, id: \.self) { s in
+                        ForEach(1...PetConfig.shared.maxStages, id: \.self) { s in
                             Text("\(s) - \(PetConfig.shared.stageName(for: s))").tag(s)
                         }
                     }
@@ -211,9 +243,12 @@ struct AdminDebugView: View {
                     .buttonStyle(.bordered)
                 }
 
-                Button("Max Out Pet (Stage 10)") {
-                    userData.ownedPets[idx].evolutionStage = 10
-                    userData.ownedPets[idx].experience = PetConfig.shared.xpThresholds.last ?? 12000
+                Button("Max Out Pet (Adult, Lv. \(PetConfig.shared.petMaxLevel))") {
+                    let maxLevel = PetConfig.shared.petMaxLevel
+                    let maxXP = PetConfig.shared.xpRequiredForLevel(maxLevel)
+                    userData.ownedPets[idx].level = maxLevel
+                    userData.ownedPets[idx].evolutionStage = PetConfig.shared.maxStages
+                    userData.ownedPets[idx].experience = maxXP
                     userData.save()
                     showFeedback("\(pet.definition?.name ?? "Pet") maxed out!")
                 }
@@ -322,7 +357,7 @@ struct AdminDebugView: View {
     // MARK: - Boosts
 
     private var boostsSection: some View {
-        Section("Boosts & Hibernation") {
+        Section("Boosts & Protection") {
             Button("Activate XP Boost (2hr)") {
                 let boost = ActiveBoost(
                     type: .xpBoost,
@@ -332,22 +367,44 @@ struct AdminDebugView: View {
                 userData.save()
                 showFeedback("XP Boost active for 2 hours")
             }
-            Button("Activate Encounter Boost") {
-                let boost = ActiveBoost(type: .encounterBoost, expiresAt: Date().addingTimeInterval(86400))
+            Button("Activate Encounter Charm") {
+                let boost = ActiveBoost(type: .encounterCharm, expiresAt: Date().addingTimeInterval(86400))
                 userData.inventory.activeBoosts.append(boost)
                 userData.save()
-                showFeedback("Encounter Boost active")
+                showFeedback("Encounter Charm active (next run)")
+            }
+            Button("Activate Golden Stride") {
+                let boost = ActiveBoost(type: .coinBoost, expiresAt: Date().addingTimeInterval(86400))
+                userData.inventory.activeBoosts.append(boost)
+                userData.save()
+                showFeedback("Golden Stride active (next run)")
             }
             Button("Activate Hibernation (7 days)") {
                 userData.inventory.hibernationEndsAt = Date().addingTimeInterval(TimeInterval(EconomyConfig.shared.hibernationDays * 86400))
                 userData.save()
                 showFeedback("Hibernation active for 7 days")
             }
-            Button("Clear All Boosts & Hibernation") {
+            Button("Activate Streak Shield (3 days)") {
+                if let existing = userData.inventory.streakFreezeEndsAt, Date() < existing {
+                    userData.inventory.streakFreezeEndsAt = existing.addingTimeInterval(TimeInterval(EconomyConfig.shared.streakFreezeDays * 86400))
+                } else {
+                    userData.inventory.streakFreezeEndsAt = Date().addingTimeInterval(TimeInterval(EconomyConfig.shared.streakFreezeDays * 86400))
+                }
+                userData.save()
+                showFeedback("Streak Shield active for 3 days")
+            }
+            Button("Set Streak to 30") {
+                userData.profile.currentStreak = 30
+                userData.profile.longestStreak = max(userData.profile.longestStreak, 30)
+                userData.save()
+                showFeedback("Streak set to 30 (+10% XP)")
+            }
+            Button("Clear All Boosts & Protection") {
                 userData.inventory.activeBoosts.removeAll()
                 userData.inventory.hibernationEndsAt = nil
+                userData.inventory.streakFreezeEndsAt = nil
                 userData.save()
-                showFeedback("All boosts cleared")
+                showFeedback("All boosts & protection cleared")
             }
         }
         .listRowBackground(AppColors.surface)
@@ -452,29 +509,61 @@ struct AdminDebugView: View {
     // MARK: - Helpers
 
     private func addPetXP(idx: Int, amount: Int) {
+        let config = PetConfig.shared
         let oldStage = userData.ownedPets[idx].evolutionStage
+        let oldImageName = userData.ownedPets[idx].currentImageName
         userData.ownedPets[idx].experience += amount
-        let newStage = PetConfig.shared.currentStage(forXP: userData.ownedPets[idx].experience)
+
+        let newLevel = config.levelForXP(userData.ownedPets[idx].experience)
+        userData.ownedPets[idx].level = newLevel
+        let newStage = config.stageForLevel(newLevel)
         userData.ownedPets[idx].evolutionStage = newStage
         userData.save()
+
         if newStage > oldStage, let def = userData.ownedPets[idx].definition {
-            userData.pendingEvolution = (
+            userData.pendingEvolution = PendingEvolution(
                 petName: def.name,
+                petDefinitionId: def.id,
                 newStage: newStage,
-                stageName: PetConfig.shared.stageName(for: newStage)
+                stageName: config.stageName(for: newStage),
+                oldImageName: oldImageName,
+                newImageName: def.stageImageNames[safe: newStage - 1] ?? oldImageName
             )
-            showFeedback("+\(amount) XP -> Evolved to stage \(newStage)!")
+            showFeedback("+\(amount) XP -> Evolved to \(config.stageName(for: newStage))! (Lv. \(newLevel))")
         } else {
-            showFeedback("+\(amount) XP (stage \(newStage))")
+            showFeedback("+\(amount) XP (Lv. \(newLevel))")
+        }
+    }
+
+    private func forceEvolution(idx: Int) {
+        let config = PetConfig.shared
+        let currentStage = userData.ownedPets[idx].evolutionStage
+        guard currentStage < config.maxStages else {
+            showFeedback("Already at max stage")
+            return
+        }
+        let nextStage = currentStage + 1
+        guard let triggerLevel = config.evolutionLevels[nextStage] else {
+            showFeedback("No evolution level for stage \(nextStage)")
+            return
+        }
+        let xpNeeded = config.xpRequiredForLevel(triggerLevel) - userData.ownedPets[idx].experience
+        if xpNeeded > 0 {
+            addPetXP(idx: idx, amount: xpNeeded)
+        } else {
+            addPetXP(idx: idx, amount: 1)
         }
     }
 
     private func setPetStage(idx: Int, stage: Int) {
-        let threshold = PetConfig.shared.xpThresholds[safe: stage - 1] ?? 0
+        let config = PetConfig.shared
+        guard let triggerLevel = config.evolutionLevels[stage] ?? (stage == 1 ? 1 : nil) else { return }
+        let xp = config.xpRequiredForLevel(triggerLevel)
+        userData.ownedPets[idx].level = triggerLevel
         userData.ownedPets[idx].evolutionStage = stage
-        userData.ownedPets[idx].experience = threshold
+        userData.ownedPets[idx].experience = xp
         userData.save()
-        showFeedback("Set to stage \(stage) (\(PetConfig.shared.stageName(for: stage)))")
+        showFeedback("Set to \(config.stageName(for: stage)) (Lv. \(triggerLevel))")
     }
 
     private func setMood(idx: Int, mood: Int) {

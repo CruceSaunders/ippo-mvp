@@ -17,8 +17,7 @@ struct TutorialOverlayView: View {
     @State private var hintAnimationCycle = 0
 
     // User drag state
-    @State private var userDragOffset: CGSize = .zero
-    @State private var userDragStart: CGPoint = .zero
+    @State private var userDragLocation: CGPoint = .zero
     @State private var isUserDragging = false
     @State private var isOverPet = false
 
@@ -26,7 +25,7 @@ struct TutorialOverlayView: View {
     @State private var rubStrokeDistance: CGFloat = 0
     @State private var lastRubLocation: CGPoint?
 
-    // Pet area tracking
+    // Pet area tracking (in "tutorial" coordinate space)
     @State private var petFrame: CGRect = .zero
 
     private let petCenter = CGPoint(x: 0, y: -10)
@@ -34,98 +33,100 @@ struct TutorialOverlayView: View {
     private let waterOrigin = CGPoint(x: 50, y: 100)
 
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        ZStack {
+            VStack(spacing: 20) {
+                Spacer()
 
-            Text(instructionText)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
-                .multilineTextAlignment(.center)
-                .animation(.easeInOut(duration: 0.3), value: tutorialStep)
-                .animation(.easeInOut(duration: 0.3), value: showSuccess)
+                Text(instructionText)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .animation(.easeInOut(duration: 0.3), value: tutorialStep)
+                    .animation(.easeInOut(duration: 0.3), value: showSuccess)
 
-            Text(subtitleText)
-                .font(.system(size: 14, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
-                .animation(.easeInOut(duration: 0.3), value: tutorialStep)
-                .animation(.easeInOut(duration: 0.3), value: showSuccess)
+                Text(subtitleText)
+                    .font(.system(size: 14, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .animation(.easeInOut(duration: 0.3), value: tutorialStep)
+                    .animation(.easeInOut(duration: 0.3), value: showSuccess)
 
-            ZStack {
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(AppColors.surface.opacity(0.5))
-                    .frame(height: 300)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(AppColors.surface.opacity(0.5))
+                        .frame(height: 300)
 
-                VStack(spacing: 0) {
-                    ZStack {
-                        PetImageView(imageName: petImageName, isDropTarget: isOverPet)
-                            .frame(width: 140, height: 140)
-                            .offset(y: petBounce)
-                            .background(
-                                GeometryReader { geo in
-                                    Color.clear
-                                        .preference(key: TutorialPetFrameKey.self, value: geo.frame(in: .global))
-                                }
-                            )
+                    VStack(spacing: 0) {
+                        ZStack {
+                            PetImageView(imageName: petImageName, isDropTarget: isOverPet)
+                                .frame(width: 140, height: 140)
+                                .offset(y: petBounce)
 
-                        if showMiniHearts {
-                            tutorialHearts
+                            if showMiniHearts {
+                                tutorialHearts
+                            }
                         }
-                    }
-                    .offset(y: -10)
-                    .highPriorityGesture(
-                        tutorialStep == 2 && !showSuccess
-                        ? DragGesture(minimumDistance: 5, coordinateSpace: .local)
-                            .onChanged { value in
-                                let current = value.location
-                                if let last = lastRubLocation {
-                                    let dx = current.x - last.x
-                                    let dy = current.y - last.y
-                                    rubStrokeDistance += sqrt(dx * dx + dy * dy)
-                                }
-                                lastRubLocation = current
+                        .offset(y: -10)
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear
+                                    .onAppear {
+                                        petFrame = geo.frame(in: .named("tutorial"))
+                                    }
+                                    .onChange(of: geo.frame(in: .named("tutorial"))) { _, newFrame in
+                                        petFrame = newFrame
+                                    }
+                            }
+                        )
+                        .highPriorityGesture(
+                            tutorialStep == 2 && !showSuccess
+                            ? DragGesture(minimumDistance: 5, coordinateSpace: .local)
+                                .onChanged { value in
+                                    let current = value.location
+                                    if let last = lastRubLocation {
+                                        let dx = current.x - last.x
+                                        let dy = current.y - last.y
+                                        rubStrokeDistance += sqrt(dx * dx + dy * dy)
+                                    }
+                                    lastRubLocation = current
 
-                                if rubStrokeDistance >= 80 {
+                                    if rubStrokeDistance >= 80 {
+                                        rubStrokeDistance = 0
+                                        lastRubLocation = nil
+                                        completeStep()
+                                    }
+                                }
+                                .onEnded { _ in
                                     rubStrokeDistance = 0
                                     lastRubLocation = nil
-                                    completeStep()
                                 }
-                            }
-                            .onEnded { _ in
-                                rubStrokeDistance = 0
-                                lastRubLocation = nil
-                            }
-                        : nil
-                    )
-
-                    trayView
-                        .offset(y: 10)
-                }
-
-                if isUserDragging {
-                    Image(systemName: tutorialStep == 0 ? "leaf.fill" : "drop.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(AppColors.accent)
-                        .shadow(color: AppColors.accent.opacity(0.5), radius: 8)
-                        .position(
-                            x: userDragStart.x + userDragOffset.width,
-                            y: userDragStart.y + userDragOffset.height
+                            : nil
                         )
-                        .allowsHitTesting(false)
-                }
 
-                if !isUserDragging && !showSuccess {
-                    hintFingerView
+                        trayView
+                            .offset(y: 10)
+                    }
+
+                    if !isUserDragging && !showSuccess {
+                        hintFingerView
+                    }
                 }
-            }
-            .frame(height: 300)
-            .padding(.horizontal, 20)
-            .onPreferenceChange(TutorialPetFrameKey.self) { frame in
-                petFrame = frame
+                .frame(height: 300)
+                .padding(.horizontal, 20)
+
+                Spacer()
             }
 
-            Spacer()
+            if isUserDragging {
+                Image(systemName: tutorialStep == 0 ? "leaf.fill" : "drop.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(AppColors.accent)
+                    .shadow(color: AppColors.accent.opacity(0.5), radius: 8)
+                    .position(x: userDragLocation.x, y: userDragLocation.y)
+                    .allowsHitTesting(false)
+            }
         }
+        .coordinateSpace(name: "tutorial")
         .onAppear { startHintLoop() }
         .onChange(of: tutorialStep) { _, _ in
             resetHintState()
@@ -216,10 +217,9 @@ struct TutorialOverlayView: View {
         .opacity(isUserDragging && active ? 0.3 : 1.0)
         .gesture(
             active && !showSuccess
-            ? DragGesture(coordinateSpace: .global)
+            ? DragGesture(coordinateSpace: .named("tutorial"))
                 .onChanged { value in
-                    userDragStart = value.startLocation
-                    userDragOffset = value.translation
+                    userDragLocation = value.location
                     isUserDragging = true
                     isOverPet = petFrame.contains(value.location)
                 }
@@ -229,10 +229,6 @@ struct TutorialOverlayView: View {
 
                     if petFrame.contains(value.location) {
                         completeStep()
-                    }
-
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        userDragOffset = .zero
                     }
                 }
             : nil
@@ -406,6 +402,8 @@ struct TutorialOverlayView: View {
         }
     }
 
+    @State private var heartsAnimationPhase = false
+
     private var tutorialHearts: some View {
         let positions: [(x: CGFloat, y: CGFloat)] = [(-30, -25), (30, -25), (-18, -45), (18, -45)]
         let sizes: [CGFloat] = [16, 13, 18, 14]
@@ -417,23 +415,23 @@ struct TutorialOverlayView: View {
                     .foregroundColor(i % 2 == 0 ? AppColors.petHappy : AppColors.accent.opacity(0.8))
                     .offset(
                         x: positions[i].x,
-                        y: showMiniHearts ? positions[i].y - 15 : positions[i].y + 10
+                        y: heartsAnimationPhase ? positions[i].y - 30 : positions[i].y
                     )
-                    .opacity(showMiniHearts ? 0 : 1)
-                    .scaleEffect(showMiniHearts ? 1.2 : 0.4)
+                    .opacity(heartsAnimationPhase ? 0 : 1)
+                    .scaleEffect(heartsAnimationPhase ? 1.2 : 0.6)
                     .animation(
                         .easeOut(duration: 1.0).delay(Double(i) * 0.06),
-                        value: showMiniHearts
+                        value: heartsAnimationPhase
                     )
             }
         }
         .allowsHitTesting(false)
+        .onAppear {
+            heartsAnimationPhase = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+                heartsAnimationPhase = true
+            }
+        }
     }
 }
 
-private struct TutorialPetFrameKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
-    }
-}

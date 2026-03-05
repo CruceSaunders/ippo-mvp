@@ -14,8 +14,8 @@ struct ShopView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         coinBalance
                         shopSection(title: "Essentials", items: [.food, .water, .foodPack, .waterPack])
-                        shopSection(title: "Boosts", items: [.xpBoost, .encounterBoost])
-                        shopSection(title: "Special", items: [.hibernation])
+                        shopSection(title: "Boosts", items: [.xpBoost, .encounterCharm, .coinBoost])
+                        shopSection(title: "Protection", items: [.hibernation, .streakFreeze])
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 24)

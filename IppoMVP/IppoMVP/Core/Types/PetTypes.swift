@@ -6,12 +6,28 @@ struct GamePetDefinition: Identifiable, Codable, Equatable {
     let name: String
     let description: String
     let hintText: String
-    let stageImageNames: [String]  // 10 image names, one per evolution stage
+    let stageImageNames: [String]  // 3 image names, one per evolution stage (Baby, Teen, Adult)
     var hasIdleVideos: Bool = false
     var hasHappyVideos: Bool = false
     var isStarter: Bool = false
+    /// Per-pet evolution levels. Key = stage number, Value = level required.
+    /// e.g. [2: 8, 3: 14] means Teen at level 8, Adult at level 14.
+    /// If empty, falls back to PetConfig.shared.evolutionLevels.
+    var evolutionLevels: [Int: Int] = [:]
 
     var stageCount: Int { stageImageNames.count }
+
+    /// Returns the evolution stage for a given level, using this pet's thresholds.
+    func stageForLevel(_ level: Int) -> Int {
+        let levels = evolutionLevels.isEmpty ? PetConfig.shared.evolutionLevels : evolutionLevels
+        var stage = 1
+        for (stageNum, triggerLevel) in levels.sorted(by: { $0.key < $1.key }) {
+            if level >= triggerLevel {
+                stage = stageNum
+            }
+        }
+        return min(stage, PetConfig.shared.maxStages)
+    }
 }
 
 // MARK: - Owned Pet (User's Instance)
@@ -19,6 +35,7 @@ struct OwnedPet: Identifiable, Codable, Equatable {
     let id: String
     let petDefinitionId: String
     var evolutionStage: Int
+    var level: Int
     var experience: Int
     var mood: Int               // 1=sad, 2=content, 3=happy
     var lastFedDate: Date?
@@ -33,6 +50,7 @@ struct OwnedPet: Identifiable, Codable, Equatable {
         id: String = UUID().uuidString,
         petDefinitionId: String,
         evolutionStage: Int = 1,
+        level: Int = 1,
         experience: Int = 0,
         mood: Int = 3,
         lastFedDate: Date? = nil,
@@ -46,6 +64,7 @@ struct OwnedPet: Identifiable, Codable, Equatable {
         self.id = id
         self.petDefinitionId = petDefinitionId
         self.evolutionStage = evolutionStage
+        self.level = level
         self.experience = experience
         self.mood = mood
         self.lastFedDate = lastFedDate
@@ -55,6 +74,24 @@ struct OwnedPet: Identifiable, Codable, Equatable {
         self.caughtDate = caughtDate
         self.consecutiveSadDays = consecutiveSadDays
         self.isLost = isLost
+    }
+
+    // Custom decoder for backward compatibility — `level` may be absent in old saved data
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        petDefinitionId = try container.decode(String.self, forKey: .petDefinitionId)
+        evolutionStage = try container.decode(Int.self, forKey: .evolutionStage)
+        level = try container.decodeIfPresent(Int.self, forKey: .level) ?? 1
+        experience = try container.decode(Int.self, forKey: .experience)
+        mood = try container.decode(Int.self, forKey: .mood)
+        lastFedDate = try container.decodeIfPresent(Date.self, forKey: .lastFedDate)
+        lastWateredDate = try container.decodeIfPresent(Date.self, forKey: .lastWateredDate)
+        lastPettedDate = try container.decodeIfPresent(Date.self, forKey: .lastPettedDate)
+        isEquipped = try container.decode(Bool.self, forKey: .isEquipped)
+        caughtDate = try container.decode(Date.self, forKey: .caughtDate)
+        consecutiveSadDays = try container.decode(Int.self, forKey: .consecutiveSadDays)
+        isLost = try container.decode(Bool.self, forKey: .isLost)
     }
 
     var definition: GamePetDefinition? {
@@ -74,25 +111,27 @@ struct OwnedPet: Identifiable, Codable, Equatable {
         PetConfig.shared.stageName(for: evolutionStage)
     }
 
-    var xpForCurrentStage: Int {
-        PetConfig.shared.xpThresholds[safe: evolutionStage - 1] ?? 0
+    // MARK: - Level-Based XP Progress
+
+    var xpForCurrentLevel: Int {
+        PetConfig.shared.xpRequiredForLevel(level)
     }
 
-    var xpForNextStage: Int {
-        guard evolutionStage < PetConfig.shared.maxStages else { return xpForCurrentStage }
-        return PetConfig.shared.xpThresholds[safe: evolutionStage] ?? Int.max
+    var xpForNextLevel: Int {
+        guard level < PetConfig.shared.petMaxLevel else { return xpForCurrentLevel }
+        return PetConfig.shared.xpRequiredForLevel(level + 1)
     }
 
     var xpProgress: Double {
-        let current = xpForCurrentStage
-        let next = xpForNextStage
+        let current = xpForCurrentLevel
+        let next = xpForNextLevel
         guard next > current else { return 1.0 }
         let progress = Double(experience - current) / Double(next - current)
         return min(max(progress, 0), 1.0)
     }
 
-    var isMaxEvolution: Bool {
-        evolutionStage >= PetConfig.shared.maxStages
+    var isMaxLevel: Bool {
+        level >= PetConfig.shared.petMaxLevel
     }
 
     var xpMultiplier: Double {
@@ -148,8 +187,13 @@ enum CareNeedType: String, Codable, CaseIterable {
 
 // MARK: - Boost Type
 enum BoostType: String, Codable {
-    case xpBoost        // +30% XP for 2 hours
-    case encounterBoost // +50% catch rate for 1 run
+    case xpBoost         // +30% XP for 2 hours
+    case encounterCharm  // +3% catch rate for 1 run (8% -> 11%)
+    case coinBoost       // +40% coins for 1 run
+    case streakFreeze    // Protect streak for 3 days
+
+    // Legacy mapping for backward compatibility
+    case encounterBoost
 }
 
 struct ActiveBoost: Codable, Equatable {

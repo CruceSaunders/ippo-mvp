@@ -28,7 +28,6 @@ struct ProfileView: View {
                         statRow(label: "Total Distance", value: formatDistance(userData.profile.totalDistanceMeters))
                         statRow(label: "Longest Streak", value: "\(userData.profile.longestStreak) days")
                         statRow(label: "Pets Caught", value: "\(userData.activePets.count)")
-                        statRow(label: "Level", value: "\(userData.profile.level)")
                     }
                     .listRowBackground(AppColors.surface)
 

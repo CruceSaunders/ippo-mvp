@@ -60,7 +60,33 @@ final class CloudService {
 
     // MARK: - Merge
     func mergeData(local: SaveableUserData, cloud: SaveableUserData) -> SaveableUserData {
-        let mergedProfile = cloud.profile.totalRuns > local.profile.totalRuns ? cloud.profile : local.profile
+        // Pick the profile that reflects the most recent activity.
+        // Use totalRuns as primary, lastRunDate as tiebreaker, and always
+        // carry forward whichever has the higher cumulative stats.
+        let mergedProfile: PlayerProfile
+        if local.profile.totalRuns >= cloud.profile.totalRuns {
+            var p = local.profile
+            p.longestStreak = max(local.profile.longestStreak, cloud.profile.longestStreak)
+            p.totalDistanceMeters = max(local.profile.totalDistanceMeters, cloud.profile.totalDistanceMeters)
+            p.totalDurationSeconds = max(local.profile.totalDurationSeconds, cloud.profile.totalDurationSeconds)
+            mergedProfile = p
+        } else {
+            var p = cloud.profile
+            p.longestStreak = max(local.profile.longestStreak, cloud.profile.longestStreak)
+            // Preserve local lastRunDate if it's more recent
+            if let localDate = local.profile.lastRunDate,
+               let cloudDate = cloud.profile.lastRunDate,
+               localDate > cloudDate {
+                p.lastRunDate = localDate
+                p.currentStreak = max(local.profile.currentStreak, cloud.profile.currentStreak)
+            }
+            if let localInteraction = local.profile.lastInteractionDate,
+               let cloudInteraction = cloud.profile.lastInteractionDate,
+               localInteraction > cloudInteraction {
+                p.lastInteractionDate = localInteraction
+            }
+            mergedProfile = p
+        }
 
         var mergedPets = local.ownedPets
         for cloudPet in cloud.ownedPets {
@@ -73,7 +99,8 @@ final class CloudService {
             food: max(local.inventory.food, cloud.inventory.food),
             water: max(local.inventory.water, cloud.inventory.water),
             activeBoosts: local.inventory.activeBoosts,
-            hibernationEndsAt: local.inventory.hibernationEndsAt ?? cloud.inventory.hibernationEndsAt
+            hibernationEndsAt: local.inventory.hibernationEndsAt ?? cloud.inventory.hibernationEndsAt,
+            streakFreezeEndsAt: local.inventory.streakFreezeEndsAt ?? cloud.inventory.streakFreezeEndsAt
         )
 
         var mergedRuns = local.runHistory
@@ -103,11 +130,26 @@ final class CloudService {
             let snapshot = try await db.collection("usernames")
                 .document(normalized)
                 .getDocument()
-            if let data = snapshot.data(), let ownerUid = data["uid"] as? String {
-                return ownerUid != AuthService.shared.userId
+            let exists = snapshot.exists
+            let data = snapshot.data()
+            let ownerUid = data?["uid"] as? String
+            let myUid = AuthService.shared.userId
+            let isTaken: Bool
+            if exists, let ownerUid {
+                isTaken = ownerUid != myUid
+            } else {
+                isTaken = false
             }
-            return false
+            // #region agent log
+            let logLine = "{\"location\":\"CloudService.swift:isUsernameTaken\",\"message\":\"username check\",\"data\":{\"normalized\":\"\(normalized)\",\"docExists\":\(exists),\"ownerUid\":\"\(ownerUid ?? "nil")\",\"myUid\":\"\(myUid ?? "nil")\",\"isTaken\":\(isTaken)},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"hypothesisId\":\"H5-H7\"}\n"
+            if let d = logLine.data(using: .utf8), let fh = FileHandle(forWritingAtPath: "/Users/crucegauntlet/Desktop/Ippo MVP/.cursor/debug.log") { fh.seekToEndOfFile(); fh.write(d); fh.closeFile() } else { FileManager.default.createFile(atPath: "/Users/crucegauntlet/Desktop/Ippo MVP/.cursor/debug.log", contents: logLine.data(using: .utf8)) }
+            // #endregion
+            return isTaken
         } catch {
+            // #region agent log
+            let logLine = "{\"location\":\"CloudService.swift:isUsernameTaken:catch\",\"message\":\"error checking username\",\"data\":{\"normalized\":\"\(normalized)\",\"error\":\"\(error.localizedDescription)\"},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"hypothesisId\":\"H8\"}\n"
+            if let d = logLine.data(using: .utf8), let fh = FileHandle(forWritingAtPath: "/Users/crucegauntlet/Desktop/Ippo MVP/.cursor/debug.log") { fh.seekToEndOfFile(); fh.write(d); fh.closeFile() } else { FileManager.default.createFile(atPath: "/Users/crucegauntlet/Desktop/Ippo MVP/.cursor/debug.log", contents: logLine.data(using: .utf8)) }
+            // #endregion
             print("CloudService: Failed to check username - \(error)")
             return true
         }
