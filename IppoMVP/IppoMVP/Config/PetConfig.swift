@@ -12,37 +12,33 @@ struct PetConfig: Sendable {
 
     // MARK: - Pet Levels
 
-    let petMaxLevel = 20
+    let petMaxLevel = 30
 
     /// Levels at which the pet evolves to the next stage.
     /// Key = new stage number, Value = level that triggers it.
     let evolutionLevels: [Int: Int] = [
-        2: 8,   // Baby -> Teen at level 8  (~2,170 XP, ~3 hrs running)
-        3: 14   // Teen -> Adult at level 14 (~5,590 XP, ~9.5 hrs total)
+        2: 16,  // Baby -> Teen at level 16  (~1,517 XP)
+        3: 25   // Teen -> Adult at level 25 (~5,787 XP)
     ]
 
-    /// Cumulative XP required to reach a given pet level.
-    /// Level 1 = 0 XP. Uses a quadratic curve so each level takes progressively more XP.
+    /// Cumulative XP to reach a given pet level.
+    /// Uses a cubic curve (Pokemon-inspired): `floor(10 * n^3 / 27)`.
+    /// Early levels cost almost nothing; late levels require serious grinding.
     ///
     /// Approximate totals:
-    ///   Lv  8 → 2,170 XP  (~3 hrs running, first evolution)
-    ///   Lv 14 → 5,590 XP  (~9.5 hrs running, second evolution)
-    ///   Lv 20 → 10,450 XP
+    ///   Lv 10 →    370 XP   (~2-3 runs)
+    ///   Lv 16 →  1,517 XP   (~10 runs, first evolution)
+    ///   Lv 25 →  5,787 XP   (~39 runs, second evolution)
+    ///   Lv 30 → 10,000 XP   (~67 runs)
     func xpRequiredForLevel(_ level: Int) -> Int {
         guard level > 1 else { return 0 }
-        var total = 0
-        for lv in 2...level {
-            total += xpToReachNextLevel(from: lv - 1)
-        }
-        return total
+        return (10 * level * level * level) / 27
     }
 
     /// XP needed to go from `level` to `level + 1`.
     func xpToReachNextLevel(from level: Int) -> Int {
         guard level >= 1 else { return 0 }
-        let base = 150
-        let growth = 40
-        return base + (level - 1) * growth
+        return xpRequiredForLevel(level + 1) - xpRequiredForLevel(level)
     }
 
     /// Compute pet level from cumulative XP.

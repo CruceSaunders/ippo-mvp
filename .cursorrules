@@ -263,10 +263,10 @@ GamePetDefinition(
 ```
 
 **Evolution level guidelines** — every pet MUST have different thresholds:
-- Baby → Teen: level 6–10 (vary by ±1–2 from default 8)
-- Teen → Adult: level 12–16 (vary by ±1–2 from default 14)
-- Current pets: Lumira [2:8, 3:14], Mossworth [2:7, 3:13], Dewdrop [2:9, 3:15]
-- New pets should not duplicate existing thresholds
+- Baby → Teen: level 14–18 (vary by ±1–2 from default 16)
+- Teen → Adult: level 23–27 (vary by ±1–2 from default 25)
+- Current pets: Lumira [2:15, 3:24], Mossworth [2:16, 3:25], Dewdrop [2:17, 3:26], Bramble [2:14, 3:23], Zephyr [2:18, 3:27], Coraline [2:15, 3:26], Cinders [2:17, 3:24], Glaciel [2:16, 3:27], Shale [2:14, 3:25], Stella [2:18, 3:24]
+- New pets should not duplicate existing threshold pairs
 
 ### Step 4: Verify — No Other Code Changes Needed
 

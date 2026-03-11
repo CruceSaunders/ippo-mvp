@@ -11,7 +11,7 @@ struct GamePetDefinition: Identifiable, Codable, Equatable {
     var hasHappyVideos: Bool = false
     var isStarter: Bool = false
     /// Per-pet evolution levels. Key = stage number, Value = level required.
-    /// e.g. [2: 8, 3: 14] means Teen at level 8, Adult at level 14.
+    /// e.g. [2: 16, 3: 25] means Teen at level 16, Adult at level 25.
     /// If empty, falls back to PetConfig.shared.evolutionLevels.
     var evolutionLevels: [Int: Int] = [:]
 
