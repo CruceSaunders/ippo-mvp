@@ -25,6 +25,14 @@ struct WatchRunSummary {
 @MainActor
 final class WatchRunManager: NSObject, ObservableObject {
     static let shared = WatchRunManager()
+
+    static var isSimulator: Bool {
+        #if targetEnvironment(simulator)
+        return true
+        #else
+        return false
+        #endif
+    }
     
     // MARK: - Published State
     @Published var runState: WatchRunState = .idle
@@ -129,11 +137,16 @@ final class WatchRunManager: NSObject, ObservableObject {
     
     /// Check current authorization and request if needed
     func checkAndRequestHealthKit() {
+        if Self.isSimulator {
+            healthKitAuthorized = true
+            healthKitError = nil
+            return
+        }
+
         let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate)!
         let distType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!
         let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
         
-        // Check if already authorized
         let hrStatus = healthStore.authorizationStatus(for: hrType)
         let distStatus = healthStore.authorizationStatus(for: distType)
         let energyStatus = healthStore.authorizationStatus(for: energyType)
@@ -143,12 +156,17 @@ final class WatchRunManager: NSObject, ObservableObject {
             return
         }
         
-        // Request authorization
         requestHealthKitPermissions()
     }
     
     /// Request HealthKit permissions
     func requestHealthKitPermissions() {
+        if Self.isSimulator {
+            healthKitAuthorized = true
+            healthKitError = nil
+            return
+        }
+
         let typesToShare: Set<HKSampleType> = [
             HKWorkoutType.workoutType(),
             HKQuantityType.quantityType(forIdentifier: .heartRate)!,
@@ -184,7 +202,6 @@ final class WatchRunManager: NSObject, ObservableObject {
     
     // MARK: - Run Lifecycle
     func startRun() {
-        // Gate on HealthKit authorization
         guard healthKitAuthorized else {
             healthKitError = "Health access required. Please grant permissions."
             requestHealthKitPermissions()
@@ -208,10 +225,10 @@ final class WatchRunManager: NSObject, ObservableObject {
         
         runState = .running
         
-        // Start workout session
-        startWorkoutSession()
+        if !Self.isSimulator {
+            startWorkoutSession()
+        }
         
-        // Start timers
         runTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor [weak self] in
@@ -219,9 +236,10 @@ final class WatchRunManager: NSObject, ObservableObject {
             }
         }
         
-        // Start encounter checks after warmup
+        // Shorter warmup in simulator for faster testing
+        let warmup = Self.isSimulator ? 5.0 : (encounterConfig.warmupDuration)
         Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(self?.encounterConfig.warmupDuration ?? 60) * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: UInt64(warmup) * 1_000_000_000)
             self?.startEncounterChecks()
         }
         
@@ -249,12 +267,12 @@ final class WatchRunManager: NSObject, ObservableObject {
         encounterCheckTimer?.invalidate()
         sprintTimer?.invalidate()
         
-        // Grab final metrics from workout builder before ending
         let finalDistance = readFinalDistance()
         let finalCalories = readFinalCalories()
         
-        // End workout
-        endWorkoutSession()
+        if !Self.isSimulator {
+            endWorkoutSession()
+        }
         
         let minutes = Int(elapsedTime / 60)
         earnedCoins += minutes
@@ -501,6 +519,7 @@ final class WatchRunManager: NSObject, ObservableObject {
     }
     
     private func validateSprint() -> Bool {
+        if Self.isSimulator { return true }
         guard !sprintHRSamples.isEmpty else { return false }
         
         let zone4Threshold = WatchConnectivityServiceWatch.shared.hrZone4Threshold

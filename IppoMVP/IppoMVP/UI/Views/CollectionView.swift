@@ -156,9 +156,12 @@ struct UndiscoveredCell: View {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(AppColors.surfaceElevated)
 
-                Image(systemName: "questionmark")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(AppColors.textTertiary.opacity(0.5))
+                Image(definition.stageImageNames.first ?? "pet_placeholder")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(12)
+                    .colorMultiply(.black)
+                    .opacity(0.15)
             }
             .frame(height: 100)
 

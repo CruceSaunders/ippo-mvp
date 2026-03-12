@@ -103,14 +103,24 @@ extension WatchConnectivityService: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         Task { @MainActor in
             if let type = message["type"] as? String, type == "syncRequest" {
+                let userData = UserData.shared
                 var response: [String: Any] = [
                     "status": "ok",
-                    "estimatedMaxHR": UserData.shared.profile.estimatedMaxHR
+                    "estimatedMaxHR": userData.profile.estimatedMaxHR
                 ]
-                let petIds = UserData.shared.ownedPets.map { $0.petDefinitionId }
+                let petIds = userData.ownedPets.map { $0.petDefinitionId }
                 response["ownedPetIds"] = petIds
                 response["catchablePetIds"] = GameData.catchablePetIds
-                response["hasEncounterCharm"] = UserData.shared.inventory.activeEncounterCharm != nil
+                response["hasEncounterCharm"] = userData.inventory.activeEncounterCharm != nil
+
+                if let pet = userData.equippedPet, let def = pet.definition {
+                    response["equippedPetName"] = def.name
+                    response["equippedPetImageName"] = pet.currentImageName
+                    response["equippedPetMood"] = pet.mood
+                    response["equippedPetLevel"] = pet.level
+                    response["equippedPetStageName"] = pet.stageName
+                }
+
                 replyHandler(response)
             } else {
                 replyHandler([:])

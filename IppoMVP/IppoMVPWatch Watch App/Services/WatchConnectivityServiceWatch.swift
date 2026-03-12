@@ -8,6 +8,11 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     
     @Published var isConnected: Bool = false
     @Published var estimatedMaxHR: Int = 0
+    @Published var equippedPetName: String?
+    @Published var equippedPetImageName: String?
+    @Published var equippedPetMood: Int = 3
+    @Published var equippedPetLevel: Int = 1
+    @Published var equippedPetStageName: String = "Baby"
     var ownedPetIds: Set<String> = []
     var catchablePetIds: [String] = []
     var hasEncounterCharm: Bool = false
@@ -17,20 +22,26 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     override init() {
         super.init()
         
-        // Load cached maxHR
         estimatedMaxHR = UserDefaults.standard.integer(forKey: "ippo.estimatedMaxHR")
         
+        #if targetEnvironment(simulator)
+        isConnected = true
+        #else
         if WCSession.isSupported() {
             session = WCSession.default
             session?.delegate = self
             session?.activate()
         }
+        #endif
     }
     
     // MARK: - Send Run Summary
     func sendRunSummary(_ summary: WatchRunSummary) {
+        #if targetEnvironment(simulator)
+        print("[Ippo Sim] Run summary: \(summary.durationSeconds)s, \(summary.sprintsCompleted) sprints, \(summary.coinsEarned) coins")
+        #else
         guard let session = session, session.isReachable else { return }
-        
+
         var payload: [String: Any] = [
             "type": "runEnded",
             "durationSeconds": summary.durationSeconds,
@@ -45,16 +56,20 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
         if let petId = summary.petCaughtId {
             payload["petCaughtId"] = petId
         }
-        
+
         session.sendMessage(payload, replyHandler: nil) { error in
             print("Failed to send run summary: \(error)")
         }
+        #endif
     }
-    
-    // MARK: - Request Sync (gets maxHR from phone)
+
+    // MARK: - Request Sync (gets maxHR + pet data from phone)
     func requestSync() {
+        #if targetEnvironment(simulator)
+        return
+        #else
         guard let session = session, session.isReachable else { return }
-        
+
         session.sendMessage(["type": "syncRequest"], replyHandler: { [weak self] response in
             Task { @MainActor in
                 if let maxHR = response["estimatedMaxHR"] as? Int, maxHR > 0 {
@@ -70,10 +85,26 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
                 if let charm = response["hasEncounterCharm"] as? Bool {
                     self?.hasEncounterCharm = charm
                 }
+                if let name = response["equippedPetName"] as? String {
+                    self?.equippedPetName = name
+                }
+                if let img = response["equippedPetImageName"] as? String {
+                    self?.equippedPetImageName = img
+                }
+                if let mood = response["equippedPetMood"] as? Int {
+                    self?.equippedPetMood = mood
+                }
+                if let level = response["equippedPetLevel"] as? Int {
+                    self?.equippedPetLevel = level
+                }
+                if let stage = response["equippedPetStageName"] as? String {
+                    self?.equippedPetStageName = stage
+                }
             }
         }, errorHandler: { error in
             print("Sync request failed: \(error)")
         })
+        #endif
     }
     
     /// HR Zone 4 threshold (80% of max HR)
