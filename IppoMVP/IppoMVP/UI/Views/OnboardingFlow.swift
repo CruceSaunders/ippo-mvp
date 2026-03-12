@@ -1,6 +1,8 @@
 import SwiftUI
 import HealthKit
 import AuthenticationServices
+import UserNotifications
+import WatchConnectivity
 
 struct IppoCompleteOnboardingFlow: View {
     let onComplete: () -> Void
@@ -24,12 +26,15 @@ struct IppoCompleteOnboardingFlow: View {
     @State private var healthPermissionDenied = false
     @State private var isCheckingHealthPermission = false
     @State private var notificationPermissionGranted = false
+    @State private var notificationPermissionDenied = false
+    @State private var permissionsCheckedOnce = false
 
     // Sprint demo state
     @State private var sprintDemoPhase: SprintDemoPhase = .idle
     @State private var sprintDemoCountdown: Int = 5
     @State private var sprintDemoTimer: Timer?
     @State private var sprintDemoProgress: CGFloat = 0
+    @State private var hapticGenerator: UINotificationFeedbackGenerator?
 
     // Care tutorial intro
     @State private var showCareTutorialIntro = true
@@ -466,7 +471,10 @@ struct IppoCompleteOnboardingFlow: View {
     // MARK: - Step 5: Permissions (Hardened)
 
     private var permissionsScreen: some View {
-        VStack(spacing: 24) {
+        let allGranted = healthPermissionGranted && notificationPermissionGranted
+        let anyDenied = healthPermissionDenied || notificationPermissionDenied
+
+        return VStack(spacing: 24) {
             Spacer()
 
             HStack(spacing: 16) {
@@ -478,7 +486,7 @@ struct IppoCompleteOnboardingFlow: View {
                     .foregroundColor(AppColors.accent)
             }
 
-            Text("Almost There")
+            Text(allGranted ? "All Set!" : "Permissions Needed")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
@@ -488,23 +496,29 @@ struct IppoCompleteOnboardingFlow: View {
                     color: healthPermissionGranted ? AppColors.success : (healthPermissionDenied ? AppColors.danger : AppColors.success),
                     title: "Health Access",
                     subtitle: healthPermissionDenied
-                        ? "Required to detect sprints. Tap below to enable in Settings."
-                        : "Heart rate and workout data to validate your sprints",
+                        ? "Required — tap Open Settings below to enable"
+                        : healthPermissionGranted
+                            ? "Granted"
+                            : "Heart rate and workout data to validate your sprints",
                     checkmark: healthPermissionGranted
                 )
                 permissionRow(
                     icon: "bell.fill",
-                    color: AppColors.accent,
+                    color: notificationPermissionGranted ? AppColors.success : (notificationPermissionDenied ? AppColors.danger : AppColors.accent),
                     title: "Notifications",
-                    subtitle: "Your pet will let you know when they need you",
+                    subtitle: notificationPermissionDenied
+                        ? "Required — tap Open Settings below to enable"
+                        : notificationPermissionGranted
+                            ? "Granted"
+                            : "Your pet will let you know when they need you",
                     checkmark: notificationPermissionGranted
                 )
             }
             .padding(.horizontal, 8)
 
-            if healthPermissionDenied {
+            if anyDenied {
                 VStack(spacing: 12) {
-                    Text("Ippo needs Health access to detect your sprints during runs.")
+                    Text("Ippo needs these permissions to work properly. Please enable them in Settings.")
                         .font(.system(size: 14, design: .rounded))
                         .foregroundColor(AppColors.danger)
                         .multilineTextAlignment(.center)
@@ -525,7 +539,7 @@ struct IppoCompleteOnboardingFlow: View {
                         }
 
                         Button {
-                            checkHealthPermissionStatus()
+                            Task { await refreshAllPermissionStatuses() }
                         } label: {
                             Text("Check Again")
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -546,21 +560,28 @@ struct IppoCompleteOnboardingFlow: View {
 
             Spacer()
 
-            if !healthPermissionDenied {
+            if allGranted {
+                onboardingButton("Continue") {
+                    step = 6
+                }
+            } else if !anyDenied {
                 onboardingButton("Allow & Continue") {
                     requestAllPermissions()
                 }
             } else {
-                onboardingButton("Continue") {
+                onboardingButton("Continue")  {
                     step = 6
                 }
-                .disabled(!healthPermissionGranted)
-                .opacity(healthPermissionGranted ? 1 : 0.5)
+                .disabled(!allGranted)
+                .opacity(allGranted ? 1 : 0.5)
             }
         }
         .padding(.horizontal, 32)
         .onAppear {
-            checkHealthPermissionStatus()
+            if !permissionsCheckedOnce {
+                permissionsCheckedOnce = true
+                Task { await refreshAllPermissionStatuses() }
+            }
         }
     }
 
@@ -588,6 +609,11 @@ struct IppoCompleteOnboardingFlow: View {
         }
     }
 
+    private func refreshAllPermissionStatuses() async {
+        checkHealthPermissionStatus()
+        await checkNotificationPermissionStatus()
+    }
+
     private func requestAllPermissions() {
         isCheckingHealthPermission = true
 
@@ -596,7 +622,8 @@ struct IppoCompleteOnboardingFlow: View {
             isCheckingHealthPermission = false
             Task {
                 notificationPermissionGranted = await NotificationSystem.shared.requestPermission()
-                step = 6
+                await checkNotificationPermissionStatus()
+                if healthPermissionGranted && notificationPermissionGranted { step = 6 }
             }
             return
         }
@@ -615,12 +642,13 @@ struct IppoCompleteOnboardingFlow: View {
             HKObjectType.workoutType()
         ]
 
-        healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { success, _ in
+        healthStore.requestAuthorization(toShare: shareTypes, read: readTypes) { _, _ in
             DispatchQueue.main.async {
                 checkHealthPermissionStatus()
                 Task {
                     notificationPermissionGranted = await NotificationSystem.shared.requestPermission()
-                    if healthPermissionGranted {
+                    await checkNotificationPermissionStatus()
+                    if healthPermissionGranted && notificationPermissionGranted {
                         step = 6
                     }
                 }
@@ -632,6 +660,7 @@ struct IppoCompleteOnboardingFlow: View {
         guard HKHealthStore.isHealthDataAvailable() else {
             healthPermissionGranted = true
             healthPermissionDenied = false
+            isCheckingHealthPermission = false
             return
         }
 
@@ -653,6 +682,23 @@ struct IppoCompleteOnboardingFlow: View {
             break
         }
         isCheckingHealthPermission = false
+    }
+
+    private func checkNotificationPermissionStatus() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            notificationPermissionGranted = true
+            notificationPermissionDenied = false
+        case .denied:
+            notificationPermissionGranted = false
+            notificationPermissionDenied = true
+        case .notDetermined:
+            notificationPermissionGranted = false
+            notificationPermissionDenied = false
+        @unknown default:
+            break
+        }
     }
 
     // MARK: - Step 6: Watch Setup
@@ -702,14 +748,18 @@ struct IppoCompleteOnboardingFlow: View {
 
             Spacer()
 
-            onboardingButton(watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled ? "Continue" : "Continue Anyway") {
+            let watchReady = watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled
+
+            onboardingButton("Continue") {
                 step = 7
             }
+            .disabled(!watchReady)
+            .opacity(watchReady ? 1 : 0.5)
 
-            if !(watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled) {
-                Text("You'll need Apple Watch to go on runs")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundColor(AppColors.textTertiary)
+            if !watchReady {
+                Text("Apple Watch is required to use Ippo")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.warning)
                     .padding(.bottom, 8)
             }
         }
@@ -746,26 +796,33 @@ struct IppoCompleteOnboardingFlow: View {
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
-            // Mock Watch face
             watchMockup {
-                VStack(spacing: 8) {
+                VStack(spacing: 4) {
                     Text("IPPO")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .foregroundColor(.cyan)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(AppColors.accent)
 
-                    Text("Run. Catch. Grow.")
-                        .font(.system(size: 8, design: .rounded))
-                        .foregroundColor(.white.opacity(0.7))
+                    Image(systemName: "pawprint.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(AppColors.accentSoft)
+                        .padding(.vertical, 4)
 
                     Circle()
-                        .fill(.cyan)
+                        .fill(AppColors.accent)
                         .frame(width: 50, height: 50)
                         .overlay(
-                            Text("START\nRUN")
-                                .font(.system(size: 8, weight: .bold, design: .rounded))
-                                .foregroundColor(.black)
-                                .multilineTextAlignment(.center)
+                            VStack(spacing: 1) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 12))
+                                Text("START RUN")
+                                    .font(.system(size: 6, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundColor(.white)
                         )
+
+                    Text("Run. Catch. Grow.")
+                        .font(.system(size: 7, design: .rounded))
+                        .foregroundColor(.gray)
                 }
             }
 
@@ -895,43 +952,54 @@ struct IppoCompleteOnboardingFlow: View {
         sprintDemoCountdown = 5
         sprintDemoProgress = 0
 
+        // Retain generator to prevent deallocation before haptics fire
         let generator = UINotificationFeedbackGenerator()
+        hapticGenerator = generator
         generator.prepare()
+
+        // Three distinct heavy buzzes with spacing the user can feel
         generator.notificationOccurred(.warning)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            generator.notificationOccurred(.warning)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            let impact = UIImpactFeedbackGenerator(style: .heavy)
+            impact.impactOccurred()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
-            generator.notificationOccurred(.warning)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            let impact = UIImpactFeedbackGenerator(style: .heavy)
+            impact.impactOccurred()
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            sprintDemoPhase = .sprinting
-            sprintDemoCountdown = 5
+        // Also try to buzz the watch if reachable
+        if let session = WCSession.default as WCSession?,
+           session.isReachable {
+            session.sendMessage(["type": "hapticBuzz"], replyHandler: nil, errorHandler: nil)
+        }
 
-            sprintDemoTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
-                if sprintDemoCountdown > 1 {
-                    sprintDemoCountdown -= 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            self.sprintDemoPhase = .sprinting
+            self.sprintDemoCountdown = 5
+
+            self.sprintDemoTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                if self.sprintDemoCountdown > 1 {
+                    self.sprintDemoCountdown -= 1
                     withAnimation(.linear(duration: 0.9)) {
-                        sprintDemoProgress = CGFloat(5 - sprintDemoCountdown + 1) / 5.0
+                        self.sprintDemoProgress = CGFloat(5 - self.sprintDemoCountdown + 1) / 5.0
                     }
-                    if sprintDemoCountdown <= 3 {
-                        let tick = UIImpactFeedbackGenerator(style: .light)
-                        tick.impactOccurred()
-                    }
+                    let tick = UIImpactFeedbackGenerator(style: .medium)
+                    tick.impactOccurred()
                 } else {
                     timer.invalidate()
-                    sprintDemoTimer = nil
+                    self.sprintDemoTimer = nil
                     withAnimation(.easeOut(duration: 0.3)) {
-                        sprintDemoProgress = 1.0
+                        self.sprintDemoProgress = 1.0
                     }
                     let success = UINotificationFeedbackGenerator()
                     success.notificationOccurred(.success)
-                    sprintDemoPhase = .complete
+                    self.sprintDemoPhase = .complete
+                    self.hapticGenerator = nil
                 }
             }
             withAnimation(.linear(duration: 0.9)) {
-                sprintDemoProgress = 1.0 / 5.0
+                self.sprintDemoProgress = 1.0 / 5.0
             }
         }
     }
@@ -1431,7 +1499,7 @@ struct IppoCompleteOnboardingFlow: View {
     private func watchMockup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 28)
-                .fill(Color.black)
+                .fill(AppColors.textPrimary)
                 .frame(width: 160, height: 190)
                 .overlay(
                     RoundedRectangle(cornerRadius: 28)
@@ -1439,7 +1507,7 @@ struct IppoCompleteOnboardingFlow: View {
                 )
 
             RoundedRectangle(cornerRadius: 22)
-                .fill(Color.black)
+                .fill(AppColors.background)
                 .frame(width: 140, height: 170)
 
             content()
