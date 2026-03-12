@@ -9,113 +9,114 @@ struct WatchRunningView: View {
         ZStack {
             WatchColors.backgroundDark.ignoresSafeArea()
 
-            VStack(spacing: 4) {
-                // Pet avatar + timer row
-                HStack {
-                    Spacer()
-                    Text(runManager.formattedDuration)
-                        .font(.system(size: 26, weight: .bold, design: .monospaced))
-                        .foregroundColor(WatchColors.textPrimaryDark)
-                    Spacer()
-                    petCornerAvatar
-                }
-
-                // Distance + Pace
-                HStack(spacing: 12) {
-                    VStack(spacing: 0) {
-                        Text(runManager.formattedDistance)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            ScrollView {
+                VStack(spacing: 4) {
+                    // Pet avatar + timer row
+                    HStack {
+                        Spacer()
+                        Text(runManager.formattedDuration)
+                            .font(.system(size: 26, weight: .bold, design: .monospaced))
                             .foregroundColor(WatchColors.textPrimaryDark)
-                        Text("dist")
-                            .font(.system(size: 9, design: .rounded))
-                            .foregroundColor(WatchColors.textSecondary)
+                        Spacer()
+                        petCornerAvatar
                     }
 
-                    VStack(spacing: 0) {
-                        Text(runManager.formattedPace)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(WatchColors.textPrimaryDark)
-                        Text("/mi")
-                            .font(.system(size: 9, design: .rounded))
-                            .foregroundColor(WatchColors.textSecondary)
-                    }
-                }
+                    // Distance + Pace
+                    HStack(spacing: 12) {
+                        VStack(spacing: 0) {
+                            Text(runManager.formattedDistance)
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundColor(WatchColors.textPrimaryDark)
+                            Text("dist")
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundColor(WatchColors.textSecondary)
+                        }
 
-                // HR + Calories
-                HStack(spacing: 14) {
+                        VStack(spacing: 0) {
+                            Text(runManager.formattedPace)
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundColor(WatchColors.textPrimaryDark)
+                            Text("/mi")
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundColor(WatchColors.textSecondary)
+                        }
+                    }
+
+                    // HR + Calories
+                    HStack(spacing: 14) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.red)
+                            Text("\(runManager.currentHR)")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        }
+
+                        HStack(spacing: 3) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(WatchColors.accent)
+                            Text(runManager.formattedCalories)
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        }
+                    }
+                    .foregroundColor(WatchColors.textPrimaryDark)
+
+                    // Sprints counter
                     HStack(spacing: 3) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.red)
-                        Text("\(runManager.currentHR)")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    }
-
-                    HStack(spacing: 3) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(WatchColors.accent)
-                        Text(runManager.formattedCalories)
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    }
-                }
-                .foregroundColor(WatchColors.textPrimaryDark)
-
-                // Sprints counter
-                HStack(spacing: 3) {
-                    Text("Sprints:")
-                        .font(.system(size: 10, design: .rounded))
-                        .foregroundColor(WatchColors.textSecondary)
-                    Text("\(runManager.sprintsCompleted)")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundColor(WatchColors.success)
-                    Text("/\(runManager.totalSprints)")
-                        .font(.system(size: 12, design: .rounded))
-                        .foregroundColor(WatchColors.textSecondary)
-                }
-
-                // Recovery indicator
-                if runManager.isInRecovery {
-                    HStack(spacing: 3) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 9))
-                        Text("Recovery \(Int(runManager.recoveryRemaining))s")
+                        Text("Sprints:")
                             .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(WatchColors.textSecondary)
+                        Text("\(runManager.sprintsCompleted)")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundColor(WatchColors.success)
+                        Text("/\(runManager.totalSprints)")
+                            .font(.system(size: 12, design: .rounded))
+                            .foregroundColor(WatchColors.textSecondary)
                     }
-                    .foregroundColor(WatchColors.xp)
+
+                    // Recovery indicator
+                    if runManager.isInRecovery {
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 9))
+                            Text("Recovery \(Int(runManager.recoveryRemaining))s")
+                                .font(.system(size: 10, design: .rounded))
+                        }
+                        .foregroundColor(WatchColors.xp)
+                    }
+
+                    // Controls
+                    HStack(spacing: 16) {
+                        Button {
+                            runManager.pauseRun()
+                        } label: {
+                            Image(systemName: runManager.isPaused ? "play.fill" : "pause.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(WatchColors.textPrimaryDark)
+                                .frame(width: 40, height: 40)
+                                .background(WatchColors.darkSurface)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            showingEndConfirm = true
+                        } label: {
+                            Image(systemName: "stop.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(WatchColors.textPrimaryDark)
+                                .frame(width: 40, height: 40)
+                                .background(WatchColors.danger.opacity(0.8))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 4)
                 }
-
-                Spacer()
-
-                // Controls
-                HStack(spacing: 16) {
-                    Button {
-                        runManager.pauseRun()
-                    } label: {
-                        Image(systemName: runManager.isPaused ? "play.fill" : "pause.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(WatchColors.textPrimaryDark)
-                            .frame(width: 40, height: 40)
-                            .background(WatchColors.darkSurface)
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        showingEndConfirm = true
-                    } label: {
-                        Image(systemName: "stop.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(WatchColors.textPrimaryDark)
-                            .frame(width: 40, height: 40)
-                            .background(WatchColors.danger.opacity(0.8))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
             .alert("End Run?", isPresented: $showingEndConfirm) {
                 Button("Cancel", role: .cancel) {}
                 Button("End", role: .destructive) {

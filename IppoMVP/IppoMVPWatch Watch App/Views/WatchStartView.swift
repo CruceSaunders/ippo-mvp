@@ -15,30 +15,32 @@ struct WatchStartView: View {
         ZStack {
             WatchColors.backgroundLight.ignoresSafeArea()
 
-            VStack(spacing: 6) {
-                Text("IPPO")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(WatchColors.accent)
+            ScrollView {
+                VStack(spacing: 6) {
+                    Text("IPPO")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(WatchColors.accent)
 
-                if isSimulator {
-                    simulatorBadge
-                    petSection
-                    startButton
-                } else if !connectivity.isConnected {
-                    phoneRequiredView
-                } else if !runManager.healthKitAuthorized {
-                    healthAccessView
-                } else {
-                    petSection
-                    startButton
+                    if isSimulator {
+                        simulatorBadge
+                        petSection
+                        startButton
+                    } else if !connectivity.isConnected {
+                        phoneRequiredView
+                    } else if !runManager.healthKitAuthorized {
+                        healthAccessView
+                    } else {
+                        petSection
+                        startButton
+                    }
+
+                    Text("Run. Catch. Grow.")
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(WatchColors.textSecondary)
                 }
-
-                Text("Run. Catch. Grow.")
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundColor(WatchColors.textSecondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
         }
         .onAppear {
             runManager.checkAndRequestHealthKit()
