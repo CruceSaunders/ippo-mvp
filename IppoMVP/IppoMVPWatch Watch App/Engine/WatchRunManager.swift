@@ -222,6 +222,11 @@ final class WatchRunManager: NSObject, ObservableObject {
         didCatchPet = false
         caughtPetName = nil
         isPaused = false
+        lastEncounterTime = nil
+        sprintsSinceLastCatch = 0
+        isInRecovery = false
+        recoveryRemaining = 0
+        encounterCheckTimer?.invalidate()
         
         runState = .running
         
@@ -498,10 +503,7 @@ final class WatchRunManager: NSObject, ObservableObject {
         runState = .running
         showSprintResult = true
 
-        if isValid {
-            startRecovery()
-        }
-
+        startRecovery()
         startEncounterChecks()
 
         let delay: UInt64 = didCatchPet ? 5_000_000_000 : (isValid ? 4_000_000_000 : 3_000_000_000)
@@ -598,16 +600,16 @@ struct WatchSprintConfig {
 
 struct WatchEncounterConfig {
     let warmupDuration: TimeInterval = 60
-    let pityTimerMax: TimeInterval = 210
+    let pityTimerMax: TimeInterval = 180
 
     func probability(forTimeSinceLastSprint time: TimeInterval) -> Double {
         switch time {
-        case ..<90:     return 0.0
-        case 90..<120:  return 0.002
-        case 120..<150: return 0.005
-        case 150..<180: return 0.0083
-        case 180..<210: return 0.0128
-        default:        return time >= 210 ? 1.0 : 0.0162
+        case ..<60:     return 0.0
+        case 60..<90:   return 0.002
+        case 90..<120:  return 0.005
+        case 120..<150: return 0.0083
+        case 150..<180: return 0.0128
+        default:        return time >= 180 ? 1.0 : 0.0
         }
     }
 }
