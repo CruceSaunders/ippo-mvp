@@ -22,6 +22,13 @@ final class WatchConnectivityService: NSObject, ObservableObject {
         }
     }
 
+    func refreshStatus() {
+        guard let session = session, session.activationState == .activated else { return }
+        isPaired = session.isPaired
+        isWatchAppInstalled = session.isWatchAppInstalled
+        isReachable = session.isReachable
+    }
+
     func pushProfileToWatch() {
         guard let session = session, session.isReachable else { return }
         let maxHR = UserData.shared.profile.estimatedMaxHR
@@ -32,6 +39,11 @@ final class WatchConnectivityService: NSObject, ObservableObject {
                 print("Failed to push profile to Watch: \(error)")
             }
         )
+    }
+
+    func sendHapticBuzz() {
+        guard let session = session, session.isReachable else { return }
+        session.sendMessage(["type": "hapticBuzz"], replyHandler: nil, errorHandler: nil)
     }
 
     private func handleRunSummary(_ message: [String: Any]) {

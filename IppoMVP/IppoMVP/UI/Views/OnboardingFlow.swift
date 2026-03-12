@@ -3,6 +3,7 @@ import HealthKit
 import AuthenticationServices
 import UserNotifications
 import WatchConnectivity
+import AudioToolbox
 
 struct IppoCompleteOnboardingFlow: View {
     let onComplete: () -> Void
@@ -34,7 +35,6 @@ struct IppoCompleteOnboardingFlow: View {
     @State private var sprintDemoCountdown: Int = 5
     @State private var sprintDemoTimer: Timer?
     @State private var sprintDemoProgress: CGFloat = 0
-    @State private var hapticGenerator: UINotificationFeedbackGenerator?
 
     // Care tutorial intro
     @State private var showCareTutorialIntro = true
@@ -722,15 +722,19 @@ struct IppoCompleteOnboardingFlow: View {
 
     // MARK: - Step 6: Watch Setup
 
+    @State private var watchPollTimer: Timer?
+
     private var watchSetupScreen: some View {
-        VStack(spacing: 24) {
+        let watchReady = watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled
+
+        return VStack(spacing: 24) {
             Spacer()
 
             Image(systemName: "applewatch")
                 .font(.system(size: 64))
-                .foregroundColor(AppColors.accent)
+                .foregroundColor(watchReady ? AppColors.success : AppColors.accent)
 
-            Text("Connect Your Watch")
+            Text(watchReady ? "Watch Connected!" : "Connect Your Watch")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
@@ -743,19 +747,39 @@ struct IppoCompleteOnboardingFlow: View {
                 watchStatusRow(
                     title: "Watch Paired",
                     isOK: watchConnectivity.isPaired,
-                    helpText: "Open the Watch app on your iPhone to pair"
+                    helpText: "Pair your Apple Watch in the Watch app"
                 )
                 watchStatusRow(
                     title: "Ippo Installed on Watch",
                     isOK: watchConnectivity.isWatchAppInstalled,
-                    helpText: "Open the Watch app → My Watch → find Ippo → Install"
+                    helpText: "Tap the button below to install"
                 )
             }
             .padding(20)
             .background(AppColors.surface)
             .cornerRadius(16)
 
-            if watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled {
+            if !watchReady {
+                Button {
+                    if let url = URL(string: "itms-watchs://") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.system(size: 15))
+                        Text("Open Watch App to Install Ippo")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(AppColors.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(AppColors.accentSoft.opacity(0.3))
+                    .cornerRadius(12)
+                }
+            }
+
+            if watchReady {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(AppColors.success)
@@ -767,9 +791,9 @@ struct IppoCompleteOnboardingFlow: View {
 
             Spacer()
 
-            let watchReady = watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled
-
             onboardingButton("Continue") {
+                watchPollTimer?.invalidate()
+                watchPollTimer = nil
                 step = 7
             }
             .disabled(!watchReady)
@@ -783,6 +807,18 @@ struct IppoCompleteOnboardingFlow: View {
             }
         }
         .padding(.horizontal, 32)
+        .onAppear {
+            watchConnectivity.refreshStatus()
+            watchPollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                Task { @MainActor in
+                    watchConnectivity.refreshStatus()
+                }
+            }
+        }
+        .onDisappear {
+            watchPollTimer?.invalidate()
+            watchPollTimer = nil
+        }
     }
 
     private func watchStatusRow(title: String, isOK: Bool, helpText: String) -> some View {
@@ -966,34 +1002,24 @@ struct IppoCompleteOnboardingFlow: View {
         .padding(.horizontal, 32)
     }
 
+    private func vibratePhone() {
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+    }
+
     private func startSprintDemo() {
         sprintDemoPhase = .buzzing
         sprintDemoCountdown = 5
         sprintDemoProgress = 0
 
-        // Retain generator to prevent deallocation before haptics fire
-        let generator = UINotificationFeedbackGenerator()
-        hapticGenerator = generator
-        generator.prepare()
+        // AudioToolbox vibration is the most reliable on-device buzz
+        vibratePhone()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.vibratePhone() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.vibratePhone() }
 
-        // Three distinct heavy buzzes with spacing the user can feel
-        generator.notificationOccurred(.warning)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            let impact = UIImpactFeedbackGenerator(style: .heavy)
-            impact.impactOccurred()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            let impact = UIImpactFeedbackGenerator(style: .heavy)
-            impact.impactOccurred()
-        }
+        // Also buzz the watch if reachable
+        WatchConnectivityService.shared.sendHapticBuzz()
 
-        // Also try to buzz the watch if reachable
-        if let session = WCSession.default as WCSession?,
-           session.isReachable {
-            session.sendMessage(["type": "hapticBuzz"], replyHandler: nil, errorHandler: nil)
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
             self.sprintDemoPhase = .sprinting
             self.sprintDemoCountdown = 5
 
@@ -1003,18 +1029,15 @@ struct IppoCompleteOnboardingFlow: View {
                     withAnimation(.linear(duration: 0.9)) {
                         self.sprintDemoProgress = CGFloat(5 - self.sprintDemoCountdown + 1) / 5.0
                     }
-                    let tick = UIImpactFeedbackGenerator(style: .medium)
-                    tick.impactOccurred()
+                    self.vibratePhone()
                 } else {
                     timer.invalidate()
                     self.sprintDemoTimer = nil
                     withAnimation(.easeOut(duration: 0.3)) {
                         self.sprintDemoProgress = 1.0
                     }
-                    let success = UINotificationFeedbackGenerator()
-                    success.notificationOccurred(.success)
+                    AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
                     self.sprintDemoPhase = .complete
-                    self.hapticGenerator = nil
                 }
             }
             withAnimation(.linear(duration: 0.9)) {

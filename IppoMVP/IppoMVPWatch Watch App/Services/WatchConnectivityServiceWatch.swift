@@ -127,11 +127,17 @@ extension WatchConnectivityServiceWatch: WCSessionDelegate {
     
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         Task { @MainActor in
-            if let type = message["type"] as? String, type == "profileSync" {
+            guard let type = message["type"] as? String else { return }
+            switch type {
+            case "profileSync":
                 if let maxHR = message["estimatedMaxHR"] as? Int, maxHR > 0 {
                     estimatedMaxHR = maxHR
                     UserDefaults.standard.set(maxHR, forKey: "ippo.estimatedMaxHR")
                 }
+            case "hapticBuzz":
+                WatchHapticsManager.shared.playSprintStart()
+            default:
+                break
             }
         }
     }
