@@ -385,7 +385,7 @@ final class WatchRunManager: NSObject, ObservableObject {
     
     // MARK: - Encounter System
     private func startEncounterChecks() {
-        encounterCheckTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+        encounterCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor [weak self] in
                 self?.checkForEncounter()
@@ -598,15 +598,16 @@ struct WatchSprintConfig {
 
 struct WatchEncounterConfig {
     let warmupDuration: TimeInterval = 60
-    let pityTimerMax: TimeInterval = 180
-    
+    let pityTimerMax: TimeInterval = 210
+
     func probability(forTimeSinceLastSprint time: TimeInterval) -> Double {
         switch time {
-        case 60..<90: return 0.02
-        case 90..<120: return 0.05
-        case 120..<150: return 0.08
-        case 150..<180: return 0.12
-        default: return time >= 180 ? 1.0 : 0.15
+        case ..<90:     return 0.0
+        case 90..<120:  return 0.002
+        case 120..<150: return 0.005
+        case 150..<180: return 0.0083
+        case 180..<210: return 0.0128
+        default:        return time >= 210 ? 1.0 : 0.0162
         }
     }
 }
