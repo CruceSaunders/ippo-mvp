@@ -12,6 +12,17 @@ struct IppoMVPApp: App {
 
     init() {
         FirebaseApp.configure()
+
+        // v2→v3 migration & data integrity: if onboarding was marked complete
+        // but no valid user data exists (different persistence key between versions,
+        // or data was lost), force the user through onboarding again so they get
+        // proper account setup, permissions, and a starter pet.
+        if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+            let savedData = DataPersistence.shared.loadUserData()
+            if savedData == nil || savedData!.ownedPets.isEmpty {
+                UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
+            }
+        }
     }
 
     var body: some Scene {
