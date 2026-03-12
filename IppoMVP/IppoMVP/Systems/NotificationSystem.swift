@@ -24,7 +24,7 @@ final class NotificationSystem: ObservableObject {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["daily_care"])
 
-        let needType = CareNeedType.allCases.randomElement() ?? .hungry
+        let needType: CareNeedType = Bool.random() ? .hungry : .thirsty
         let content = UNMutableNotificationContent()
         content.sound = .default
 
@@ -50,6 +50,78 @@ final class NotificationSystem: ObservableObject {
         let request = UNNotificationRequest(identifier: "daily_care", content: content, trigger: trigger)
 
         center.add(request) { _ in }
+
+        var fireDate = Calendar.current.nextDate(after: Date(), matching: dateComponents, matchingPolicy: .nextTime) ?? Date()
+        if fireDate < Date() { fireDate = fireDate.addingTimeInterval(86400) }
+        UserData.shared.scheduleCareNeed(type: needType, fireDate: fireDate)
+    }
+
+    // MARK: - Trigger Notification Immediately (Debug)
+    func triggerCareNotificationNow(petName: String) {
+        let needType: CareNeedType = Bool.random() ? .hungry : .thirsty
+        let content = UNMutableNotificationContent()
+        content.sound = .default
+
+        switch needType {
+        case .hungry:
+            content.title = "\(petName) is hungry!"
+            content.body = "Come feed \(petName) before they get sad."
+        default:
+            content.title = "\(petName) is thirsty!"
+            content.body = "A quick drink would make \(petName)'s day."
+        }
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        let request = UNNotificationRequest(identifier: "daily_care_debug", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { _ in }
+
+        UserData.shared.activeCareNeed = needType
+    }
+
+    func triggerRunReminderNow(petName: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "\(petName) wants to run!"
+        content.body = "\(petName) wants to go for a run with you!"
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        let request = UNNotificationRequest(identifier: "run_reminder_debug", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { _ in }
+    }
+
+    func triggerRunawayWarningNow(petName: String, daysUntilRunaway: Int) {
+        let content = UNMutableNotificationContent()
+        content.sound = .default
+
+        switch daysUntilRunaway {
+        case 7:
+            content.title = "\(petName) is upset..."
+            content.body = "\(petName) might leave soon. Please come check on them."
+        case 4:
+            content.title = "\(petName) is thinking about leaving..."
+            content.body = "Please come take care of \(petName) before it's too late."
+        case 2:
+            content.title = "\(petName) has packed their bags..."
+            content.body = "You have 2 days before \(petName) leaves!"
+        default:
+            content.title = "\(petName) is upset..."
+            content.body = "\(petName) might leave soon."
+        }
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        let request = UNNotificationRequest(identifier: "runaway_debug_\(daysUntilRunaway)", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { _ in }
+    }
+
+    func triggerPetRanAwayNow(petName: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "\(petName) has run away..."
+        content.body = "Come rescue \(petName)! They're waiting for you."
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        let request = UNNotificationRequest(identifier: "pet_ran_away_debug", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { _ in }
     }
 
     // MARK: - Schedule Run Reminder

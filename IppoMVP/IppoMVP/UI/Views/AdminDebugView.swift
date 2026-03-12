@@ -35,6 +35,7 @@ struct AdminDebugView: View {
             petCareSection
             boostsSection
             runSimulatorSection
+            notificationTestSection
             onboardingSection
             dangerZoneSection
         }
@@ -469,6 +470,51 @@ struct AdminDebugView: View {
             }
             .font(.system(size: 15, weight: .semibold, design: .rounded))
             .foregroundColor(AppColors.accent)
+        }
+        .listRowBackground(AppColors.surface)
+    }
+
+    // MARK: - Notification Testing
+
+    private var notificationTestSection: some View {
+        Section("Test Notifications") {
+            let petName = userData.equippedPet?.definition?.name ?? "Your pet"
+
+            Button("Care Notification (Hungry/Thirsty)") {
+                NotificationSystem.shared.triggerCareNotificationNow(petName: petName)
+                showFeedback("Care notification sent in 2s — mood updated to \(userData.activeCareNeed?.displayText ?? "hungry/thirsty")")
+            }
+
+            Button("Run Reminder") {
+                NotificationSystem.shared.triggerRunReminderNow(petName: petName)
+                showFeedback("Run reminder sent in 2s")
+            }
+
+            Button("Runaway Warning (7 days)") {
+                NotificationSystem.shared.triggerRunawayWarningNow(petName: petName, daysUntilRunaway: 7)
+                showFeedback("7-day runaway warning sent in 2s")
+            }
+
+            Button("Runaway Warning (4 days)") {
+                NotificationSystem.shared.triggerRunawayWarningNow(petName: petName, daysUntilRunaway: 4)
+                showFeedback("4-day runaway warning sent in 2s")
+            }
+
+            Button("Runaway Warning (2 days)") {
+                NotificationSystem.shared.triggerRunawayWarningNow(petName: petName, daysUntilRunaway: 2)
+                showFeedback("2-day runaway warning sent in 2s")
+            }
+
+            Button("Pet Ran Away") {
+                NotificationSystem.shared.triggerPetRanAwayNow(petName: petName)
+                showFeedback("Pet ran away notification sent in 2s")
+            }
+
+            Button("Clear Active Care Need") {
+                userData.clearCareNeed()
+                showFeedback("Care need cleared")
+            }
+            .foregroundColor(AppColors.textSecondary)
         }
         .listRowBackground(AppColors.surface)
     }

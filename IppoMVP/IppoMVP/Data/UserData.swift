@@ -11,9 +11,12 @@ final class UserData: ObservableObject {
     @Published var inventory: PlayerInventory
     @Published var runHistory: [CompletedRun]
     @Published var isLoggedIn: Bool = false
-    @Published var pendingRunSummary: CompletedRun?
+    @Published var pendingRunSummary: CompletedRun? {
+        didSet { persistPendingRun() }
+    }
     @Published var starterPetId: String?
     @Published var pendingEvolution: PendingEvolution?
+    @Published var activeCareNeed: CareNeedType?
 
     /// Timestamp of the most recent local mutation (run completion, purchase, etc.).
     /// Cloud sync will skip overwriting local state if it started before this timestamp.
@@ -53,6 +56,7 @@ final class UserData: ObservableObject {
         }
         inventory.cleanExpiredBoosts()
         migrateEvolutionStages()
+        loadPendingRun()
     }
 
     private func migrateEvolutionStages() {
@@ -179,6 +183,7 @@ final class UserData: ObservableObject {
             ownedPets[idx].lastFedDate = Date()
             addPetXP(idx: idx, amount: PetConfig.shared.xpPerFeeding)
         }
+        if activeCareNeed == .hungry { clearCareNeed() }
         recalculateMood(at: idx)
         save()
         return true
@@ -194,6 +199,7 @@ final class UserData: ObservableObject {
             ownedPets[idx].lastWateredDate = Date()
             addPetXP(idx: idx, amount: PetConfig.shared.xpPerWatering)
         }
+        if activeCareNeed == .thirsty { clearCareNeed() }
         recalculateMood(at: idx)
         save()
         return true
@@ -494,7 +500,52 @@ final class UserData: ObservableObject {
         runHistory = []
         isLoggedIn = false
         pendingRunSummary = nil
+        activeCareNeed = nil
         DataPersistence.shared.clearUserData()
+        UserDefaults.standard.removeObject(forKey: "pendingRunSummary")
+        UserDefaults.standard.removeObject(forKey: "scheduledCareNeedType")
+        UserDefaults.standard.removeObject(forKey: "scheduledCareNeedTime")
+    }
+
+    // MARK: - Pending Run Persistence
+
+    private func persistPendingRun() {
+        if let run = pendingRunSummary,
+           let data = try? JSONEncoder().encode(run) {
+            UserDefaults.standard.set(data, forKey: "pendingRunSummary")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "pendingRunSummary")
+        }
+    }
+
+    func loadPendingRun() {
+        guard let data = UserDefaults.standard.data(forKey: "pendingRunSummary"),
+              let run = try? JSONDecoder().decode(CompletedRun.self, from: data) else { return }
+        pendingRunSummary = run
+    }
+
+    // MARK: - Care Need Tracking
+
+    func scheduleCareNeed(type: CareNeedType, fireDate: Date) {
+        UserDefaults.standard.set(type.rawValue, forKey: "scheduledCareNeedType")
+        UserDefaults.standard.set(fireDate.timeIntervalSince1970, forKey: "scheduledCareNeedTime")
+    }
+
+    func checkAndActivateCareNeed() {
+        guard activeCareNeed == nil,
+              let typeRaw = UserDefaults.standard.string(forKey: "scheduledCareNeedType"),
+              let type = CareNeedType(rawValue: typeRaw) else { return }
+
+        let fireTime = UserDefaults.standard.double(forKey: "scheduledCareNeedTime")
+        guard fireTime > 0, Date().timeIntervalSince1970 >= fireTime else { return }
+
+        activeCareNeed = type
+    }
+
+    func clearCareNeed() {
+        activeCareNeed = nil
+        UserDefaults.standard.removeObject(forKey: "scheduledCareNeedType")
+        UserDefaults.standard.removeObject(forKey: "scheduledCareNeedTime")
     }
 
     // MARK: - Debug

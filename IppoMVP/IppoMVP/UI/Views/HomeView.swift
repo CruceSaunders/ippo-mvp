@@ -151,7 +151,7 @@ struct HomeView: View {
 
                 HStack {
                     Spacer()
-                    MoodIndicator(mood: pet.mood)
+                    MoodIndicator(mood: pet.mood, careNeed: userData.activeCareNeed)
                 }
             }
             .padding(.horizontal, 20)

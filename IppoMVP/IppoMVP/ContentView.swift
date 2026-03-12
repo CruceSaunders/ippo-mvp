@@ -34,6 +34,7 @@ struct ContentView: View {
 
             userData.inventory.cleanExpiredBoosts()
             userData.checkRunaway()
+            userData.checkAndActivateCareNeed()
             NotificationSystem.shared.rescheduleNotifications()
         }
     }
