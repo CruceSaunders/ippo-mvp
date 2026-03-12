@@ -10,6 +10,8 @@ struct ProfileView: View {
     @State private var editUsername: String = ""
     @State private var usernameError: String?
     @State private var isCheckingUsername = false
+    @State private var showEditDisplayName = false
+    @State private var editDisplayName: String = ""
 
     var body: some View {
         NavigationStack {
@@ -28,6 +30,53 @@ struct ProfileView: View {
                         statRow(label: "Total Distance", value: formatDistance(userData.profile.totalDistanceMeters))
                         statRow(label: "Longest Streak", value: "\(userData.profile.longestStreak) days")
                         statRow(label: "Pets Caught", value: "\(userData.activePets.count)")
+                    }
+                    .listRowBackground(AppColors.surface)
+
+                    Section("Display Name") {
+                        if showEditDisplayName {
+                            VStack(alignment: .leading, spacing: 8) {
+                                TextField("Display name", text: $editDisplayName)
+                                    .font(.system(size: 16, design: .rounded))
+                                    .onChange(of: editDisplayName) { _, newValue in
+                                        if editDisplayName.count > 30 { editDisplayName = String(editDisplayName.prefix(30)) }
+                                    }
+
+                                HStack {
+                                    Button("Cancel") {
+                                        showEditDisplayName = false
+                                    }
+                                    .font(.system(size: 14, design: .rounded))
+                                    .foregroundColor(AppColors.textSecondary)
+
+                                    Spacer()
+
+                                    Button("Save") {
+                                        let trimmed = editDisplayName.trimmingCharacters(in: .whitespaces)
+                                        guard !trimmed.isEmpty else { return }
+                                        userData.profile.displayName = trimmed
+                                        userData.save()
+                                        showEditDisplayName = false
+                                    }
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .foregroundColor(AppColors.accent)
+                                    .disabled(editDisplayName.trimmingCharacters(in: .whitespaces).isEmpty)
+                                }
+                            }
+                        } else {
+                            HStack {
+                                Text(userData.profile.displayName)
+                                    .font(.system(size: 15, design: .rounded))
+                                    .foregroundColor(AppColors.textPrimary)
+                                Spacer()
+                                Button("Edit") {
+                                    editDisplayName = userData.profile.displayName
+                                    showEditDisplayName = true
+                                }
+                                .font(.system(size: 14, design: .rounded))
+                                .foregroundColor(AppColors.accent)
+                            }
+                        }
                     }
                     .listRowBackground(AppColors.surface)
 

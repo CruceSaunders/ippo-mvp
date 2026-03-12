@@ -227,10 +227,9 @@ struct IppoCompleteOnboardingFlow: View {
                 signInError = authService.errorMessage ?? "Sign in failed. Please try again."
                 return
             }
-            if let name = authService.displayName, !name.isEmpty {
+            if let name = authService.displayName, !name.isEmpty, displayName.isEmpty {
                 displayName = name
             }
-            userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
             userData.isLoggedIn = true
             await handlePostSignIn()
         }
@@ -248,10 +247,9 @@ struct IppoCompleteOnboardingFlow: View {
                 }
                 return
             }
-            if let name = authService.displayName, !name.isEmpty {
+            if let name = authService.displayName, !name.isEmpty, displayName.isEmpty {
                 displayName = name
             }
-            userData.profile.displayName = displayName.isEmpty ? "Runner" : displayName
             userData.isLoggedIn = true
             await handlePostSignIn()
         }
@@ -282,46 +280,63 @@ struct IppoCompleteOnboardingFlow: View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "at")
-                .font(.system(size: 56, weight: .medium))
+            Image(systemName: "person.text.rectangle")
+                .font(.system(size: 48, weight: .medium))
                 .foregroundColor(AppColors.accent)
 
-            Text("Pick a Username")
+            Text("Set Up Your Profile")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
-            Text("This is how other runners will know you")
-                .font(.system(size: 15, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("@")
-                        .font(.system(size: 18, weight: .medium, design: .rounded))
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Display Name")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundColor(AppColors.textSecondary)
-                    TextField("username", text: $username)
+
+                    TextField("Your name", text: $displayName)
                         .font(.system(size: 18, design: .rounded))
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onChange(of: username) { _, newValue in
-                            username = newValue.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
-                            if username.count > 20 { username = String(username.prefix(20)) }
-                            usernameError = nil
+                        .padding(14)
+                        .background(AppColors.surface)
+                        .cornerRadius(12)
+                        .onChange(of: displayName) { _, newValue in
+                            if displayName.count > 30 { displayName = String(displayName.prefix(30)) }
                         }
                 }
-                .padding(14)
-                .background(AppColors.surface)
-                .cornerRadius(12)
 
-                if let error = usernameError {
-                    Text(error)
-                        .font(.system(size: 13, design: .rounded))
-                        .foregroundColor(AppColors.danger)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Username")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+
+                    HStack {
+                        Text("@")
+                            .font(.system(size: 18, weight: .medium, design: .rounded))
+                            .foregroundColor(AppColors.textSecondary)
+                        TextField("username", text: $username)
+                            .font(.system(size: 18, design: .rounded))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onChange(of: username) { _, newValue in
+                                username = newValue.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+                                if username.count > 20 { username = String(username.prefix(20)) }
+                                usernameError = nil
+                            }
+                    }
+                    .padding(14)
+                    .background(AppColors.surface)
+                    .cornerRadius(12)
+
+                    if let error = usernameError {
+                        Text(error)
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundColor(AppColors.danger)
+                    }
+
+                    Text("Letters, numbers, underscores, and periods only")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundColor(AppColors.textTertiary)
                 }
-
-                Text("Letters, numbers, underscores, and periods only")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundColor(AppColors.textTertiary)
             }
 
             if isCheckingUsername {
@@ -334,8 +349,8 @@ struct IppoCompleteOnboardingFlow: View {
             onboardingButton("Continue") {
                 validateAndSetUsername()
             }
-            .disabled(username.count < 3 || isCheckingUsername)
-            .opacity(username.count < 3 ? 0.5 : 1)
+            .disabled(username.count < 3 || displayName.trimmingCharacters(in: .whitespaces).isEmpty || isCheckingUsername)
+            .opacity(username.count < 3 || displayName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
         }
         .padding(.horizontal, 32)
     }
@@ -346,6 +361,9 @@ struct IppoCompleteOnboardingFlow: View {
             usernameError = "Username must be at least 3 characters"
             return
         }
+
+        let trimmedDisplayName = displayName.trimmingCharacters(in: .whitespaces)
+        guard !trimmedDisplayName.isEmpty else { return }
 
         isCheckingUsername = true
         usernameError = nil
@@ -366,6 +384,7 @@ struct IppoCompleteOnboardingFlow: View {
             }
 
             userData.profile.username = trimmed
+            userData.profile.displayName = trimmedDisplayName
             userData.save()
             isCheckingUsername = false
             step = 3
