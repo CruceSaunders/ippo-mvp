@@ -24,7 +24,24 @@ final class NotificationSystem: ObservableObject {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["daily_care"])
 
-        let needType: CareNeedType = Bool.random() ? .hungry : .thirsty
+        let userData = UserData.shared
+        guard let pet = userData.equippedPet else { return }
+
+        let calendar = Calendar.current
+        let alreadyFedToday = pet.lastFedDate.map { calendar.isDateInToday($0) } ?? false
+        let alreadyWateredToday = pet.lastWateredDate.map { calendar.isDateInToday($0) } ?? false
+
+        if alreadyFedToday && alreadyWateredToday { return }
+
+        let needType: CareNeedType
+        if alreadyFedToday {
+            needType = .thirsty
+        } else if alreadyWateredToday {
+            needType = .hungry
+        } else {
+            needType = Bool.random() ? .hungry : .thirsty
+        }
+
         let content = UNMutableNotificationContent()
         content.sound = .default
 
@@ -40,7 +57,7 @@ final class NotificationSystem: ObservableObject {
             content.body = "Come say hi to \(petName)."
         }
 
-        let hour = Int.random(in: 14...17)  // 2-5pm
+        let hour = Int.random(in: 14...17)
         let minute = Int.random(in: 0...59)
         var dateComponents = DateComponents()
         dateComponents.hour = hour
@@ -51,9 +68,9 @@ final class NotificationSystem: ObservableObject {
 
         center.add(request) { _ in }
 
-        var fireDate = Calendar.current.nextDate(after: Date(), matching: dateComponents, matchingPolicy: .nextTime) ?? Date()
+        var fireDate = calendar.nextDate(after: Date(), matching: dateComponents, matchingPolicy: .nextTime) ?? Date()
         if fireDate < Date() { fireDate = fireDate.addingTimeInterval(86400) }
-        UserData.shared.scheduleCareNeed(type: needType, fireDate: fireDate)
+        userData.scheduleCareNeed(type: needType, fireDate: fireDate)
     }
 
     // MARK: - Trigger Notification Immediately (Debug)

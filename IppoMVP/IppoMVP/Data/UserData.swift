@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UserNotifications
 
 @MainActor
 final class UserData: ObservableObject {
@@ -184,6 +185,7 @@ final class UserData: ObservableObject {
             addPetXP(idx: idx, amount: PetConfig.shared.xpPerFeeding)
         }
         if activeCareNeed == .hungry { clearCareNeed() }
+        cancelCareNotificationIfSatisfied()
         recalculateMood(at: idx)
         save()
         return true
@@ -200,9 +202,20 @@ final class UserData: ObservableObject {
             addPetXP(idx: idx, amount: PetConfig.shared.xpPerWatering)
         }
         if activeCareNeed == .thirsty { clearCareNeed() }
+        cancelCareNotificationIfSatisfied()
         recalculateMood(at: idx)
         save()
         return true
+    }
+
+    private func cancelCareNotificationIfSatisfied() {
+        guard let pet = equippedPet else { return }
+        let calendar = Calendar.current
+        let fedToday = pet.lastFedDate.map { calendar.isDateInToday($0) } ?? false
+        let wateredToday = pet.lastWateredDate.map { calendar.isDateInToday($0) } ?? false
+        if fedToday && wateredToday {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["daily_care"])
+        }
     }
 
     func petPet() -> Bool {
