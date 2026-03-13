@@ -382,20 +382,25 @@ final class UserData: ObservableObject {
         if runHistory.count > 50 { runHistory = Array(runHistory.prefix(50)) }
 
         profile.totalRuns += 1
-        profile.totalSprints += run.sprintsCompleted
-        profile.totalSprintsValid += run.sprintsCompleted
         profile.totalDurationSeconds += run.durationSeconds
         profile.totalDistanceMeters += run.distanceMeters
-        profile.lastRunDate = Date()
 
-        var adjustedCoins = Double(run.coinsEarned)
-        if inventory.activeCoinBoost != nil {
-            adjustedCoins *= (1.0 + EconomyConfig.shared.coinBoostMultiplier)
+        let isValidatedRun = run.sprintsCompleted >= 1
+
+        if isValidatedRun {
+            profile.totalSprints += run.sprintsCompleted
+            profile.totalSprintsValid += run.sprintsCompleted
+            profile.lastRunDate = Date()
+
+            var adjustedCoins = Double(run.coinsEarned)
+            if inventory.activeCoinBoost != nil {
+                adjustedCoins *= (1.0 + EconomyConfig.shared.coinBoostMultiplier)
+            }
+            addCoins(Int(adjustedCoins))
+
+            addXP(run.xpEarned)
+            updateStreak()
         }
-        addCoins(Int(adjustedCoins))
-
-        addXP(run.xpEarned)
-        updateStreak()
 
         inventory.consumePerRunBoosts()
 

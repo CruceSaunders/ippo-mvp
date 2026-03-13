@@ -61,6 +61,8 @@ final class WatchRunManager: NSObject, ObservableObject {
     private var lastEncounterTime: Date?
     private var encounterCheckTimer: Timer?
     private var recoveryEndTime: Date?
+    private var totalPausedDuration: TimeInterval = 0
+    private var pauseStartTime: Date?
     private var sprintStartTime: Date?
     private var targetSprintDuration: TimeInterval = 35
     private var sprintTimer: Timer?
@@ -226,6 +228,8 @@ final class WatchRunManager: NSObject, ObservableObject {
         sprintsSinceLastCatch = 0
         isInRecovery = false
         recoveryRemaining = 0
+        totalPausedDuration = 0
+        pauseStartTime = nil
         encounterCheckTimer?.invalidate()
         
         runState = .running
@@ -254,9 +258,14 @@ final class WatchRunManager: NSObject, ObservableObject {
     func pauseRun() {
         isPaused.toggle()
         if isPaused {
+            pauseStartTime = Date()
             runTimer?.invalidate()
             encounterCheckTimer?.invalidate()
         } else {
+            if let start = pauseStartTime {
+                totalPausedDuration += Date().timeIntervalSince(start)
+                pauseStartTime = nil
+            }
             runTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
                 guard let self else { return }
                 Task { @MainActor [weak self] in
@@ -373,13 +382,13 @@ final class WatchRunManager: NSObject, ObservableObject {
     
     // MARK: - Timer Updates
     private func updateRunTimer() {
-        guard !isPaused else { return }
-        elapsedTime += 1
-        
+        guard !isPaused, let startTime = runStartTime else { return }
+        elapsedTime = Date().timeIntervalSince(startTime) - totalPausedDuration
+
         if currentHR > 0 {
             allHRSamples.append(currentHR)
         }
-        
+
         if isInRecovery, let endTime = recoveryEndTime {
             recoveryRemaining = max(0, endTime.timeIntervalSinceNow)
             if recoveryRemaining <= 0 {
