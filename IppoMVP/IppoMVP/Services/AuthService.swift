@@ -11,11 +11,17 @@ final class AuthService: NSObject, ObservableObject {
     static let shared = AuthService()
     
     static let adminUserIds: Set<String> = ["xcBSbYY6lNToyzsxB7m0Jh6dgkZ2"]
-    static let adminEmails: Set<String> = ["cruce.saunders@alpha.school"]
+    static let adminEmails: Set<String> = ["cruce.saunders@alpha.school", "crucesaunders@icloud.com"]
     
     var isAdmin: Bool {
         if let uid = userId, Self.adminUserIds.contains(uid) { return true }
-        if let email = email, Self.adminEmails.contains(email.lowercased()) { return true }
+        if let email = email {
+            let lower = email.lowercased()
+            if Self.adminEmails.contains(lower) { return true }
+            // Apple relay addresses contain the original Apple ID user identifier
+            if lower.contains("crucesaunders") { return true }
+        }
+        if UserDefaults.standard.bool(forKey: "isAdminUser") { return true }
         return false
     }
     
@@ -117,7 +123,15 @@ final class AuthService: NSObject, ObservableObject {
                 self.userId = user.uid
                 self.displayName = user.displayName
                 self.email = user.email
-                
+
+                // Apple may hide the real email behind a relay address.
+                // The credential email is only available on first sign-in,
+                // so persist admin status when we see it.
+                if let credentialEmail = appleIDCredential.email?.lowercased(),
+                   Self.adminEmails.contains(credentialEmail) {
+                    UserDefaults.standard.set(true, forKey: "isAdminUser")
+                }
+
             } catch {
                 errorMessage = "Sign in failed: \(error.localizedDescription)"
             }
@@ -199,11 +213,10 @@ final class AuthService: NSObject, ObservableObject {
             userId = nil
             displayName = nil
             email = nil
-            
-            // Clear local user data
+
             UserData.shared.logout()
-            
             UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
+            UserDefaults.standard.removeObject(forKey: "isAdminUser")
         } catch {
             errorMessage = "Sign out failed: \(error.localizedDescription)"
         }
@@ -229,8 +242,9 @@ final class AuthService: NSObject, ObservableObject {
             userId = nil
             displayName = nil
             email = nil
-            
+
             UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
+            UserDefaults.standard.removeObject(forKey: "isAdminUser")
         } catch {
             errorMessage = "Delete account failed: \(error.localizedDescription)"
         }
