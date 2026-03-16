@@ -81,6 +81,11 @@ struct AdminDebugView: View {
             labelRow("Level", value: "\(userData.profile.level)")
             labelRow("XP", value: "\(userData.profile.xp)")
             labelRow("Streak", value: "\(userData.profile.currentStreak)")
+            // #region agent log
+            labelRow("Last Run Date", value: userData.profile.lastRunDate?.formatted() ?? "nil")
+            labelRow("Last Interaction", value: userData.profile.lastInteractionDate?.formatted() ?? "nil")
+            labelRow("Longest Streak", value: "\(userData.profile.longestStreak)")
+            // #endregion
             labelRow("Total Runs", value: "\(userData.profile.totalRuns)")
             labelRow("Pets Owned", value: "\(userData.activePets.count)")
             labelRow("Lost Pets", value: "\(userData.lostPets.count)")

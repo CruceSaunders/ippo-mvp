@@ -288,12 +288,6 @@ final class WatchRunManager: NSObject, ObservableObject {
             endWorkoutSession()
         }
         
-        if sprintsCompleted >= 1 {
-            let minutes = Int(elapsedTime / 60)
-            earnedCoins += minutes
-            earnedXP += minutes * 5
-        }
-
         runSummary = WatchRunSummary(
             durationSeconds: Int(elapsedTime),
             distanceMeters: finalDistance,

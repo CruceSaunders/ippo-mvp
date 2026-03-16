@@ -403,16 +403,12 @@ final class UserData: ObservableObject {
         if isValidatedRun {
             profile.totalSprints += run.sprintsCompleted
             profile.totalSprintsValid += run.sprintsCompleted
+
+            updateStreak()
             profile.lastRunDate = Date()
 
-            var adjustedCoins = Double(run.coinsEarned)
-            if inventory.activeCoinBoost != nil {
-                adjustedCoins *= (1.0 + EconomyConfig.shared.coinBoostMultiplier)
-            }
-            addCoins(Int(adjustedCoins))
-
+            addCoins(run.coinsEarned)
             addXP(run.xpEarned)
-            updateStreak()
         }
 
         inventory.consumePerRunBoosts()
@@ -430,37 +426,37 @@ final class UserData: ObservableObject {
             let lastRunDay = calendar.startOfDay(for: lastRun)
             let daysDiff = calendar.dateComponents([.day], from: lastRunDay, to: today).day ?? 0
 
+            // #region agent log
+            print("[DEBUG-4ba955] updateStreak: lastRunDate=\(lastRun), today=\(today), daysDiff=\(daysDiff), currentStreak=\(profile.currentStreak)")
+            // #endregion
+
             if daysDiff <= 1 {
                 if daysDiff == 1 || profile.currentStreak == 0 {
                     profile.currentStreak += 1
+                    // #region agent log
+                    print("[DEBUG-4ba955] updateStreak: incremented streak to \(profile.currentStreak)")
+                    // #endregion
                 }
                 profile.longestStreak = max(profile.longestStreak, profile.currentStreak)
             } else if daysDiff > 1 && !inventory.isHibernating && !inventory.isStreakFrozen {
+                // #region agent log
+                print("[DEBUG-4ba955] updateStreak: reset streak to 1 (daysDiff=\(daysDiff))")
+                // #endregion
                 profile.currentStreak = 1
             }
         } else {
+            // #region agent log
+            print("[DEBUG-4ba955] updateStreak: no lastRunDate, setting streak to 1")
+            // #endregion
             profile.currentStreak = 1
         }
     }
 
     func recordInteraction() {
-        let calendar = Calendar.current
-        let previousInteractionDate = profile.lastInteractionDate
         profile.lastInteractionDate = Date()
-
-        if let lastInteraction = previousInteractionDate {
-            let lastDay = calendar.startOfDay(for: lastInteraction)
-            let today = calendar.startOfDay(for: Date())
-            let daysDiff = calendar.dateComponents([.day], from: lastDay, to: today).day ?? 0
-            if daysDiff == 1 {
-                profile.currentStreak += 1
-                profile.longestStreak = max(profile.longestStreak, profile.currentStreak)
-            } else if daysDiff > 1 && !inventory.isHibernating && !inventory.isStreakFrozen {
-                profile.currentStreak = 1
-            }
-        } else if profile.currentStreak == 0 {
-            profile.currentStreak = 1
-        }
+        // #region agent log
+        print("[DEBUG-4ba955] recordInteraction: set lastInteractionDate, streak unchanged at \(profile.currentStreak)")
+        // #endregion
         save()
     }
 
