@@ -29,6 +29,11 @@ struct HomeView: View {
     @State private var showMilestoneToast = false
     @State private var milestoneToast: MilestoneToast?
 
+    private var environmentTimeOverride: Int? {
+        let val = UserDefaults.standard.integer(forKey: "debugEnvironmentTimeOverride")
+        return val == -1 || !UserDefaults.standard.bool(forKey: "debugEnvironmentTimeEnabled") ? nil : val
+    }
+
     var body: some View {
         NavigationStack {
             GeometryReader { rootGeo in
@@ -234,9 +239,15 @@ struct HomeView: View {
             }
 
             ZStack {
+                PetEnvironmentView(
+                    mood: pet.mood,
+                    isHibernating: userData.inventory.isHibernating,
+                    timeOverride: environmentTimeOverride
+                )
+
                 PetImageView(imageName: pet.currentImageName, isDropTarget: isHoveringPet)
                     .padding(.horizontal, 20)
-                    .offset(y: bounceOffset)
+                    .offset(y: bounceOffset + 16)
 
                 if showHearts {
                     heartsOverlay
@@ -248,6 +259,8 @@ struct HomeView: View {
                 }
             }
             .frame(height: screenSize.height * 0.44)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .padding(.horizontal, 4)
             .background(
                 GeometryReader { geo in
                     Color.clear

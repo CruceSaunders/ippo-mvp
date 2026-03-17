@@ -37,6 +37,7 @@ struct AdminDebugView: View {
             runSimulatorSection
             notificationTestSection
             soundPreviewSection
+            environmentPreviewSection
             onboardingSection
             dangerZoneSection
         }
@@ -569,6 +570,90 @@ struct AdminDebugView: View {
             .foregroundColor(AppColors.accent)
         }
         .listRowBackground(AppColors.surface)
+    }
+
+    // MARK: - Environment Preview
+
+    @State private var envTimeEnabled = UserDefaults.standard.bool(forKey: "debugEnvironmentTimeEnabled")
+    @State private var envTimeHour: Double = Double(UserDefaults.standard.integer(forKey: "debugEnvironmentTimeOverride"))
+
+    private var environmentPreviewSection: some View {
+        Section("Home Environment") {
+            Toggle("Override Time of Day", isOn: $envTimeEnabled)
+                .onChange(of: envTimeEnabled) { _, enabled in
+                    UserDefaults.standard.set(enabled, forKey: "debugEnvironmentTimeEnabled")
+                    if enabled {
+                        UserDefaults.standard.set(Int(envTimeHour), forKey: "debugEnvironmentTimeOverride")
+                    }
+                }
+
+            if envTimeEnabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Hour: \(Int(envTimeHour)):00")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundColor(AppColors.textPrimary)
+                        Spacer()
+                        Text(periodLabel(for: Int(envTimeHour)))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundColor(AppColors.accent)
+                    }
+                    Slider(value: $envTimeHour, in: 0...23, step: 1)
+                        .tint(AppColors.accent)
+                        .onChange(of: envTimeHour) { _, newVal in
+                            UserDefaults.standard.set(Int(newVal), forKey: "debugEnvironmentTimeOverride")
+                        }
+                }
+
+                PetEnvironmentView(
+                    mood: userData.equippedPet?.mood ?? 2,
+                    isHibernating: userData.inventory.isHibernating,
+                    timeOverride: Int(envTimeHour)
+                )
+                .frame(height: 180)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                HStack(spacing: 8) {
+                    ForEach(["Dawn", "Day", "Golden", "Sunset", "Night"], id: \.self) { label in
+                        Button(label) {
+                            let hour: Int
+                            switch label {
+                            case "Dawn": hour = 6
+                            case "Day": hour = 12
+                            case "Golden": hour = 17
+                            case "Sunset": hour = 19
+                            case "Night": hour = 22
+                            default: hour = 12
+                            }
+                            envTimeHour = Double(hour)
+                            UserDefaults.standard.set(hour, forKey: "debugEnvironmentTimeOverride")
+                            showFeedback("\(label) (\(hour):00)")
+                        }
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .buttonStyle(.bordered)
+                    }
+                }
+            }
+
+            Button("Reset to Live Time") {
+                envTimeEnabled = false
+                UserDefaults.standard.set(false, forKey: "debugEnvironmentTimeEnabled")
+                showFeedback("Using live time")
+            }
+            .foregroundColor(AppColors.textSecondary)
+        }
+        .listRowBackground(AppColors.surface)
+    }
+
+    private func periodLabel(for hour: Int) -> String {
+        switch hour {
+        case 5..<7: return "Dawn"
+        case 7..<10: return "Morning"
+        case 10..<16: return "Day"
+        case 16..<18: return "Golden Hour"
+        case 18..<20: return "Sunset"
+        default: return "Night"
+        }
     }
 
     // MARK: - Onboarding
