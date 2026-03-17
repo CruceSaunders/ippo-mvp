@@ -46,6 +46,8 @@ struct IppoMVPApp: App {
                         .environmentObject(authService)
                         .task {
                             await userData.syncFromCloud()
+                            userData.checkWelcomeBackBonus()
+                            userData.claimDailyRewards()
                         }
                 }
             }

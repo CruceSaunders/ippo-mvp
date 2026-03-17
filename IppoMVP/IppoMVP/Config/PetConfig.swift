@@ -14,11 +14,13 @@ struct PetConfig: Sendable {
 
     let petMaxLevel = 30
 
-    /// Levels at which the pet evolves to the next stage.
-    /// Key = new stage number, Value = level that triggers it.
+    /// Default levels at which the pet evolves to the next stage.
+    /// Per-pet overrides in GameData.swift take precedence.
+    /// Baby -> Teen at level 6 (~80 XP, achievable in 1-3 runs + daily care)
+    /// Teen -> Adult at level 18 (~2,160 XP, long-term goal over 2-4 weeks)
     let evolutionLevels: [Int: Int] = [
-        2: 16,  // Baby -> Teen at level 16  (~1,517 XP)
-        3: 25   // Teen -> Adult at level 25 (~5,787 XP)
+        2: 6,
+        3: 18
     ]
 
     /// Cumulative XP to reach a given pet level.

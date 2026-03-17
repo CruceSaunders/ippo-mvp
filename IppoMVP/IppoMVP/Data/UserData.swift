@@ -516,6 +516,7 @@ final class UserData: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "pendingRunSummary")
         UserDefaults.standard.removeObject(forKey: "scheduledCareNeedType")
         UserDefaults.standard.removeObject(forKey: "scheduledCareNeedTime")
+        UserDefaults.standard.removeObject(forKey: "lastDailyRewardDate")
     }
 
     // MARK: - Pending Run Persistence
@@ -533,6 +534,44 @@ final class UserData: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: "pendingRunSummary"),
               let run = try? JSONDecoder().decode(CompletedRun.self, from: data) else { return }
         pendingRunSummary = run
+    }
+
+    // MARK: - Daily Login Rewards
+
+    func claimDailyRewards() {
+        let key = "lastDailyRewardDate"
+        let calendar = Calendar.current
+
+        if let lastClaim = UserDefaults.standard.object(forKey: key) as? Date,
+           calendar.isDateInToday(lastClaim) {
+            return
+        }
+
+        inventory.food += 1
+        inventory.water += 1
+
+        let daysSinceInstall = calendar.dateComponents([.day], from: profile.createdAt, to: Date()).day ?? 0
+        if daysSinceInstall < 7 {
+            profile.coins += 10
+        } else {
+            profile.coins += 5
+        }
+
+        UserDefaults.standard.set(Date(), forKey: key)
+        save()
+    }
+
+    // MARK: - Welcome Back Bonus
+
+    func checkWelcomeBackBonus() {
+        guard let lastInteraction = profile.lastInteractionDate else { return }
+        let daysSinceInteraction = Calendar.current.dateComponents([.day], from: lastInteraction, to: Date()).day ?? 0
+        if daysSinceInteraction >= 3 {
+            inventory.food += 3
+            inventory.water += 3
+            profile.coins += 20
+            save()
+        }
     }
 
     // MARK: - Care Need Tracking

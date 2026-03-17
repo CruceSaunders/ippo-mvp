@@ -6,12 +6,12 @@ struct GamePetDefinition: Identifiable, Codable, Equatable {
     let name: String
     let description: String
     let hintText: String
+    var personality: String = ""
     let stageImageNames: [String]  // 3 image names, one per evolution stage (Baby, Teen, Adult)
     var hasIdleVideos: Bool = false
     var hasHappyVideos: Bool = false
     var isStarter: Bool = false
     /// Per-pet evolution levels. Key = stage number, Value = level required.
-    /// e.g. [2: 16, 3: 25] means Teen at level 16, Adult at level 25.
     /// If empty, falls back to PetConfig.shared.evolutionLevels.
     var evolutionLevels: [Int: Int] = [:]
 

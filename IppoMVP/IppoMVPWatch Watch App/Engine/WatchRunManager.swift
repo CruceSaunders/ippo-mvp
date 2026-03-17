@@ -482,8 +482,25 @@ final class WatchRunManager: NSObject, ObservableObject {
             earnedXP += sprintXP
 
             sprintsSinceLastCatch += 1
+
+            let isFirstRunEver = WatchConnectivityServiceWatch.shared.ownedPetIds.count <= 1 && !didCatchPet
             let baseCatch: Double = WatchConnectivityServiceWatch.shared.hasEncounterCharm ? 0.11 : 0.08
-            let catchRate: Double = sprintsSinceLastCatch >= 15 ? 1.0 : baseCatch
+            let catchRate: Double
+            if isFirstRunEver {
+                catchRate = 1.0
+            } else if sprintsSinceLastCatch >= 15 {
+                catchRate = 1.0
+            } else if sprintsSinceLastCatch >= 13 {
+                catchRate = 0.40
+            } else if sprintsSinceLastCatch >= 12 {
+                catchRate = 0.26
+            } else if sprintsSinceLastCatch >= 11 {
+                catchRate = 0.18
+            } else if sprintsSinceLastCatch >= 10 {
+                catchRate = 0.12
+            } else {
+                catchRate = baseCatch
+            }
             let roll = Double.random(in: 0...1)
             if roll < catchRate {
                 let caughtId = selectRandomUnownedPet()
