@@ -26,6 +26,8 @@ struct HomeView: View {
     @State private var sleepAnimationCycle = 0
 
     @AppStorage("hasSeenCareHint") private var hasSeenCareHint = false
+    @State private var showMilestoneToast = false
+    @State private var milestoneToast: MilestoneToast?
 
     var body: some View {
         NavigationStack {
@@ -48,6 +50,12 @@ struct HomeView: View {
                                     .padding(.top, 10)
                             } else {
                                 noPetView
+                            }
+
+                            if userData.profile.totalRuns == 0 {
+                                firstRunCTA
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 14)
                             }
 
                             statsBar
@@ -137,6 +145,62 @@ struct HomeView: View {
                     showEvolution = true
                 }
             }
+            .onChange(of: userData.pendingMilestoneToast) { _, toast in
+                if let toast {
+                    milestoneToast = toast
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        showMilestoneToast = true
+                    }
+                    userData.pendingMilestoneToast = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            showMilestoneToast = false
+                        }
+                    }
+                }
+            }
+            .overlay(alignment: .top) {
+                if showMilestoneToast, let toast = milestoneToast {
+                    milestoneToastView(toast)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 8)
+                }
+            }
+        }
+    }
+
+    // MARK: - Milestone Toast
+
+    private func milestoneToastView(_ toast: MilestoneToast) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: toast.icon)
+                .font(.system(size: 20))
+                .foregroundColor(colorForToast(toast.color))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(toast.title)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Text(toast.subtitle)
+                    .font(.system(size: 13, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .cornerRadius(14)
+        .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
+        .padding(.horizontal, 20)
+    }
+
+    private func colorForToast(_ name: String) -> Color {
+        switch name {
+        case "accent": return AppColors.accent
+        case "success": return AppColors.success
+        case "xp": return AppColors.xp
+        case "coins": return AppColors.coins
+        default: return AppColors.accent
         }
     }
 
@@ -637,6 +701,29 @@ struct HomeView: View {
                 .font(.system(size: 14, design: .rounded))
                 .foregroundColor(AppColors.textTertiary)
         }
+    }
+
+    // MARK: - First Run CTA
+
+    private var firstRunCTA: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "applewatch")
+                    .font(.system(size: 22))
+                    .foregroundColor(AppColors.accent)
+                Text("Ready for your first run?")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Spacer()
+            }
+            Text("Open the Ippo app on your Apple Watch and tap Start Run. Sprint when you feel a vibration to catch new pets!")
+                .font(.system(size: 14, design: .rounded))
+                .foregroundColor(AppColors.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .background(AppColors.accentSoft.opacity(0.4))
+        .cornerRadius(16)
     }
 
     // MARK: - Hearts Overlay

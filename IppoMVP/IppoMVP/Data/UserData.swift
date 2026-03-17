@@ -18,6 +18,7 @@ final class UserData: ObservableObject {
     @Published var starterPetId: String?
     @Published var pendingEvolution: PendingEvolution?
     @Published var activeCareNeed: CareNeedType?
+    @Published var pendingMilestoneToast: MilestoneToast?
 
     /// Timestamp of the most recent local mutation (run completion, purchase, etc.).
     /// Cloud sync will skip overwriting local state if it started before this timestamp.
@@ -188,6 +189,12 @@ final class UserData: ObservableObject {
         if activeCareNeed == .hungry { clearCareNeed() }
         cancelCareNotificationIfSatisfied()
         recalculateMood(at: idx)
+
+        if !UserDefaults.standard.bool(forKey: "ippo.hasEverFed") {
+            UserDefaults.standard.set(true, forKey: "ippo.hasEverFed")
+            pendingMilestoneToast = .firstFeed
+        }
+
         save()
         return true
     }
@@ -426,6 +433,15 @@ final class UserData: ObservableObject {
 
         inventory.consumePerRunBoosts()
 
+        for milestone in [1, 5, 10, 25, 50, 100] where profile.totalRuns == milestone {
+            pendingMilestoneToast = .runMilestone(milestone)
+            break
+        }
+
+        if run.petCaughtId != nil && ownedPets.count == 2 {
+            pendingMilestoneToast = .firstCatch
+        }
+
         save()
     }
 
@@ -434,6 +450,7 @@ final class UserData: ObservableObject {
         profile.lastInteractionDate = Date()
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
+        let oldStreak = profile.currentStreak
 
         if let lastRun = profile.lastRunDate {
             let lastRunDay = calendar.startOfDay(for: lastRun)
@@ -449,6 +466,15 @@ final class UserData: ObservableObject {
             }
         } else {
             profile.currentStreak = 1
+        }
+
+        let newStreak = profile.currentStreak
+        if newStreak != oldStreak {
+            for milestone in [3, 7, 14, 30, 50, 100] where newStreak == milestone {
+                SoundManager.shared.play(.streakMilestone)
+                pendingMilestoneToast = .streakMilestone(milestone)
+                break
+            }
         }
     }
 
@@ -644,6 +670,31 @@ final class UserData: ObservableObject {
         save()
     }
     #endif
+}
+
+// MARK: - Milestone Toast
+struct MilestoneToast: Equatable {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let color: String
+
+    static func streakMilestone(_ days: Int) -> MilestoneToast {
+        switch days {
+        case 3: return MilestoneToast(icon: "flame.fill", title: "3-Day Streak!", subtitle: "You're building a habit!", color: "accent")
+        case 7: return MilestoneToast(icon: "flame.fill", title: "1-Week Streak!", subtitle: "Your pet is getting attached to you!", color: "accent")
+        case 14: return MilestoneToast(icon: "flame.fill", title: "2-Week Streak!", subtitle: "Incredible dedication!", color: "accent")
+        case 30: return MilestoneToast(icon: "flame.fill", title: "30-Day Streak!", subtitle: "You're unstoppable!", color: "accent")
+        default: return MilestoneToast(icon: "flame.fill", title: "\(days)-Day Streak!", subtitle: "Keep it going!", color: "accent")
+        }
+    }
+
+    static func runMilestone(_ runs: Int) -> MilestoneToast {
+        MilestoneToast(icon: "figure.run", title: "\(runs) Runs!", subtitle: "Every step counts!", color: "xp")
+    }
+
+    static let firstFeed = MilestoneToast(icon: "fork.knife", title: "First Feeding!", subtitle: "Your pet loved that!", color: "success")
+    static let firstCatch = MilestoneToast(icon: "sparkles", title: "First Catch!", subtitle: "Your collection is growing!", color: "accent")
 }
 
 // MARK: - Pending Evolution

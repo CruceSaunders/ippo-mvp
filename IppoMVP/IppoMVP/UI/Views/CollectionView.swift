@@ -45,18 +45,62 @@ struct CollectionView: View {
 
     // MARK: - Header
     private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
                 Text("My Pets")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundColor(AppColors.textPrimary)
+                Spacer()
                 Text("\(userData.activePets.count)/\(GameData.petDefinitions.count)")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.accent)
             }
-            Spacer()
+            collectionProgressBar
         }
         .padding(.top, 8)
+    }
+
+    private var collectionProgressBar: some View {
+        let total = GameData.petDefinitions.count
+        let owned = userData.ownedPetDefinitionIds.count
+        let progress = total > 0 ? CGFloat(owned) / CGFloat(total) : 0
+
+        return VStack(spacing: 4) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(AppColors.surface)
+                        .frame(height: 8)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [AppColors.accent, AppColors.accentSoft],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geo.size.width * progress, height: 8)
+                        .animation(.easeInOut(duration: 0.5), value: progress)
+                }
+            }
+            .frame(height: 8)
+
+            HStack {
+                Text("\(owned) discovered")
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                Spacer()
+                if owned < total {
+                    Text("\(total - owned) remaining")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundColor(AppColors.textTertiary)
+                } else {
+                    Text("Collection complete!")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.success)
+                }
+            }
+        }
     }
 
     // MARK: - Owned Pets
