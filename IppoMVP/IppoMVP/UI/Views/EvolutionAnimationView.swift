@@ -300,6 +300,7 @@ struct EvolutionAnimationView: View {
     private func enterReveal() {
         phase = .reveal
         showConfetti = true
+        SoundManager.shared.play(.evolution)
 
         withAnimation(.easeOut(duration: 0.3)) {
             whiteFlash = 0

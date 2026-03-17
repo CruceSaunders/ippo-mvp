@@ -211,6 +211,7 @@ struct HomeView: View {
                             lastStrokeLocation = nil
                             let hadXP = userData.equippedPet?.canEarnPetXP ?? false
                             if userData.petPet() {
+                                SoundManager.shared.play(.petPet)
                                 triggerPetBounce()
                                 triggerHeartsOnly()
                             }
@@ -251,6 +252,7 @@ struct HomeView: View {
             ) {
                 let hadXP = pet.canEarnFeedXP
                 if userData.feedPet() {
+                    SoundManager.shared.play(.feedPet)
                     triggerPetBounce()
                     triggerHeartsOnly()
                     showFloatingXP(hadXP ? "+\(PetConfig.shared.xpPerFeeding) XP" : "Fed!")
@@ -268,6 +270,7 @@ struct HomeView: View {
             ) {
                 let hadXP = pet.canEarnWaterXP
                 if userData.waterPet() {
+                    SoundManager.shared.play(.waterPet)
                     triggerPetBounce()
                     triggerHeartsOnly()
                     showFloatingXP(hadXP ? "+\(PetConfig.shared.xpPerWatering) XP" : "Watered!")

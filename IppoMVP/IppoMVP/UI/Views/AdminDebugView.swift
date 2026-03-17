@@ -36,6 +36,7 @@ struct AdminDebugView: View {
             boostsSection
             runSimulatorSection
             notificationTestSection
+            soundPreviewSection
             onboardingSection
             dangerZoneSection
         }
@@ -517,6 +518,55 @@ struct AdminDebugView: View {
                 showFeedback("Care need cleared")
             }
             .foregroundColor(AppColors.textSecondary)
+        }
+        .listRowBackground(AppColors.surface)
+    }
+
+    // MARK: - Sound Preview
+
+    private var soundPreviewSection: some View {
+        Section("Sound Effects Preview") {
+            Toggle("Sound Enabled", isOn: Binding(
+                get: { SoundManager.shared.isSoundEnabled },
+                set: { SoundManager.shared.isSoundEnabled = $0 }
+            ))
+
+            ForEach(SoundEffect.allCases) { effect in
+                Button {
+                    SoundManager.shared.play(effect)
+                    showFeedback("\(effect.displayName)")
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: effect.icon)
+                            .foregroundColor(AppColors.accent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(effect.displayName)
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary)
+                            Text(effect.description)
+                                .font(.system(size: 12, design: .rounded))
+                                .foregroundColor(AppColors.textSecondary)
+                                .lineLimit(2)
+                        }
+                        Spacer()
+                        Image(systemName: "speaker.wave.2.fill")
+                            .foregroundColor(AppColors.textTertiary)
+                            .font(.system(size: 14))
+                    }
+                }
+            }
+
+            Button("Play All (1s apart)") {
+                Task {
+                    for effect in SoundEffect.allCases {
+                        SoundManager.shared.play(effect)
+                        showFeedback("Playing: \(effect.displayName)")
+                        try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    }
+                }
+            }
+            .foregroundColor(AppColors.accent)
         }
         .listRowBackground(AppColors.surface)
     }

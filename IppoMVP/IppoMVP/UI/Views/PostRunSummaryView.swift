@@ -55,6 +55,7 @@ struct PostRunSummaryView: View {
         .onAppear {
             if caughtPetDef != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    SoundManager.shared.play(.petCatch)
                     withAnimation(.easeInOut(duration: 0.8)) {
                         showReveal = true
                     }

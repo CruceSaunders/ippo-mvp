@@ -117,6 +117,7 @@ struct ShopView: View {
 
     private func buy(_ item: ShopItem) {
         if userData.buyItem(item.type) {
+            SoundManager.shared.play(.shopPurchase)
             purchaseMessage = "Bought \(item.name)!"
             showPurchaseMessage = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
