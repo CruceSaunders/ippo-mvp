@@ -401,6 +401,7 @@ private struct DeleteAccountSheet: View {
         Task {
             do {
                 try await authService.deleteAccount()
+                dismiss()
             } catch {
                 let nsError = error as NSError
                 if nsError.domain == ASAuthorizationError.errorDomain,

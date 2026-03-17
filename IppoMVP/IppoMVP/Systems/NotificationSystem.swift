@@ -178,7 +178,9 @@ final class NotificationSystem: ObservableObject {
         default: return
         }
 
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+        let secondsUntilWarning = TimeInterval(daysUntilRunaway * 86400)
+        guard secondsUntilWarning > 0 else { return }
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: secondsUntilWarning, repeats: false)
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         center.add(request) { _ in }
     }
@@ -207,6 +209,19 @@ final class NotificationSystem: ObservableObject {
             let daysSinceRun = Calendar.current.dateComponents([.day], from: lastRun, to: Date()).day ?? 0
             if daysSinceRun >= 2 {
                 scheduleRunReminder(petName: def.name)
+            }
+        }
+
+        if !userData.inventory.isHibernating {
+            let sadDays = pet.consecutiveSadDays
+            let runawayThreshold = PetConfig.shared.runawayDaysSad
+            let daysRemaining = runawayThreshold - sadDays
+
+            if daysRemaining <= 7 && daysRemaining > 0 {
+                for milestone in [7, 4, 2] where daysRemaining >= milestone {
+                    scheduleRunawayWarning(petName: def.name, daysUntilRunaway: milestone)
+                    break
+                }
             }
         }
     }

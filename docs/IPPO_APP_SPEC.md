@@ -6,7 +6,7 @@
 
 **Target audience:** Ages 16-30, leaning female. Runners who want a fun, gamified reason to keep running.
 
-**Core value prop:** Run with your Apple Watch, catch cute fantasy pets during sprints, care for them daily, and watch them evolve through 10 stages. Neglect them and they run away.
+**Core value prop:** Run with your Apple Watch, catch cute fantasy pets during sprints, care for them daily, and watch them evolve through 3 stages (Baby, Teen, Adult). Neglect them and they run away.
 
 **Platforms:** iOS 17+ (iPhone), watchOS 10+ (Apple Watch)
 
@@ -381,7 +381,6 @@ Phone: Post-Run Summary -> Pet Reveal (if caught) -> Back to Home
 
 | Source | Amount | Notes |
 |---|---|---|
-| Running | 1 coin/minute | Base income |
 | Sprint | 8-12 coins | Random per successful sprint |
 | Pet catch | 25 coins | Bonus for catching new pet |
 
@@ -418,7 +417,6 @@ Typical 15-min run: ~15 + ~30-36 = ~50 coins
 
 | Source | XP | Frequency |
 |---|---|---|
-| Running | 5 XP/min | During runs |
 | Sprint | 15-25 XP | Per successful sprint |
 | Feeding | 5 XP | Once/day |
 | Watering | 5 XP | Once/day |

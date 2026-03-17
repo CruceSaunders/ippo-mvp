@@ -4,7 +4,6 @@ struct EconomyConfig: Sendable {
     static let shared = EconomyConfig()
 
     // MARK: - Coin Income
-    let coinsPerMinuteRunning: Int = 1
     let coinsPerSprint: ClosedRange<Int> = 8...12
     let coinsForCatchingPet: Int = 25
 

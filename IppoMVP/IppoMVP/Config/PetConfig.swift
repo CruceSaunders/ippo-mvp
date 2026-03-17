@@ -62,7 +62,6 @@ struct PetConfig: Sendable {
     }
 
     // MARK: - XP Sources
-    let xpPerMinuteRunning: Int = 5
     let xpPerSprint: ClosedRange<Int> = 15...25
     let xpPerFeeding: Int = 5
     let xpPerWatering: Int = 5

@@ -123,10 +123,7 @@ struct LoginView: View {
                     .padding(.bottom, AppSpacing.xxxl)
             }
         }
-        .onChange(of: authService.isAuthenticated) { _, isAuth in
-            if isAuth {
-                Task { await userData.syncFromCloud() }
-            }
+        .onChange(of: authService.isAuthenticated) { _, _ in
         }
     }
 }

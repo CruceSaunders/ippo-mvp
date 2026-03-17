@@ -105,6 +105,7 @@ final class UserData: ObservableObject {
         }
         profile.equippedPetId = petId
         save()
+        WatchConnectivityService.shared.pushProfileToWatch()
     }
 
     // MARK: - Coins
@@ -288,11 +289,23 @@ final class UserData: ObservableObject {
             score += 1
         }
 
+        if let lastWatered = pet.lastWateredDate, calendar.isDateInToday(lastWatered) {
+            score += 1
+        }
+
         if let lastPetted = pet.lastPettedDate, calendar.isDateInToday(lastPetted) {
             score += 1
         }
 
-        ownedPets[idx].mood = max(1, min(3, score))
+        let mood: Int
+        if score >= 3 {
+            mood = 3
+        } else if score >= 2 {
+            mood = 2
+        } else {
+            mood = 1
+        }
+        ownedPets[idx].mood = mood
     }
 
     // MARK: - Pet Runaway

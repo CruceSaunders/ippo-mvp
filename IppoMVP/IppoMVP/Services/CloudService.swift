@@ -140,16 +140,8 @@ final class CloudService {
             } else {
                 isTaken = false
             }
-            // #region agent log
-            let logLine = "{\"location\":\"CloudService.swift:isUsernameTaken\",\"message\":\"username check\",\"data\":{\"normalized\":\"\(normalized)\",\"docExists\":\(exists),\"ownerUid\":\"\(ownerUid ?? "nil")\",\"myUid\":\"\(myUid ?? "nil")\",\"isTaken\":\(isTaken)},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"hypothesisId\":\"H5-H7\"}\n"
-            if let d = logLine.data(using: .utf8), let fh = FileHandle(forWritingAtPath: "/Users/crucegauntlet/Desktop/Ippo MVP/.cursor/debug.log") { fh.seekToEndOfFile(); fh.write(d); fh.closeFile() } else { FileManager.default.createFile(atPath: "/Users/crucegauntlet/Desktop/Ippo MVP/.cursor/debug.log", contents: logLine.data(using: .utf8)) }
-            // #endregion
             return isTaken
         } catch {
-            // #region agent log
-            let logLine = "{\"location\":\"CloudService.swift:isUsernameTaken:catch\",\"message\":\"error checking username\",\"data\":{\"normalized\":\"\(normalized)\",\"error\":\"\(error.localizedDescription)\"},\"timestamp\":\(Int(Date().timeIntervalSince1970 * 1000)),\"hypothesisId\":\"H8\"}\n"
-            if let d = logLine.data(using: .utf8), let fh = FileHandle(forWritingAtPath: "/Users/crucegauntlet/Desktop/Ippo MVP/.cursor/debug.log") { fh.seekToEndOfFile(); fh.write(d); fh.closeFile() } else { FileManager.default.createFile(atPath: "/Users/crucegauntlet/Desktop/Ippo MVP/.cursor/debug.log", contents: logLine.data(using: .utf8)) }
-            // #endregion
             print("CloudService: Failed to check username - \(error)")
             return true
         }
