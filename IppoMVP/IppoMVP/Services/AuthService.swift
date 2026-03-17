@@ -34,6 +34,9 @@ final class AuthService: NSObject, ObservableObject {
     
     private var currentNonce: String?
     private var authStateListener: AuthStateDidChangeListenerHandle?
+    private var reauthContinuation: CheckedContinuation<ASAuthorization, Error>?
+    private var reauthNonce: String?
+    private var reauthController: ASAuthorizationController?
     
     override init() {
         super.init()
@@ -223,31 +226,111 @@ final class AuthService: NSObject, ObservableObject {
     }
     
     // MARK: - Delete Account
-    func deleteAccount() async {
-        guard let user = Auth.auth().currentUser else { return }
-        
-        do {
-            // Clear cloud data
-            if let uid = userId {
-                await CloudService.shared.deleteUserData(uid: uid)
-            }
-            
-            // Delete Firebase auth account
-            try await user.delete()
-            
-            // Clear local data
-            UserData.shared.logout()
-            
-            isAuthenticated = false
-            userId = nil
-            displayName = nil
-            email = nil
-
-            UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
-            UserDefaults.standard.removeObject(forKey: "isAdminUser")
-        } catch {
-            errorMessage = "Delete account failed: \(error.localizedDescription)"
+    func deleteAccount() async throws {
+        guard let user = Auth.auth().currentUser else {
+            throw NSError(domain: "AuthService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "No signed-in user found."])
         }
+        let uid = user.uid
+
+        do {
+            try await user.delete()
+        } catch {
+            guard (error as NSError).code == AuthErrorCode.requiresRecentLogin.rawValue else {
+                throw error
+            }
+            try await reauthenticate(user: user)
+            try await user.delete()
+        }
+
+        await CloudService.shared.deleteUserData(uid: uid)
+
+        UserData.shared.logout()
+        isAuthenticated = false
+        userId = nil
+        displayName = nil
+        email = nil
+        UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
+        UserDefaults.standard.removeObject(forKey: "isAdminUser")
+    }
+
+    // MARK: - Re-authentication
+
+    private func reauthenticate(user: User) async throws {
+        let providerIds = user.providerData.map { $0.providerID }
+
+        if providerIds.contains("apple.com") {
+            try await reauthenticateWithApple(user: user)
+        } else if providerIds.contains("google.com") {
+            try await reauthenticateWithGoogle(user: user)
+        } else {
+            throw NSError(domain: "AuthService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Unable to verify identity for this sign-in method."])
+        }
+    }
+
+    private func reauthenticateWithApple(user: User) async throws {
+        let nonce = randomNonceString()
+        reauthNonce = nonce
+        let hashedNonce = sha256(nonce)
+
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = hashedNonce
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        reauthController = controller
+
+        let authorization: ASAuthorization = try await withCheckedThrowingContinuation { continuation in
+            self.reauthContinuation = continuation
+            controller.performRequests()
+        }
+
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let idToken = String(data: tokenData, encoding: .utf8),
+              let nonce = reauthNonce else {
+            throw NSError(domain: "AuthService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Failed to get Apple credentials for verification."])
+        }
+
+        let oauthCredential = OAuthProvider.appleCredential(
+            withIDToken: idToken,
+            rawNonce: nonce,
+            fullName: credential.fullName
+        )
+        try await user.reauthenticate(with: oauthCredential)
+        reauthNonce = nil
+    }
+
+    private func reauthenticateWithGoogle(user: User) async throws {
+        guard let clientID = FirebaseApp.app()?.options.clientID else {
+            throw NSError(domain: "AuthService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Missing Firebase client ID."])
+        }
+
+        let config = GIDConfiguration(clientID: clientID)
+        GIDSignIn.sharedInstance.configuration = config
+
+        guard let windowScene = await UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = await windowScene.windows.first?.rootViewController else {
+            throw NSError(domain: "AuthService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Cannot present Google Sign-In."])
+        }
+
+        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+        guard let idToken = result.user.idToken?.tokenString else {
+            throw NSError(domain: "AuthService", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Missing Google ID token for verification."])
+        }
+
+        let credential = GoogleAuthProvider.credential(
+            withIDToken: idToken,
+            accessToken: result.user.accessToken.tokenString
+        )
+        try await user.reauthenticate(with: credential)
     }
     
     // MARK: - Crypto Helpers
@@ -266,5 +349,38 @@ final class AuthService: NSObject, ObservableObject {
         let inputData = Data(input.utf8)
         let hashedData = SHA256.hash(data: inputData)
         return hashedData.compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
+
+// MARK: - ASAuthorizationControllerDelegate (for re-authentication)
+extension AuthService: ASAuthorizationControllerDelegate {
+    nonisolated func authorizationController(controller: ASAuthorizationController,
+                                             didCompleteWithAuthorization authorization: ASAuthorization) {
+        Task { @MainActor in
+            self.reauthContinuation?.resume(returning: authorization)
+            self.reauthContinuation = nil
+            self.reauthController = nil
+        }
+    }
+
+    nonisolated func authorizationController(controller: ASAuthorizationController,
+                                             didCompleteWithError error: Error) {
+        Task { @MainActor in
+            self.reauthContinuation?.resume(throwing: error)
+            self.reauthContinuation = nil
+            self.reauthController = nil
+        }
+    }
+}
+
+// MARK: - ASAuthorizationControllerPresentationContextProviding
+extension AuthService: ASAuthorizationControllerPresentationContextProviding {
+    nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+        }
     }
 }

@@ -1,10 +1,11 @@
 import SwiftUI
+import AuthenticationServices
 
 struct ProfileView: View {
     @EnvironmentObject var userData: UserData
     @EnvironmentObject var authService: AuthService
     @Environment(\.dismiss) private var dismiss
-    @State private var showDeleteConfirm = false
+    @State private var showDeleteSheet = false
     @State private var showLogoutConfirm = false
     @State private var showEditUsername = false
     @State private var editUsername: String = ""
@@ -156,7 +157,7 @@ struct ProfileView: View {
                         }
 
                         Button {
-                            showDeleteConfirm = true
+                            showDeleteSheet = true
                         } label: {
                             HStack {
                                 Image(systemName: "trash")
@@ -205,15 +206,10 @@ struct ProfileView: View {
                     authService.signOut()
                 }
             }
-            .alert("Delete Account?", isPresented: $showDeleteConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) {
-                    Task {
-                        await authService.deleteAccount()
-                    }
-                }
-            } message: {
-                Text("This cannot be undone. All your pets and progress will be lost.")
+            .sheet(isPresented: $showDeleteSheet) {
+                DeleteAccountSheet()
+                    .environmentObject(userData)
+                    .environmentObject(authService)
             }
         }
     }
@@ -290,5 +286,131 @@ struct ProfileView: View {
     private func formatDistance(_ meters: Double) -> String {
         let miles = meters / 1609.34
         return String(format: "%.1f mi", miles)
+    }
+}
+
+// MARK: - Delete Account Confirmation Sheet
+private struct DeleteAccountSheet: View {
+    @EnvironmentObject var userData: UserData
+    @EnvironmentObject var authService: AuthService
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmText = ""
+    @State private var isDeleting = false
+    @State private var errorMessage: String?
+
+    private var confirmTarget: String {
+        let username = userData.profile.username
+        return username.isEmpty ? userData.profile.displayName : username
+    }
+
+    private var isConfirmed: Bool {
+        confirmText == confirmTarget
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppColors.background.ignoresSafeArea()
+
+                VStack(spacing: 24) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(AppColors.danger)
+                        .padding(.top, 24)
+
+                    VStack(spacing: 8) {
+                        Text("Delete Your Account?")
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundColor(AppColors.textPrimary)
+
+                        Text("This will permanently delete your account, all your pets, progress, and data. This action cannot be undone.")
+                            .font(.system(size: 15, design: .rounded))
+                            .foregroundColor(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Type **\(confirmTarget)** to confirm")
+                            .font(.system(size: 14, design: .rounded))
+                            .foregroundColor(AppColors.textSecondary)
+
+                        TextField("", text: $confirmText)
+                            .font(.system(size: 16, design: .rounded))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(12)
+                            .background(AppColors.surface)
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(isConfirmed ? AppColors.danger : AppColors.surfaceElevated, lineWidth: 1)
+                            )
+                    }
+                    .padding(.horizontal, 24)
+
+                    if let error = errorMessage {
+                        Text(error)
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundColor(AppColors.danger)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        performDeletion()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isDeleting {
+                                ProgressView()
+                                    .tint(.white)
+                            }
+                            Text("Permanently Delete Account")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(isConfirmed && !isDeleting ? AppColors.danger : AppColors.danger.opacity(0.3))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(!isConfirmed || isDeleting)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 16)
+                }
+            }
+            .navigationTitle("Delete Account")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(AppColors.accent)
+                        .disabled(isDeleting)
+                }
+            }
+            .interactiveDismissDisabled(isDeleting)
+        }
+    }
+
+    private func performDeletion() {
+        isDeleting = true
+        errorMessage = nil
+
+        Task {
+            do {
+                try await authService.deleteAccount()
+            } catch {
+                let nsError = error as NSError
+                if nsError.domain == ASAuthorizationError.errorDomain,
+                   nsError.code == ASAuthorizationError.canceled.rawValue {
+                    errorMessage = "Identity verification was cancelled. Please try again."
+                } else {
+                    errorMessage = error.localizedDescription
+                }
+                isDeleting = false
+            }
+        }
     }
 }
