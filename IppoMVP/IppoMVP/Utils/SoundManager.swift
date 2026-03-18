@@ -11,7 +11,7 @@ final class SoundManager: ObservableObject {
         didSet { UserDefaults.standard.set(isSoundEnabled, forKey: "ippo.soundEnabled") }
     }
 
-    private var players: [SoundEffect: AVAudioPlayer] = [:]
+    private var activePlayers: [AVAudioPlayer] = []
 
     private init() {
         self.isSoundEnabled = UserDefaults.standard.object(forKey: "ippo.soundEnabled") as? Bool ?? true
@@ -19,20 +19,40 @@ final class SoundManager: ObservableObject {
     }
 
     private func configureAudioSession() {
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, options: .mixWithOthers)
-        try? AVAudioSession.sharedInstance().setActive(true)
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.ambient, options: .mixWithOthers)
+            try session.setActive(true)
+        } catch {
+            print("SoundManager: Audio session setup failed: \(error)")
+        }
     }
 
     func play(_ effect: SoundEffect) {
         guard isSoundEnabled else { return }
-        AudioServicesPlaySystemSound(effect.systemSoundID)
-    }
 
-    func playWithHaptic(_ effect: SoundEffect) {
-        guard isSoundEnabled else { return }
-        AudioServicesPlaySystemSoundWithCompletion(effect.systemSoundID, nil)
+        Task.detached { [weak self] in
+            let data = effect.generateAudio()
+            guard let data else { return }
+
+            do {
+                let player = try AVAudioPlayer(data: data)
+                player.volume = effect.volume
+                player.prepareToPlay()
+                player.play()
+
+                await MainActor.run {
+                    self?.activePlayers.append(player)
+                    self?.activePlayers.removeAll { !$0.isPlaying }
+                }
+            } catch {
+                print("SoundManager: Failed to play \(effect.displayName): \(error)")
+            }
+        }
     }
 }
+
+// MARK: - Sound Effect Definitions
 
 enum SoundEffect: String, CaseIterable, Identifiable {
     case petCatch
@@ -95,43 +115,133 @@ enum SoundEffect: String, CaseIterable, Identifiable {
 
     var description: String {
         switch self {
-        case .petCatch: return "Celebratory reveal when a new pet is caught during a run"
-        case .evolution: return "Fanfare when pet evolves to a new stage"
-        case .feedPet: return "Soft crunch when feeding the pet"
-        case .waterPet: return "Gentle splash when watering the pet"
-        case .petPet: return "Warm purr when petting/rubbing the pet"
+        case .petCatch: return "Celebratory chime when a new pet is caught"
+        case .evolution: return "Rising fanfare when pet evolves"
+        case .feedPet: return "Soft pop when feeding"
+        case .waterPet: return "Gentle bubble when watering"
+        case .petPet: return "Warm tone when petting"
         case .coinEarned: return "Light clink when coins are awarded"
         case .xpGained: return "Brief ding when XP is gained"
-        case .levelUp: return "Achievement tone when pet levels up"
-        case .shopPurchase: return "Confirmation chime after buying an item"
-        case .sprintStart: return "Alert tone when sprint encounter begins on Watch"
-        case .sprintSuccess: return "Positive chime when sprint is validated"
-        case .sprintFail: return "Gentle negative tone when sprint fails validation"
-        case .streakMilestone: return "Celebration when reaching a streak milestone"
-        case .appOpen: return "Warm welcome tone when opening the app"
-        case .error: return "Gentle warning for errors like insufficient coins"
+        case .levelUp: return "Achievement chime when pet levels up"
+        case .shopPurchase: return "Confirmation tone after buying"
+        case .sprintStart: return "Alert tone when sprint begins"
+        case .sprintSuccess: return "Positive chime when sprint passes"
+        case .sprintFail: return "Gentle low tone when sprint fails"
+        case .streakMilestone: return "Celebration chime for streak milestones"
+        case .appOpen: return "Warm welcome tone on app open"
+        case .error: return "Gentle warning tone"
         }
     }
 
-    /// System sound IDs used as labeled placeholders.
-    /// Replace with custom bundled audio files for production.
-    var systemSoundID: SystemSoundID {
+    var volume: Float {
         switch self {
-        case .petCatch: return 1025
-        case .evolution: return 1104
-        case .feedPet: return 1057
-        case .waterPet: return 1104
-        case .petPet: return 1105
-        case .coinEarned: return 1057
-        case .xpGained: return 1003
-        case .levelUp: return 1025
-        case .shopPurchase: return 1105
-        case .sprintStart: return 1110
-        case .sprintSuccess: return 1105
-        case .sprintFail: return 1107
-        case .streakMilestone: return 1025
-        case .appOpen: return 1003
-        case .error: return 1107
+        case .petCatch, .evolution, .streakMilestone, .levelUp: return 0.7
+        case .sprintStart: return 0.6
+        case .appOpen: return 0.3
+        case .error, .sprintFail: return 0.4
+        default: return 0.5
         }
+    }
+
+    /// Each effect is a sequence of (frequency Hz, duration seconds).
+    /// Synthesized as sine wave tones -- warm and simple.
+    var toneSequence: [(frequency: Double, duration: Double)] {
+        switch self {
+        case .petCatch:
+            return [(523.25, 0.1), (659.25, 0.1), (783.99, 0.1), (1046.50, 0.25)]
+        case .evolution:
+            return [(392.0, 0.15), (523.25, 0.15), (659.25, 0.15), (783.99, 0.15), (1046.50, 0.35)]
+        case .feedPet:
+            return [(440.0, 0.08), (554.37, 0.12)]
+        case .waterPet:
+            return [(493.88, 0.06), (587.33, 0.06), (659.25, 0.12)]
+        case .petPet:
+            return [(392.0, 0.1), (440.0, 0.15)]
+        case .coinEarned:
+            return [(1318.51, 0.06), (1567.98, 0.1)]
+        case .xpGained:
+            return [(880.0, 0.08), (1108.73, 0.1)]
+        case .levelUp:
+            return [(523.25, 0.1), (659.25, 0.1), (783.99, 0.2)]
+        case .shopPurchase:
+            return [(659.25, 0.08), (783.99, 0.08), (1046.50, 0.15)]
+        case .sprintStart:
+            return [(440.0, 0.12), (0, 0.06), (440.0, 0.12), (0, 0.06), (554.37, 0.18)]
+        case .sprintSuccess:
+            return [(523.25, 0.1), (783.99, 0.15), (1046.50, 0.2)]
+        case .sprintFail:
+            return [(392.0, 0.15), (329.63, 0.2)]
+        case .streakMilestone:
+            return [(523.25, 0.08), (659.25, 0.08), (783.99, 0.08), (1046.50, 0.08), (1318.51, 0.2)]
+        case .appOpen:
+            return [(523.25, 0.12), (659.25, 0.18)]
+        case .error:
+            return [(329.63, 0.12), (293.66, 0.18)]
+        }
+    }
+
+    func generateAudio() -> Data? {
+        let sampleRate: Double = 44100
+        var allSamples: [Float] = []
+
+        for tone in toneSequence {
+            let numSamples = Int(tone.duration * sampleRate)
+            for i in 0..<numSamples {
+                let t = Double(i) / sampleRate
+                let fadeDuration = min(0.01, tone.duration * 0.15)
+                let fadeIn = min(1.0, t / fadeDuration)
+                let fadeOut = min(1.0, (tone.duration - t) / fadeDuration)
+                let envelope = Float(fadeIn * fadeOut)
+
+                if tone.frequency > 0 {
+                    let sample = sin(2.0 * .pi * tone.frequency * t)
+                    let harmonicBlend = sin(2.0 * .pi * tone.frequency * 2.0 * t) * 0.15
+                    allSamples.append(Float(sample + harmonicBlend) * envelope * 0.4)
+                } else {
+                    allSamples.append(0)
+                }
+            }
+        }
+
+        return createWAV(samples: allSamples, sampleRate: Int(sampleRate))
+    }
+
+    private func createWAV(samples: [Float], sampleRate: Int) -> Data? {
+        let numChannels: Int16 = 1
+        let bitsPerSample: Int16 = 16
+        let byteRate = Int32(sampleRate * Int(numChannels) * Int(bitsPerSample / 8))
+        let blockAlign = Int16(numChannels * bitsPerSample / 8)
+        let dataSize = Int32(samples.count * Int(blockAlign))
+        let fileSize = 36 + dataSize
+
+        var data = Data()
+
+        func appendString(_ s: String) { data.append(contentsOf: s.utf8) }
+        func appendInt32(_ v: Int32) { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
+        func appendInt16(_ v: Int16) { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
+
+        appendString("RIFF")
+        appendInt32(fileSize)
+        appendString("WAVE")
+
+        appendString("fmt ")
+        appendInt32(16)
+        appendInt16(1)
+        appendInt16(numChannels)
+        appendInt32(Int32(sampleRate))
+        appendInt32(byteRate)
+        appendInt16(blockAlign)
+        appendInt16(bitsPerSample)
+
+        appendString("data")
+        appendInt32(dataSize)
+
+        for sample in samples {
+            let clamped = max(-1.0, min(1.0, sample))
+            let int16Val = Int16(clamped * Float(Int16.max))
+            withUnsafeBytes(of: int16Val.littleEndian) { data.append(contentsOf: $0) }
+        }
+
+        return data
     }
 }
