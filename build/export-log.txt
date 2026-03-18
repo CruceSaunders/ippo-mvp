@@ -1,0 +1,1 @@
+2026-03-11 22:00:45.645 xcodebuild[72479:7490432] [MT] IDEDistribution: -[IDEDistributionLogging _createLoggingBundleAtPath:]: Created bundle at path "/var/folders/mn/ff9mnc4x4dj669l4t2fdlly40000gn/T/IppoMVP_2026-03-11_22-00-45.645.xcdistributionlogs".

@@ -1,0 +1,14 @@
+scheme("IppoMVP")
+output_directory("../build/export")
+output_name("IppoMVP")
+export_method("app-store")
+export_team_id("HQCUADY3A5")
+clean(true)
+
+export_options({
+  signingStyle: "manual",
+  provisioningProfiles: {
+    "com.cruce.IppoMVP" => "com.cruce.IppoMVP AppStore",
+    "com.cruce.IppoMVP.watchkitapp" => "com.cruce.IppoMVP.watchkitapp AppStore"
+  }
+})
