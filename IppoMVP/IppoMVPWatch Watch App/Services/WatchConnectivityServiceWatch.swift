@@ -16,6 +16,7 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     var ownedPetIds: Set<String> = []
     var catchablePetIds: [String] = []
     var hasEncounterCharm: Bool = false
+    var sprintsSinceLastCatch: Int = 0
     
     private var session: WCSession?
     
@@ -56,6 +57,7 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
         if let petId = summary.petCaughtId {
             payload["petCaughtId"] = petId
         }
+        payload["sprintsSinceLastCatch"] = summary.sprintsSinceLastCatch
 
         session.sendMessage(payload, replyHandler: nil) { error in
             print("Failed to send run summary: \(error)")
@@ -84,6 +86,9 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
                 }
                 if let charm = response["hasEncounterCharm"] as? Bool {
                     self?.hasEncounterCharm = charm
+                }
+                if let pity = response["sprintsSinceLastCatch"] as? Int {
+                    self?.sprintsSinceLastCatch = pity
                 }
                 if let name = response["equippedPetName"] as? String {
                     self?.equippedPetName = name

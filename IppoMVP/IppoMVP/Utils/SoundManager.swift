@@ -28,10 +28,12 @@ final class SoundManager: ObservableObject {
         }
     }
 
+    private let maxConcurrentPlayers = 8
+
     func play(_ effect: SoundEffect) {
         guard isSoundEnabled else { return }
 
-        Task.detached { [weak self] in
+        Task.detached {
             let data = effect.generateAudio()
             guard let data else { return }
 
@@ -39,11 +41,15 @@ final class SoundManager: ObservableObject {
                 let player = try AVAudioPlayer(data: data)
                 player.volume = effect.volume
                 player.prepareToPlay()
-                player.play()
 
-                await MainActor.run {
-                    self?.activePlayers.append(player)
-                    self?.activePlayers.removeAll { !$0.isPlaying }
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    self.activePlayers.removeAll { !$0.isPlaying }
+                    if self.activePlayers.count >= self.maxConcurrentPlayers {
+                        self.activePlayers.removeFirst()
+                    }
+                    player.play()
+                    self.activePlayers.append(player)
                 }
             } catch {
                 print("SoundManager: Failed to play \(effect.displayName): \(error)")

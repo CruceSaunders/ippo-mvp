@@ -20,6 +20,7 @@ struct WatchRunSummary {
     let averageHR: Int
     let totalCalories: Double
     let petCaughtId: String?
+    let sprintsSinceLastCatch: Int
 }
 
 @MainActor
@@ -225,7 +226,7 @@ final class WatchRunManager: NSObject, ObservableObject {
         caughtPetName = nil
         isPaused = false
         lastEncounterTime = nil
-        sprintsSinceLastCatch = 0
+        sprintsSinceLastCatch = WatchConnectivityServiceWatch.shared.sprintsSinceLastCatch
         isInRecovery = false
         recoveryRemaining = 0
         totalPausedDuration = 0
@@ -297,7 +298,8 @@ final class WatchRunManager: NSObject, ObservableObject {
             xpEarned: earnedXP,
             averageHR: averageHR,
             totalCalories: finalCalories,
-            petCaughtId: petCaughtId
+            petCaughtId: petCaughtId,
+            sprintsSinceLastCatch: sprintsSinceLastCatch
         )
         
         WatchConnectivityServiceWatch.shared.sendRunSummary(runSummary!)

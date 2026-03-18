@@ -334,6 +334,7 @@ final class UserData: ObservableObject {
                 ownedPets[i].isLost = true
                 ownedPets[i].isEquipped = false
                 profile.equippedPetId = nil
+                WatchConnectivityService.shared.pushProfileToWatch()
             }
         }
         save()
@@ -543,6 +544,7 @@ final class UserData: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "scheduledCareNeedType")
         UserDefaults.standard.removeObject(forKey: "scheduledCareNeedTime")
         UserDefaults.standard.removeObject(forKey: "lastDailyRewardDate")
+        UserDefaults.standard.removeObject(forKey: "ippo.hasEverFed")
     }
 
     // MARK: - Pending Run Persistence
@@ -576,7 +578,7 @@ final class UserData: ObservableObject {
         inventory.food += 1
         inventory.water += 1
 
-        let daysSinceInstall = calendar.dateComponents([.day], from: profile.createdAt, to: Date()).day ?? 0
+        let daysSinceInstall = max(0, calendar.dateComponents([.day], from: profile.createdAt, to: Date()).day ?? 0)
         if daysSinceInstall < 7 {
             profile.coins += 10
         } else {
@@ -596,6 +598,7 @@ final class UserData: ObservableObject {
             inventory.food += 3
             inventory.water += 3
             profile.coins += 20
+            profile.lastInteractionDate = Date()
             save()
         }
     }

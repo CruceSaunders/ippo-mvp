@@ -38,7 +38,7 @@ struct PostRunSummaryView: View {
                     Button {
                         onDismiss()
                     } label: {
-                        Text(caughtPetDef != nil ? "Meet \(caughtPetDef!.name)" : "Continue")
+                        Text(caughtPetDef.map { "Meet \($0.name)" } ?? "Continue")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)

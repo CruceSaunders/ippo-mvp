@@ -71,6 +71,11 @@ final class WatchConnectivityService: NSObject, ObservableObject {
                 userData.addPet(definitionId: petId)
             }
 
+            if let pityCount = message["sprintsSinceLastCatch"] as? Int {
+                userData.profile.sprintsSinceLastCatch = pityCount
+                userData.save()
+            }
+
             userData.pendingRunSummary = run
         }
     }
@@ -124,6 +129,7 @@ extension WatchConnectivityService: WCSessionDelegate {
                 response["ownedPetIds"] = petIds
                 response["catchablePetIds"] = GameData.catchablePetIds
                 response["hasEncounterCharm"] = userData.inventory.activeEncounterCharm != nil
+                response["sprintsSinceLastCatch"] = userData.profile.sprintsSinceLastCatch
 
                 if let pet = userData.equippedPet, let def = pet.definition {
                     response["equippedPetName"] = def.name
