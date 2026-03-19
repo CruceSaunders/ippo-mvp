@@ -331,10 +331,12 @@ final class UserData: ObservableObject {
             let noInteraction = daysSinceLastInteraction()
 
             if sadDays >= config.runawayDaysSad && noInteraction >= config.runawayDaysNoInteraction {
+                let petName = ownedPets[i].definition?.name ?? "Your pet"
                 ownedPets[i].isLost = true
                 ownedPets[i].isEquipped = false
                 profile.equippedPetId = nil
                 WatchConnectivityService.shared.pushProfileToWatch()
+                NotificationSystem.shared.notifyPetRanAway(petName: petName)
             }
         }
         save()
@@ -388,9 +390,9 @@ final class UserData: ObservableObject {
             )
             inventory.activeBoosts.append(boost)
         case .encounterCharm:
-            // Per-run boost: expires in 24h as a fallback, but consumed after next run
             let boost = ActiveBoost(type: .encounterCharm, expiresAt: Date().addingTimeInterval(86400))
             inventory.activeBoosts.append(boost)
+            WatchConnectivityService.shared.pushProfileToWatch()
         case .coinBoost:
             let boost = ActiveBoost(type: .coinBoost, expiresAt: Date().addingTimeInterval(86400))
             inventory.activeBoosts.append(boost)
@@ -433,6 +435,10 @@ final class UserData: ObservableObject {
         }
 
         inventory.consumePerRunBoosts()
+
+        if let idx = ownedPets.firstIndex(where: { $0.isEquipped && !$0.isLost }) {
+            recalculateMood(at: idx)
+        }
 
         for milestone in [1, 5, 10, 25, 50, 100] where profile.totalRuns == milestone {
             pendingMilestoneToast = .runMilestone(milestone)

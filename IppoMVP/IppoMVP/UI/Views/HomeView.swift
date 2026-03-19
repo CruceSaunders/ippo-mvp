@@ -24,6 +24,7 @@ struct HomeView: View {
     @State private var heartAnimationPhase = false
     @State private var isBouncing = false
     @State private var sleepAnimationCycle = 0
+    @State private var sleepTimer: Timer?
 
     @AppStorage("hasSeenCareHint") private var hasSeenCareHint = false
     @State private var showMilestoneToast = false
@@ -256,6 +257,7 @@ struct HomeView: View {
                 if userData.inventory.isHibernating {
                     SleepingZzzOverlay(cycle: sleepAnimationCycle)
                         .onAppear { startSleepAnimation() }
+                        .onDisappear { sleepTimer?.invalidate(); sleepTimer = nil }
                 }
             }
             .frame(height: screenSize.height * 0.44)
@@ -847,7 +849,8 @@ struct HomeView: View {
     }
 
     private func startSleepAnimation() {
-        Timer.scheduledTimer(withTimeInterval: 6.0, repeats: true) { _ in
+        sleepTimer?.invalidate()
+        sleepTimer = Timer.scheduledTimer(withTimeInterval: 6.0, repeats: true) { _ in
             Task { @MainActor in
                 sleepAnimationCycle += 1
             }
@@ -876,6 +879,7 @@ private struct FloatingZ: View {
     let delay: TimeInterval
 
     @State private var phase: CGFloat = 0
+    @State private var loopTimer: Timer?
 
     private let floatDuration: TimeInterval = 3.5
 
@@ -891,6 +895,10 @@ private struct FloatingZ: View {
                     startLoop()
                 }
             }
+            .onDisappear {
+                loopTimer?.invalidate()
+                loopTimer = nil
+            }
     }
 
     private func startLoop() {
@@ -899,7 +907,8 @@ private struct FloatingZ: View {
             phase = 1
         }
 
-        Timer.scheduledTimer(withTimeInterval: floatDuration, repeats: true) { _ in
+        loopTimer?.invalidate()
+        loopTimer = Timer.scheduledTimer(withTimeInterval: floatDuration, repeats: true) { _ in
             Task { @MainActor in
                 phase = 0
                 withAnimation(.easeInOut(duration: floatDuration)) {

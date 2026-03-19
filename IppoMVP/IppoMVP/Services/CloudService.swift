@@ -91,14 +91,35 @@ final class CloudService {
         var mergedPets = local.ownedPets
         for cloudPet in cloud.ownedPets {
             if !mergedPets.contains(where: { $0.petDefinitionId == cloudPet.petDefinitionId }) {
-                mergedPets.append(cloudPet)
+                var pet = cloudPet
+                pet.isEquipped = false
+                mergedPets.append(pet)
+            }
+        }
+        if let equippedId = mergedProfile.equippedPetId {
+            for i in mergedPets.indices {
+                mergedPets[i].isEquipped = (mergedPets[i].id == equippedId)
+            }
+        } else {
+            for i in mergedPets.indices {
+                mergedPets[i].isEquipped = false
+            }
+        }
+
+        var mergedBoosts = local.inventory.activeBoosts
+        for cloudBoost in cloud.inventory.activeBoosts {
+            if !mergedBoosts.contains(where: { $0.type == cloudBoost.type }) {
+                mergedBoosts.append(cloudBoost)
+            } else if let idx = mergedBoosts.firstIndex(where: { $0.type == cloudBoost.type }),
+                      cloudBoost.expiresAt > mergedBoosts[idx].expiresAt {
+                mergedBoosts[idx] = cloudBoost
             }
         }
 
         let mergedInventory = PlayerInventory(
             food: max(local.inventory.food, cloud.inventory.food),
             water: max(local.inventory.water, cloud.inventory.water),
-            activeBoosts: local.inventory.activeBoosts,
+            activeBoosts: mergedBoosts,
             hibernationEndsAt: local.inventory.hibernationEndsAt ?? cloud.inventory.hibernationEndsAt,
             streakFreezeEndsAt: local.inventory.streakFreezeEndsAt ?? cloud.inventory.streakFreezeEndsAt
         )
@@ -154,14 +175,20 @@ final class CloudService {
 
         do {
             let oldUsername = await loadCurrentUsername(uid: uid)
+            let batch = db.batch()
+
             if let old = oldUsername, !old.isEmpty, old != normalized {
-                try await db.collection("usernames").document(old).delete()
+                let oldRef = db.collection("usernames").document(old)
+                batch.deleteDocument(oldRef)
             }
 
-            try await db.collection("usernames").document(normalized).setData([
+            let newRef = db.collection("usernames").document(normalized)
+            batch.setData([
                 "uid": uid,
                 "createdAt": FieldValue.serverTimestamp()
-            ])
+            ], forDocument: newRef)
+
+            try await batch.commit()
             return true
         } catch {
             print("CloudService: Failed to reserve username - \(error)")

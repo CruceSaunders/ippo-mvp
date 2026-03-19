@@ -485,7 +485,9 @@ final class WatchRunManager: NSObject, ObservableObject {
 
             sprintsSinceLastCatch += 1
 
-            let isFirstRunEver = WatchConnectivityServiceWatch.shared.ownedPetIds.count <= 1 && !didCatchPet
+            let starterIds: Set<String> = ["pet_01", "pet_02", "pet_03"]
+            let hasOnlyStarters = WatchConnectivityServiceWatch.shared.ownedPetIds.subtracting(starterIds).isEmpty
+            let isFirstRunEver = hasOnlyStarters && !didCatchPet && totalSprints <= 1
             let baseCatch: Double = WatchConnectivityServiceWatch.shared.hasEncounterCharm ? 0.11 : 0.08
             let catchRate: Double
             if isFirstRunEver {

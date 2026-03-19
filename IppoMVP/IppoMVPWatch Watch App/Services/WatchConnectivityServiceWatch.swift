@@ -139,6 +139,33 @@ extension WatchConnectivityServiceWatch: WCSessionDelegate {
                     estimatedMaxHR = maxHR
                     UserDefaults.standard.set(maxHR, forKey: "ippo.estimatedMaxHR")
                 }
+                if let petIds = message["ownedPetIds"] as? [String] {
+                    ownedPetIds = Set(petIds)
+                }
+                if let catchable = message["catchablePetIds"] as? [String] {
+                    catchablePetIds = catchable
+                }
+                if let charm = message["hasEncounterCharm"] as? Bool {
+                    hasEncounterCharm = charm
+                }
+                if let pity = message["sprintsSinceLastCatch"] as? Int {
+                    sprintsSinceLastCatch = pity
+                }
+                if let name = message["equippedPetName"] as? String {
+                    equippedPetName = name
+                }
+                if let img = message["equippedPetImageName"] as? String {
+                    equippedPetImageName = img
+                }
+                if let mood = message["equippedPetMood"] as? Int {
+                    equippedPetMood = mood
+                }
+                if let level = message["equippedPetLevel"] as? Int {
+                    equippedPetLevel = level
+                }
+                if let stage = message["equippedPetStageName"] as? String {
+                    equippedPetStageName = stage
+                }
             case "hapticBuzz":
                 WatchHapticsManager.shared.playSprintStart()
             default:

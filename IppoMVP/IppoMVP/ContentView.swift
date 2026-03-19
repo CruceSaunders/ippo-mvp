@@ -33,6 +33,9 @@ struct ContentView: View {
             UITabBar.appearance().scrollEdgeAppearance = appearance
 
             userData.inventory.cleanExpiredBoosts()
+            if let idx = userData.ownedPets.firstIndex(where: { $0.isEquipped && !$0.isLost }) {
+                userData.recalculateMood(at: idx)
+            }
             userData.checkRunaway()
             userData.checkAndActivateCareNeed()
             NotificationSystem.shared.rescheduleNotifications()

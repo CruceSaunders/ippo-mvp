@@ -31,9 +31,28 @@ final class WatchConnectivityService: NSObject, ObservableObject {
 
     func pushProfileToWatch() {
         guard let session = session, session.isReachable else { return }
-        let maxHR = UserData.shared.profile.estimatedMaxHR
+        let userData = UserData.shared
+        var payload: [String: Any] = [
+            "type": "profileSync",
+            "estimatedMaxHR": userData.profile.estimatedMaxHR,
+            "hasEncounterCharm": userData.inventory.activeEncounterCharm != nil,
+            "sprintsSinceLastCatch": userData.profile.sprintsSinceLastCatch
+        ]
+
+        if let pet = userData.equippedPet, let def = pet.definition {
+            payload["equippedPetName"] = def.name
+            payload["equippedPetImageName"] = pet.currentImageName
+            payload["equippedPetMood"] = pet.mood
+            payload["equippedPetLevel"] = pet.level
+            payload["equippedPetStageName"] = pet.stageName
+        }
+
+        let petIds = userData.ownedPets.map { $0.petDefinitionId }
+        payload["ownedPetIds"] = petIds
+        payload["catchablePetIds"] = GameData.catchablePetIds
+
         session.sendMessage(
-            ["type": "profileSync", "estimatedMaxHR": maxHR],
+            payload,
             replyHandler: nil,
             errorHandler: { error in
                 print("Failed to push profile to Watch: \(error)")

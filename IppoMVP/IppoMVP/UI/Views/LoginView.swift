@@ -123,8 +123,6 @@ struct LoginView: View {
                     .padding(.bottom, AppSpacing.xxxl)
             }
         }
-        .onChange(of: authService.isAuthenticated) { _, _ in
-        }
     }
 }
 
