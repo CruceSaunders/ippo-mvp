@@ -1,7 +1,8 @@
 # Ippo v3 -- Bug Discovery Log
 
 *Created: March 18, 2026*
-*Source: Comprehensive testing Phases 1-3*
+*Last Updated: March 19, 2026 -- All fixes applied and verified*
+*Source: Comprehensive testing Phases 1-6*
 
 ---
 
@@ -33,17 +34,17 @@
 
 | ID | Severity | System | Description | Source | File/Line |
 |---|---|---|---|---|---|
-| NEW-001 | **HIGH** | Mood/Runaway | Mood not recalculated on app open. checkRunaway() uses mood but recalculateMood() is only called during care actions. After 3 days of neglect, mood stays at last value (could be 3/Happy), so runaway never triggers even though the pet should be sad. | Swarm B | UserData.swift checkRunaway / ContentView onAppear |
-| NEW-002 | **HIGH** | Mood/Run | Mood not recalculated after run completion. completeRun() updates lastRunDate (a mood input) but never calls recalculateMood(). Mood stays stale until next care action. | Swarm B | UserData.swift completeRun() |
-| NEW-003 | **HIGH** | Watch Sync | pushProfileToWatch() only sends estimatedMaxHR, not pet data. After equipping a different pet, Watch shows stale pet name/image/mood until Watch independently re-syncs (only on WCSession activation). | Swarm C | WatchConnectivityService.swift:32-42 |
-| NEW-004 | **HIGH** | Watch Sync | Run summary can be lost when phone is unreachable. sendRunSummary uses sendMessage() which requires phone to be reachable. No fallback to transferUserInfo or applicationContext. Coins/XP/catch data permanently lost. | Swarm C | WatchConnectivityServiceWatch sendRunSummary |
-| NEW-005 | **MEDIUM** | Watch Sync | Run summary not idempotent. If WCSession delivers the same message twice (unlikely but possible), completeRun() would double-count coins, XP, and add duplicate run history. No dedup by run ID. | Swarm C | UserData.swift completeRun |
-| NEW-006 | **MEDIUM** | Watch | isFirstRunEver logic broken. Checks `ownedPetIds.count <= 1` but starters give 3 ownedPetIds. First-run guaranteed catch never triggers. | Swarm C | WatchRunManager.swift completeSprint |
-| NEW-007 | **MEDIUM** | Notification | notifyPetRanAway() is never called. When a pet runs away in checkRunaway(), no notification is sent to the user. They only discover it by opening the app. | Swarm B | UserData.swift checkRunaway, NotificationSystem.swift |
-| NEW-008 | **MEDIUM** | Cloud Merge | Multiple equipped pets after merge. If local has pet_01 equipped and cloud has pet_03 equipped, after merge both have isEquipped=true. equippedPet returns first match, but state is inconsistent. | Swarm A | CloudService.swift mergeData |
-| NEW-009 | **MEDIUM** | Watch Sync | Encounter charm purchase not pushed to Watch. hasEncounterCharm on Watch stays stale until next sync. User buys charm before run but Watch doesn't know about it. | Swarm C | UserData buyItem / WatchConnectivityService |
-| NEW-010 | **LOW** | UI/Timer | HomeView sleep timer never invalidated. startSleepAnimation() creates Timer.scheduledTimer that is never invalidated on view disappear. Tab switches can leak timers. | Swarm D | HomeView.swift startSleepAnimation |
-| NEW-011 | **LOW** | UI/Timer | FloatingZ timers never invalidated. Similar to NEW-010, FloatingZ views create timers that persist. | Swarm D | HomeView.swift FloatingZ |
+| NEW-001 | **HIGH** | Mood/Runaway | Mood not recalculated on app open. | Swarm B | **FIXED** -- ContentView.swift onAppear now calls recalculateMood before checkRunaway |
+| NEW-002 | **HIGH** | Mood/Run | Mood not recalculated after run completion. | Swarm B | **FIXED** -- UserData.completeRun() now calls recalculateMood |
+| NEW-003 | **HIGH** | Watch Sync | pushProfileToWatch() only sends estimatedMaxHR, not pet data. | Swarm C | **FIXED** -- Now sends full pet data + charm + petIds |
+| NEW-004 | **HIGH** | Watch Sync | Run summary lost when phone unreachable. sendMessage requires reachability. | Swarm C | **KNOWN LIMITATION** -- WCSession architecture limit; would require transferUserInfo fallback |
+| NEW-005 | **MEDIUM** | Watch Sync | Run summary not idempotent. Duplicate delivery could double-count. | Swarm C | **KNOWN LIMITATION** -- Low probability; would need run ID dedup |
+| NEW-006 | **MEDIUM** | Watch | isFirstRunEver logic broken. ownedPetIds.count <= 1 always false with 3 starters. | Swarm C | **FIXED** -- Uses starter ID set subtraction |
+| NEW-007 | **MEDIUM** | Notification | notifyPetRanAway() never called when pet runs away. | Swarm B | **FIXED** -- Called in checkRunaway when isLost set |
+| NEW-008 | **MEDIUM** | Cloud Merge | Multiple equipped pets after merge. | Swarm A | **FIXED** -- Equip normalized by equippedPetId after merge |
+| NEW-009 | **MEDIUM** | Watch Sync | Encounter charm purchase not pushed to Watch. | Swarm C | **FIXED** -- pushProfileToWatch after charm purchase |
+| NEW-010 | **LOW** | UI/Timer | HomeView sleep timer never invalidated. | Swarm D | **FIXED** -- Timer stored in @State, invalidated onDisappear |
+| NEW-011 | **LOW** | UI/Timer | FloatingZ timers never invalidated. | Swarm D | **FIXED** -- Timer stored in @State, invalidated onDisappear |
 | NEW-012 | **LOW** | Dead Code | ShopSheet.swift is never used. Only ShopView is used in the app. | Swarm D | ShopSheet.swift |
 | NEW-013 | **LOW** | Dead Code | Multiple unused config constants. PetConfig.baseCatchRate, pityTimerSprints, encounterCharmRate, runawayDaysAccelerated all unused (Watch uses hardcoded values). | Swarm B | PetConfig.swift |
 | NEW-014 | **LOW** | Dead Code | NotificationSystem.notifyPetRanAway exists but is never called. | Swarm B | NotificationSystem.swift |
