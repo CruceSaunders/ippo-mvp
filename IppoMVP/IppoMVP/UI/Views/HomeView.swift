@@ -319,13 +319,15 @@ struct HomeView: View {
     // MARK: - Care Tray (draggable food + water)
 
     private func careTray(pet: OwnedPet) -> some View {
+        let hibernating = userData.inventory.isHibernating
+
         HStack(spacing: 16) {
             draggableItem(
                 icon: "leaf.fill",
-                label: "Food",
+                label: hibernating ? "Sleeping" : "Food",
                 count: userData.inventory.food,
-                xpAvailable: pet.canEarnFeedXP,
-                enabled: userData.inventory.food > 0,
+                xpAvailable: !hibernating && pet.canEarnFeedXP,
+                enabled: !hibernating && userData.inventory.food > 0,
                 dragLocation: $foodDragLocation,
                 isDragging: $isDraggingFood
             ) {
@@ -335,15 +337,16 @@ struct HomeView: View {
                     triggerPetBounce()
                     triggerHeartsOnly()
                     showFloatingXP(hadXP ? "+\(PetConfig.shared.xpPerFeeding) XP" : "Fed!")
+                    hasSeenCareHint = true
                 }
             }
 
             draggableItem(
                 icon: "drop.fill",
-                label: "Water",
+                label: hibernating ? "Sleeping" : "Water",
                 count: userData.inventory.water,
-                xpAvailable: pet.canEarnWaterXP,
-                enabled: userData.inventory.water > 0,
+                xpAvailable: !hibernating && pet.canEarnWaterXP,
+                enabled: !hibernating && userData.inventory.water > 0,
                 dragLocation: $waterDragLocation,
                 isDragging: $isDraggingWater
             ) {
@@ -360,17 +363,18 @@ struct HomeView: View {
                 Image(systemName: "hand.draw.fill")
                     .font(.system(size: 18))
                     .foregroundColor(AppColors.textTertiary)
-                Text("Rub pet")
+                Text(hibernating ? "Sleeping" : "Rub pet")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(AppColors.textTertiary)
-                Text(pet.canEarnPetXP ? "+XP" : "Done today")
+                Text(hibernating ? "Zzz..." : (pet.canEarnPetXP ? "+XP" : "Done today"))
                     .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundColor(pet.canEarnPetXP ? AppColors.xp : AppColors.textTertiary)
+                    .foregroundColor(!hibernating && pet.canEarnPetXP ? AppColors.xp : AppColors.textTertiary)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 72)
             .background(AppColors.surface)
             .cornerRadius(12)
+            .opacity(hibernating ? 0.5 : 1.0)
         }
     }
 
