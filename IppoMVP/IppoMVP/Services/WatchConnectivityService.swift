@@ -136,6 +136,15 @@ extension WatchConnectivityService: WCSessionDelegate {
         }
     }
 
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        Task { @MainActor in
+            if let type = userInfo["type"] as? String, type == "runEnded" {
+                handleRunSummary(userInfo)
+            }
+            lastSyncDate = Date()
+        }
+    }
+
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         Task { @MainActor in
             if let type = message["type"] as? String, type == "syncRequest" {

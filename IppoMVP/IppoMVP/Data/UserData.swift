@@ -413,6 +413,8 @@ final class UserData: ObservableObject {
 
     // MARK: - Run Completion
     func completeRun(_ run: CompletedRun) {
+        guard !runHistory.contains(where: { $0.id == run.id }) else { return }
+
         lastLocalMutationDate = Date()
 
         runHistory.insert(run, at: 0)

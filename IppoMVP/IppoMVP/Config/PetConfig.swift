@@ -37,12 +37,6 @@ struct PetConfig: Sendable {
         return (10 * level * level * level) / 27
     }
 
-    /// XP needed to go from `level` to `level + 1`.
-    func xpToReachNextLevel(from level: Int) -> Int {
-        guard level >= 1 else { return 0 }
-        return xpRequiredForLevel(level + 1) - xpRequiredForLevel(level)
-    }
-
     /// Compute pet level from cumulative XP.
     func levelForXP(_ xp: Int) -> Int {
         var level = 1
@@ -64,7 +58,6 @@ struct PetConfig: Sendable {
     }
 
     // MARK: - XP Sources
-    let xpPerSprint: ClosedRange<Int> = 15...25
     let xpPerFeeding: Int = 5
     let xpPerWatering: Int = 5
     let xpPerPetting: Int = 2
@@ -74,15 +67,9 @@ struct PetConfig: Sendable {
     let contentMultiplier: Double = 0.85
     let sadMultiplier: Double = 0.6
 
-    // MARK: - Catch Rate
-    let baseCatchRate: Double = 0.08
-    let encounterCharmRate: Double = 0.11  // 8% + 3% from charm
-    let pityTimerSprints: Int = 15
-
     // MARK: - Runaway
     let runawayDaysSad: Int = 14
     let runawayDaysNoInteraction: Int = 14
-    let runawayDaysAccelerated: Int = 10
 
     // MARK: - Rescue Costs
     func rescueCost(forStage stage: Int) -> Int {

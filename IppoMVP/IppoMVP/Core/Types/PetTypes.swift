@@ -90,8 +90,8 @@ struct OwnedPet: Identifiable, Codable, Equatable {
         lastPettedDate = try container.decodeIfPresent(Date.self, forKey: .lastPettedDate)
         isEquipped = try container.decode(Bool.self, forKey: .isEquipped)
         caughtDate = try container.decode(Date.self, forKey: .caughtDate)
-        consecutiveSadDays = try container.decode(Int.self, forKey: .consecutiveSadDays)
-        isLost = try container.decode(Bool.self, forKey: .isLost)
+        consecutiveSadDays = try container.decodeIfPresent(Int.self, forKey: .consecutiveSadDays) ?? 0
+        isLost = try container.decodeIfPresent(Bool.self, forKey: .isLost) ?? false
     }
 
     var definition: GamePetDefinition? {

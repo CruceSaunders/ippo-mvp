@@ -41,7 +41,7 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
         #if targetEnvironment(simulator)
         print("[Ippo Sim] Run summary: \(summary.durationSeconds)s, \(summary.sprintsCompleted) sprints, \(summary.coinsEarned) coins")
         #else
-        guard let session = session, session.isReachable else { return }
+        guard let session = session else { return }
 
         var payload: [String: Any] = [
             "type": "runEnded",
@@ -59,57 +59,91 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
         }
         payload["sprintsSinceLastCatch"] = summary.sprintsSinceLastCatch
 
-        session.sendMessage(payload, replyHandler: nil) { error in
-            print("Failed to send run summary: \(error)")
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil) { [weak self] error in
+                print("sendMessage failed, falling back to transferUserInfo: \(error)")
+                self?.session?.transferUserInfo(payload)
+            }
+        } else {
+            session.transferUserInfo(payload)
         }
         #endif
     }
 
     // MARK: - Request Sync (gets maxHR + pet data from phone)
+    private var syncRetryCount = 0
+    private let maxSyncRetries = 3
+
     func requestSync() {
         #if targetEnvironment(simulator)
         return
         #else
-        guard let session = session, session.isReachable else { return }
+        guard let session = session else { return }
+        guard session.isReachable else {
+            retrySyncAfterDelay()
+            return
+        }
 
         session.sendMessage(["type": "syncRequest"], replyHandler: { [weak self] response in
             Task { @MainActor in
-                if let maxHR = response["estimatedMaxHR"] as? Int, maxHR > 0 {
-                    self?.estimatedMaxHR = maxHR
-                    UserDefaults.standard.set(maxHR, forKey: "ippo.estimatedMaxHR")
-                }
-                if let petIds = response["ownedPetIds"] as? [String] {
-                    self?.ownedPetIds = Set(petIds)
-                }
-                if let catchable = response["catchablePetIds"] as? [String] {
-                    self?.catchablePetIds = catchable
-                }
-                if let charm = response["hasEncounterCharm"] as? Bool {
-                    self?.hasEncounterCharm = charm
-                }
-                if let pity = response["sprintsSinceLastCatch"] as? Int {
-                    self?.sprintsSinceLastCatch = pity
-                }
-                if let name = response["equippedPetName"] as? String {
-                    self?.equippedPetName = name
-                }
-                if let img = response["equippedPetImageName"] as? String {
-                    self?.equippedPetImageName = img
-                }
-                if let mood = response["equippedPetMood"] as? Int {
-                    self?.equippedPetMood = mood
-                }
-                if let level = response["equippedPetLevel"] as? Int {
-                    self?.equippedPetLevel = level
-                }
-                if let stage = response["equippedPetStageName"] as? String {
-                    self?.equippedPetStageName = stage
-                }
+                self?.syncRetryCount = 0
+                self?.applySyncResponse(response)
             }
-        }, errorHandler: { error in
+        }, errorHandler: { [weak self] error in
             print("Sync request failed: \(error)")
+            Task { @MainActor in
+                self?.retrySyncAfterDelay()
+            }
         })
         #endif
+    }
+
+    private func retrySyncAfterDelay() {
+        guard syncRetryCount < maxSyncRetries else {
+            syncRetryCount = 0
+            return
+        }
+        syncRetryCount += 1
+        let delay = Double(syncRetryCount) * 5.0
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            await MainActor.run { requestSync() }
+        }
+    }
+
+    private func applySyncResponse(_ response: [String: Any]) {
+        if let maxHR = response["estimatedMaxHR"] as? Int, maxHR > 0 {
+            estimatedMaxHR = maxHR
+            UserDefaults.standard.set(maxHR, forKey: "ippo.estimatedMaxHR")
+        }
+        if let petIds = response["ownedPetIds"] as? [String] {
+            ownedPetIds = Set(petIds)
+        }
+        if let catchable = response["catchablePetIds"] as? [String] {
+            catchablePetIds = catchable
+        }
+        if let charm = response["hasEncounterCharm"] as? Bool {
+            hasEncounterCharm = charm
+        }
+        if let pity = response["sprintsSinceLastCatch"] as? Int {
+            sprintsSinceLastCatch = pity
+        }
+        if let name = response["equippedPetName"] as? String {
+            equippedPetName = name
+        }
+        if let img = response["equippedPetImageName"] as? String {
+            equippedPetImageName = img
+        }
+        if let mood = response["equippedPetMood"] as? Int {
+            equippedPetMood = mood
+        }
+        if let level = response["equippedPetLevel"] as? Int {
+            equippedPetLevel = level
+        }
+        if let stage = response["equippedPetStageName"] as? String {
+            equippedPetStageName = stage
+        }
+    }
     }
     
     /// HR Zone 4 threshold (80% of max HR)
