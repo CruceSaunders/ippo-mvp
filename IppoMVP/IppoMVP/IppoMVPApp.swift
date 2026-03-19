@@ -48,6 +48,7 @@ struct IppoMVPApp: App {
                             await userData.syncFromCloud()
                             userData.checkWelcomeBackBonus()
                             userData.claimDailyRewards()
+                            WatchConnectivityService.shared.pushProfileToWatch()
                             SoundManager.shared.play(.appOpen)
                         }
                 }

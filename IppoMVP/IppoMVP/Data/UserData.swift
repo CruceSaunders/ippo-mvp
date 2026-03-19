@@ -98,6 +98,7 @@ final class UserData: ObservableObject {
         ownedPets.append(pet)
         profile.sprintsSinceLastCatch = 0
         save()
+        WatchConnectivityService.shared.pushProfileToWatch()
     }
 
     func equipPet(_ petId: String) {

@@ -84,11 +84,11 @@ final class WatchConnectivityService: NSObject, ObservableObject {
             )
 
             let userData = UserData.shared
-            userData.completeRun(run)
-
+            // Add pet BEFORE completeRun so firstCatch milestone (ownedPets.count == 2) triggers correctly
             if let petId = petCaughtId {
                 userData.addPet(definitionId: petId)
             }
+            userData.completeRun(run)
 
             if let pityCount = message["sprintsSinceLastCatch"] as? Int {
                 userData.profile.sprintsSinceLastCatch = pityCount

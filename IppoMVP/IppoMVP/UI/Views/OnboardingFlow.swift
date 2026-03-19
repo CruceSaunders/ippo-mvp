@@ -1000,6 +1000,10 @@ struct IppoCompleteOnboardingFlow: View {
             onboardingButton("Next") { step = 9 }
         }
         .padding(.horizontal, 32)
+        .onDisappear {
+            sprintDemoTimer?.invalidate()
+            sprintDemoTimer = nil
+        }
     }
 
     private func vibratePhone() {
