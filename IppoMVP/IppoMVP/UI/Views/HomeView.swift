@@ -318,6 +318,7 @@ struct HomeView: View {
 
     // MARK: - Care Tray (draggable food + water)
 
+    @ViewBuilder
     private func careTray(pet: OwnedPet) -> some View {
         let hibernating = userData.inventory.isHibernating
 
