@@ -144,7 +144,6 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
             equippedPetStageName = stage
         }
     }
-    }
     
     /// HR Zone 4 threshold (80% of max HR)
     var hrZone4Threshold: Int {
