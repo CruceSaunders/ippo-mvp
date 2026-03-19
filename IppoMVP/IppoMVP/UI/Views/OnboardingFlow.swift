@@ -1018,7 +1018,6 @@ struct IppoCompleteOnboardingFlow: View {
         // AudioToolbox vibration is the most reliable on-device buzz
         vibratePhone()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.vibratePhone() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.vibratePhone() }
 
         // Also buzz the watch if reachable
         WatchConnectivityService.shared.sendHapticBuzz()
@@ -1033,7 +1032,6 @@ struct IppoCompleteOnboardingFlow: View {
                     withAnimation(.linear(duration: 0.9)) {
                         self.sprintDemoProgress = CGFloat(5 - self.sprintDemoCountdown + 1) / 5.0
                     }
-                    self.vibratePhone()
                 } else {
                     timer.invalidate()
                     self.sprintDemoTimer = nil
