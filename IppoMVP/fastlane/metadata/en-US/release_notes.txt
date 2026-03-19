@@ -1,0 +1,6 @@
+Bug fixes and improvements:
+- Fixed onboarding sprint demo vibration
+- Improved pet mood system
+- Better Watch-Phone synchronization
+- Hibernation mode now properly disables care actions
+- Performance improvements and code cleanup
