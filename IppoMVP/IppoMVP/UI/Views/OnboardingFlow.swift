@@ -491,7 +491,7 @@ struct IppoCompleteOnboardingFlow: View {
 
     private var permissionsScreen: some View {
         let allGranted = healthPermissionGranted && notificationPermissionGranted
-        let anyDenied = healthPermissionDenied || notificationPermissionDenied
+        let canProceed = healthPermissionGranted
 
         return VStack(spacing: 24) {
             Spacer()
@@ -505,7 +505,7 @@ struct IppoCompleteOnboardingFlow: View {
                     .foregroundColor(AppColors.accent)
             }
 
-            Text(allGranted ? "All Set!" : "Permissions Needed")
+            Text(allGranted ? "All Set!" : (canProceed ? "Almost Done!" : "Permissions Needed"))
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
@@ -523,10 +523,10 @@ struct IppoCompleteOnboardingFlow: View {
                 )
                 permissionRow(
                     icon: "bell.fill",
-                    color: notificationPermissionGranted ? AppColors.success : (notificationPermissionDenied ? AppColors.danger : AppColors.accent),
-                    title: "Notifications",
+                    color: notificationPermissionGranted ? AppColors.success : (notificationPermissionDenied ? AppColors.textSecondary : AppColors.accent),
+                    title: "Notifications (Optional)",
                     subtitle: notificationPermissionDenied
-                        ? "Required — tap Open Settings below to enable"
+                        ? "You can enable in Settings for pet care reminders"
                         : notificationPermissionGranted
                             ? "Granted"
                             : "Your pet will let you know when they need you",
@@ -535,9 +535,9 @@ struct IppoCompleteOnboardingFlow: View {
             }
             .padding(.horizontal, 8)
 
-            if anyDenied {
+            if healthPermissionDenied {
                 VStack(spacing: 12) {
-                    Text("Ippo needs these permissions to work properly. Please enable them in Settings.")
+                    Text("Ippo needs Health access to track your runs. Please enable it in Settings.")
                         .font(.system(size: 14, design: .rounded))
                         .foregroundColor(AppColors.danger)
                         .multilineTextAlignment(.center)
@@ -579,20 +579,20 @@ struct IppoCompleteOnboardingFlow: View {
 
             Spacer()
 
-            if allGranted {
+            if canProceed {
                 onboardingButton("Continue") {
                     step = 6
                 }
-            } else if !anyDenied {
-                onboardingButton("Allow & Continue") {
+            } else if !healthPermissionDenied {
+                onboardingButton("Continue") {
                     requestAllPermissions()
                 }
             } else {
-                onboardingButton("Continue")  {
+                onboardingButton("Continue") {
                     step = 6
                 }
-                .disabled(!allGranted)
-                .opacity(allGranted ? 1 : 0.5)
+                .disabled(true)
+                .opacity(0.5)
             }
         }
         .padding(.horizontal, 32)
@@ -642,7 +642,7 @@ struct IppoCompleteOnboardingFlow: View {
             Task {
                 notificationPermissionGranted = await NotificationSystem.shared.requestPermission()
                 await checkNotificationPermissionStatus()
-                if healthPermissionGranted && notificationPermissionGranted { step = 6 }
+                if healthPermissionGranted { step = 6 }
             }
             return
         }
@@ -667,7 +667,7 @@ struct IppoCompleteOnboardingFlow: View {
                 Task {
                     notificationPermissionGranted = await NotificationSystem.shared.requestPermission()
                     await checkNotificationPermissionStatus()
-                    if healthPermissionGranted && notificationPermissionGranted {
+                    if healthPermissionGranted {
                         step = 6
                     }
                 }
