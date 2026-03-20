@@ -33,34 +33,30 @@ final class SoundManager: ObservableObject {
     func play(_ effect: SoundEffect) {
         guard isSoundEnabled else { return }
 
-        Task.detached {
-            let data = effect.generateAudio()
-            guard let data else { return }
+        configureAudioSession()
 
-            do {
-                let player = try AVAudioPlayer(data: data)
-                player.volume = effect.volume
-                player.prepareToPlay()
+        guard let data = effect.generateAudio() else { return }
 
-                await MainActor.run { [weak self] in
-                    guard let self else { return }
-                    self.activePlayers.removeAll { !$0.isPlaying }
-                    if self.activePlayers.count >= self.maxConcurrentPlayers {
-                        self.activePlayers.removeFirst()
-                    }
-                    player.play()
-                    self.activePlayers.append(player)
-                }
-            } catch {
-                print("SoundManager: Failed to play \(effect.displayName): \(error)")
+        do {
+            let player = try AVAudioPlayer(data: data)
+            player.volume = effect.volume
+            player.prepareToPlay()
+
+            activePlayers.removeAll { !$0.isPlaying }
+            if activePlayers.count >= maxConcurrentPlayers {
+                activePlayers.removeFirst()
             }
+            player.play()
+            activePlayers.append(player)
+        } catch {
+            print("SoundManager: Failed to play \(effect.displayName): \(error)")
         }
     }
 }
 
 // MARK: - Sound Effect Definitions
 
-enum SoundEffect: String, CaseIterable, Identifiable {
+enum SoundEffect: String, CaseIterable, Identifiable, Sendable {
     case petCatch
     case evolution
     case feedPet

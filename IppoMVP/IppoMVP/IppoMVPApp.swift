@@ -2,9 +2,25 @@ import SwiftUI
 import FirebaseCore
 import HealthKit
 import GoogleSignIn
+import UserNotifications
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNPresentationOptions) -> Void) {
+        completionHandler([.banner, .badge, .sound])
+    }
+}
 
 @main
 struct IppoMVPApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var authService = AuthService.shared
     @StateObject private var userData = UserData.shared
     @StateObject private var watchConnectivity = WatchConnectivityService.shared
