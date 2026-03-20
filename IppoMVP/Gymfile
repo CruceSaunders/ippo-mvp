@@ -5,6 +5,8 @@ export_method("app-store")
 export_team_id("HQCUADY3A5")
 clean(true)
 
+xcargs("CODE_SIGN_IDENTITY='Apple Distribution: Legacy of Education, Inc. (HQCUADY3A5)' CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=HQCUADY3A5 -allowProvisioningUpdates")
+
 export_options({
   signingStyle: "manual",
   provisioningProfiles: {
