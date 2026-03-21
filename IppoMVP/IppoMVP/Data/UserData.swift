@@ -96,6 +96,9 @@ final class UserData: ObservableObject {
             isEquipped: equip
         )
         ownedPets.append(pet)
+        if equip {
+            profile.equippedPetId = pet.id
+        }
         profile.sprintsSinceLastCatch = 0
         save()
         WatchConnectivityService.shared.pushProfileToWatch()

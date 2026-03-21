@@ -505,7 +505,7 @@ struct IppoCompleteOnboardingFlow: View {
                     .foregroundColor(AppColors.accent)
             }
 
-            Text(allGranted ? "All Set!" : (canProceed ? "Almost Done!" : "Permissions Needed"))
+            Text(allGranted ? "All Set!" : (canProceed ? "Almost Done!" : "Before Your First Run"))
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(AppColors.textPrimary)
 
