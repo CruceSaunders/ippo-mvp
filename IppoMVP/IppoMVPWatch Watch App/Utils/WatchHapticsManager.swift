@@ -20,12 +20,16 @@ final class WatchHapticsManager {
     
     // MARK: - Sprint Signals
     func playSprintStart() {
-        // 3 strong vibrations
         Task {
-            for _ in 0..<3 {
-                device.play(.notification)
-                try? await Task.sleep(nanoseconds: 150_000_000) // 0.15s
-            }
+            device.play(.notification)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            device.play(.directionUp)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            device.play(.notification)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            device.play(.directionUp)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            device.play(.notification)
         }
     }
     

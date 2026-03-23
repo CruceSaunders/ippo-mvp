@@ -58,6 +58,7 @@ final class UserData: ObservableObject {
         }
         inventory.cleanExpiredBoosts()
         migrateEvolutionStages()
+        updateAgeIfNeeded()
         loadPendingRun()
     }
 
@@ -598,6 +599,24 @@ final class UserData: ObservableObject {
         }
 
         UserDefaults.standard.set(Date(), forKey: key)
+        save()
+    }
+
+    // MARK: - Age Update
+
+    func updateAgeIfNeeded() {
+        let calendar = Calendar.current
+        let creationYear = calendar.component(.year, from: profile.createdAt)
+        let currentYear = calendar.component(.year, from: Date())
+        let yearsPassed = currentYear - creationYear
+
+        guard yearsPassed > 0 else { return }
+
+        let lastAgeYear = UserDefaults.standard.integer(forKey: "ippo.lastAgeUpdateYear")
+        guard lastAgeYear != currentYear else { return }
+
+        profile.age += (lastAgeYear > 0) ? (currentYear - lastAgeYear) : yearsPassed
+        UserDefaults.standard.set(currentYear, forKey: "ippo.lastAgeUpdateYear")
         save()
     }
 

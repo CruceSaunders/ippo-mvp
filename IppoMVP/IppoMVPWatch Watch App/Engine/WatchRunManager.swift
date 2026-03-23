@@ -553,16 +553,10 @@ final class WatchRunManager: NSObject, ObservableObject {
         let zone4Threshold = WatchConnectivityServiceWatch.shared.hrZone4Threshold
         
         if zone4Threshold > 0 {
-            let validSamples = sprintHRSamples.filter { $0 > 0 }
-            guard !validSamples.isEmpty else { return false }
-            let samplesInZone4 = validSamples.filter { $0 >= zone4Threshold }.count
-            let zone4Ratio = Double(samplesInZone4) / Double(validSamples.count)
-            return zone4Ratio >= 0.50
+            return peakHR >= zone4Threshold
         } else {
             let hrIncrease = peakHR - baselineHR
-            let hrScore = min(1.0, Double(hrIncrease) / 20.0)
-            let totalScore = (hrScore * 0.65 + 0.35) * 100
-            return totalScore >= 60
+            return hrIncrease >= 15
         }
     }
     
