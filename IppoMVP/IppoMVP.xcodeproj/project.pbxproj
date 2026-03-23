@@ -381,7 +381,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cruce.IppoMVP;
 				PROVISIONING_PROFILE_SPECIFIER = "com.cruce.IppoMVP AppStore";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -420,7 +420,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cruce.IppoMVP;
 				PROVISIONING_PROFILE_SPECIFIER = "com.cruce.IppoMVP AppStore";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -455,7 +455,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cruce.IppoMVP.watchkitapp;
 				PROVISIONING_PROFILE_SPECIFIER = "com.cruce.IppoMVP.watchkitapp AppStore";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -493,7 +493,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cruce.IppoMVP.watchkitapp;
 				PROVISIONING_PROFILE_SPECIFIER = "com.cruce.IppoMVP.watchkitapp AppStore";
 				PRODUCT_NAME = "$(TARGET_NAME)";

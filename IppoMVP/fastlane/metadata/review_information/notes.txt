@@ -1,0 +1,7 @@
+Build 63 addresses the two previously identified issues:
+
+Guideline 5.1.1: The HealthKit pre-permission button was changed from "Allow and Continue" to "Continue" in Build 62. The screen title has been further softened from "Permissions Needed" to "Before Your First Run" in Build 63 to ensure the language is purely informational.
+
+Guideline 4.5.4: Notification permission was made fully optional in Build 62. The notification row is explicitly labeled "Notifications (Optional)", the Continue button is never disabled based on notification status, and the app functions fully without notification permission. The only permission that gates progress is HealthKit, which is required for the core running functionality.
+
+Additionally, Build 63 fixes a bug where the starter pet was not automatically equipped after onboarding.
