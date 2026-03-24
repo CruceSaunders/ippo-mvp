@@ -27,7 +27,9 @@ struct WatchSetupSheet: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
             }
-            .background(AppColors.background.ignoresSafeArea())
+            .background {
+                ParchmentBackground(showVineBorder: false)
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

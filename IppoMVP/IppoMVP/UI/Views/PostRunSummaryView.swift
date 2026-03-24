@@ -15,17 +15,18 @@ struct PostRunSummaryView: View {
 
     var body: some View {
         ZStack {
-            AppColors.background.ignoresSafeArea()
+            ParchmentBackground()
 
             ScrollView {
                 VStack(spacing: 24) {
                     Text("Run Complete!")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(AppTypography.largeTitle)
                         .foregroundColor(AppColors.textPrimary)
+                        .padding(.top, 12)
 
                     statsGrid
 
-                    rewardsRow
+                    rewardsSection
 
                     if let pet = userData.equippedPet, let def = pet.definition {
                         petHappySection(def: def, pet: pet)
@@ -35,16 +36,13 @@ struct PostRunSummaryView: View {
                         petRevealSection(caughtDef)
                     }
 
-                    Button {
+                    GoldButton(
+                        title: caughtPetDef.map { "Meet \($0.name)" } ?? "Continue",
+                        icon: caughtPetDef != nil ? "sparkles" : "arrow.right",
+                        isFullWidth: true,
+                        size: .large
+                    ) {
                         onDismiss()
-                    } label: {
-                        Text(caughtPetDef.map { "Meet \($0.name)" } ?? "Continue")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(AppColors.accent)
-                            .cornerRadius(12)
                     }
                     .padding(.top, 8)
                 }
@@ -65,107 +63,117 @@ struct PostRunSummaryView: View {
     }
 
     private var statsGrid: some View {
-        HStack(spacing: 16) {
-            statItem(value: formatDuration(run.durationSeconds), label: "Duration")
-            statItem(value: formatDistance(run.distanceMeters), label: "Distance")
-            statItem(value: "\(run.sprintsCompleted)", label: "Sprints")
+        HStack(spacing: 12) {
+            statItem(value: formatDuration(run.durationSeconds), label: "Duration", icon: "clock")
+            statItem(value: formatDistance(run.distanceMeters), label: "Distance", icon: "figure.walk")
+            statItem(value: "\(run.sprintsCompleted)", label: "Sprints", icon: "bolt.fill")
         }
     }
 
-    private func statItem(value: String, label: String) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
-            Text(label)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(AppColors.surface)
-        .cornerRadius(12)
-    }
-
-    private var rewardsRow: some View {
-        HStack(spacing: 20) {
-            HStack(spacing: 6) {
-                Image(systemName: "circle.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(AppColors.coins)
-                Text("+\(run.coinsEarned)")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(AppColors.coins)
+    private func statItem(value: String, label: String, icon: String) -> some View {
+        StoryBookCard(padding: 12) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(AppColors.borderBrown)
+                Text(value)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Text(label)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
             }
+            .frame(maxWidth: .infinity)
+        }
+    }
 
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(AppColors.xp)
-                Text("+\(run.xpEarned)")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(AppColors.xp)
+    private var rewardsSection: some View {
+        StoryBookCard {
+            VStack(spacing: 8) {
+                RibbonBanner(title: "Rewards Earned", style: .small)
+
+                HStack(spacing: 24) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(AppColors.coins)
+                        Text("+\(run.coinsEarned)")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundColor(AppColors.coins)
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(AppColors.xp)
+                        Text("+\(run.xpEarned)")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundColor(AppColors.xp)
+                    }
+                }
             }
         }
     }
 
     @ViewBuilder
     private func petHappySection(def: GamePetDefinition, pet: OwnedPet) -> some View {
-        VStack(spacing: 8) {
-            PetImageView(imageName: pet.currentImageName, size: 80)
-                .frame(height: 80)
+        StoryBookCard {
+            VStack(spacing: 8) {
+                PetImageView(imageName: pet.currentImageName, size: 80)
+                    .frame(height: 80)
 
-            Text("\(def.name) is happy you ran together!")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
+                Text("\(def.name) is happy you ran together!")
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(AppColors.surface)
-        .cornerRadius(16)
     }
 
     @ViewBuilder
     private func petRevealSection(_ def: GamePetDefinition) -> some View {
         VStack(spacing: 16) {
             Text("...but wait...")
-                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .font(.system(size: 16, weight: .medium, design: .serif))
                 .foregroundColor(AppColors.textSecondary)
+                .italic()
                 .opacity(showReveal ? 0 : 1)
 
             if showReveal {
-                VStack(spacing: 12) {
-                    Text("NEW FRIEND CAUGHT!")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundColor(AppColors.accent)
+                StoryBookCard(isHighlighted: true) {
+                    VStack(spacing: 12) {
+                        RibbonBanner(title: "New Friend Caught!", style: .accent)
 
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(AppColors.accentSoft.opacity(0.2))
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(AppColors.goldLight.opacity(0.15))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(AppColors.goldMid.opacity(0.3), lineWidth: 1)
+                                )
 
-                        Image(def.stageImageNames.first ?? "pet_placeholder")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .padding(24)
+                            Image(def.stageImageNames.first ?? "pet_placeholder")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .padding(24)
+                        }
+                        .frame(height: 160)
+
+                        Text(def.name)
+                            .font(AppTypography.petName)
+                            .foregroundColor(AppColors.textPrimary)
+
+                        Text(def.description)
+                            .font(.system(size: 14, design: .rounded))
+                            .foregroundColor(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .italic()
                     }
-                    .frame(height: 160)
-
-                    Text(def.name)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundColor(AppColors.textPrimary)
-
-                    Text(def.description)
-                        .font(.system(size: 14, design: .rounded))
-                        .foregroundColor(AppColors.textSecondary)
-                        .multilineTextAlignment(.center)
                 }
                 .transition(.scale.combined(with: .opacity))
             }
         }
-        .padding(20)
-        .background(AppColors.surface)
-        .cornerRadius(16)
     }
 
     private func formatDuration(_ seconds: Int) -> String {

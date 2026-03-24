@@ -8,7 +8,7 @@ struct PetDetailView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppColors.background.ignoresSafeArea()
+                ParchmentBackground()
 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -22,11 +22,16 @@ struct PetDetailView: View {
                     .padding(.bottom, 24)
                 }
             }
-            .navigationTitle(pet.definition?.name ?? "Pet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(pet.definition?.name ?? "Pet")
+                        .font(AppTypography.title3)
+                        .foregroundColor(AppColors.textPrimary)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundColor(AppColors.accent)
                 }
             }
@@ -35,24 +40,37 @@ struct PetDetailView: View {
 
     private var petImage: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 24)
+            Circle()
                 .fill(AppColors.surface)
-            PetImageView(imageName: pet.currentImageName, size: 200)
-                .padding(40)
+                .overlay(
+                    Circle()
+                        .stroke(AppColors.borderBrown, lineWidth: 2)
+                )
+                .shadow(color: AppColors.parchmentDark.opacity(0.3), radius: 6, y: 2)
+                .frame(width: 200, height: 200)
+
+            PetImageView(imageName: pet.currentImageName, size: 160)
+                .clipShape(Circle())
+                .frame(width: 160, height: 160)
+
+            Circle()
+                .stroke(AppColors.vineLight.opacity(0.3), lineWidth: 3)
+                .frame(width: 210, height: 210)
         }
-        .frame(height: 250)
+        .padding(.top, 16)
     }
 
     private var petInfo: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Text(pet.definition?.name ?? "Unknown")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(AppTypography.petName)
                 .foregroundColor(AppColors.textPrimary)
 
             Text(pet.definition?.description ?? "")
                 .font(.system(size: 14, design: .rounded))
                 .foregroundColor(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
+                .italic()
 
             HStack(spacing: 12) {
                 MoodIndicator(mood: pet.mood)
@@ -65,85 +83,105 @@ struct PetDetailView: View {
     }
 
     private var xpProgress: some View {
-        XPProgressBar(
-            progress: pet.xpProgress,
-            currentXP: pet.experience - pet.xpForCurrentLevel,
-            targetXP: max(1, pet.xpForNextLevel - pet.xpForCurrentLevel),
-            label: pet.isMaxLevel ? "Max Level" : "Lv. \(pet.level + 1)"
-        )
+        StoryBookCard {
+            VStack(spacing: 8) {
+                RibbonBanner(title: "Level \(pet.level) - \(pet.stageName) Stage", style: .small)
+
+                XPProgressBar(
+                    progress: pet.xpProgress,
+                    currentXP: pet.experience - pet.xpForCurrentLevel,
+                    targetXP: max(1, pet.xpForNextLevel - pet.xpForCurrentLevel),
+                    label: pet.isMaxLevel ? "Max Level" : "Lv. \(pet.level + 1)"
+                )
+            }
+        }
     }
 
     private var evolutionTimeline: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Evolution")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
+        StoryBookCard {
+            VStack(spacing: 12) {
+                RibbonBanner(title: "Evolution Path", style: .small)
 
-            HStack(spacing: 0) {
-                ForEach(1...PetConfig.shared.maxStages, id: \.self) { stage in
-                    VStack(spacing: 6) {
-                        ZStack {
-                            Circle()
-                                .fill(stage <= pet.evolutionStage ? AppColors.accent : AppColors.surfaceElevated)
-                                .frame(width: stage == pet.evolutionStage ? 28 : 20,
-                                       height: stage == pet.evolutionStage ? 28 : 20)
-                            if stage <= pet.evolutionStage {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: stage == pet.evolutionStage ? 12 : 8, weight: .bold))
-                                    .foregroundColor(.white)
+                HStack(spacing: 0) {
+                    ForEach(1...PetConfig.shared.maxStages, id: \.self) { stage in
+                        VStack(spacing: 6) {
+                            ZStack {
+                                Circle()
+                                    .fill(stage <= pet.evolutionStage
+                                          ? LinearGradient(colors: [AppColors.goldLight, AppColors.goldMid], startPoint: .top, endPoint: .bottom)
+                                          : LinearGradient(colors: [AppColors.surfaceDark, AppColors.surfaceDark], startPoint: .top, endPoint: .bottom))
+                                    .frame(width: stage == pet.evolutionStage ? 32 : 24,
+                                           height: stage == pet.evolutionStage ? 32 : 24)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(stage <= pet.evolutionStage ? AppColors.goldDark : AppColors.borderLight, lineWidth: 1.5)
+                                    )
+
+                                if stage <= pet.evolutionStage {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: stage == pet.evolutionStage ? 14 : 10, weight: .bold))
+                                        .foregroundColor(AppColors.textPrimary)
+                                } else {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(AppColors.textTertiary)
+                                }
                             }
+
+                            Text(PetConfig.shared.stageName(for: stage))
+                                .font(.system(size: 11, weight: stage == pet.evolutionStage ? .semibold : .regular, design: .serif))
+                                .foregroundColor(stage <= pet.evolutionStage ? AppColors.textPrimary : AppColors.textTertiary)
                         }
+                        .frame(maxWidth: .infinity)
 
-                        Text(PetConfig.shared.stageName(for: stage))
-                            .font(.system(size: 11, weight: stage == pet.evolutionStage ? .semibold : .regular, design: .rounded))
-                            .foregroundColor(stage <= pet.evolutionStage ? AppColors.textPrimary : AppColors.textTertiary)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    if stage < PetConfig.shared.maxStages {
-                        Rectangle()
-                            .fill(stage < pet.evolutionStage ? AppColors.accent : AppColors.surfaceElevated)
-                            .frame(height: 2)
-                            .padding(.bottom, 20)
+                        if stage < PetConfig.shared.maxStages {
+                            Rectangle()
+                                .fill(stage < pet.evolutionStage
+                                      ? AppColors.goldMid
+                                      : AppColors.borderLight)
+                                .frame(height: 2)
+                                .padding(.bottom, 20)
+                        }
                     }
                 }
             }
         }
-        .padding(16)
-        .background(AppColors.surface)
-        .cornerRadius(12)
     }
 
     private var actionButtons: some View {
         VStack(spacing: 10) {
             if !pet.isEquipped {
-                Button {
+                GoldButton(
+                    title: "Equip \(pet.definition?.name ?? "Pet")",
+                    icon: "star.fill",
+                    isFullWidth: true,
+                    size: .large
+                ) {
                     userData.equipPet(pet.id)
                     dismiss()
-                } label: {
-                    Text("Equip \(pet.definition?.name ?? "Pet")")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(AppColors.accent)
-                        .cornerRadius(12)
                 }
             } else {
-                Text("Currently Equipped")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(AppColors.accent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(AppColors.accent.opacity(0.1))
-                    .cornerRadius(12)
+                HStack {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(AppColors.goldMid)
+                    Text("Currently Equipped")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.goldMid)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(AppColors.goldLight.opacity(0.2))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(AppColors.goldMid.opacity(0.4), lineWidth: 1)
+                )
             }
 
-            HStack(spacing: 16) {
-                Text("Caught \(pet.caughtDate, style: .date)")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundColor(AppColors.textTertiary)
-            }
+            Text("Caught \(pet.caughtDate, style: .date)")
+                .font(.system(size: 12, design: .rounded))
+                .foregroundColor(AppColors.textTertiary)
+                .italic()
         }
     }
 }

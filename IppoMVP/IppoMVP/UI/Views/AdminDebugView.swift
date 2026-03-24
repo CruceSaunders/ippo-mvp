@@ -44,7 +44,9 @@ struct AdminDebugView: View {
         .navigationTitle("Debug Panel")
         .navigationBarTitleDisplayMode(.inline)
         .scrollContentBackground(.hidden)
-        .background(AppColors.background.ignoresSafeArea())
+        .background {
+            ParchmentBackground(showVineBorder: false)
+        }
         .overlay {
             if let msg = feedbackMessage {
                 VStack {

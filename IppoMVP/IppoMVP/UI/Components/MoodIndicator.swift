@@ -61,15 +61,19 @@ struct MoodIndicator: View {
         Button { showTip = true } label: {
             HStack(spacing: 4) {
                 Image(systemName: iconName)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(color)
                 Text(label)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(color)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(color.opacity(0.15))
+            .background(color.opacity(0.12))
+            .overlay(
+                Capsule()
+                    .stroke(color.opacity(0.3), lineWidth: 1)
+            )
             .clipShape(Capsule())
         }
         .alert(label, isPresented: $showTip) {

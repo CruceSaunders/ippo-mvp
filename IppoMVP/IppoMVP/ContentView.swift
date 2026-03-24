@@ -24,11 +24,23 @@ struct ContentView: View {
                 }
                 .tag(2)
         }
-        .tint(AppColors.accent)
+        .tint(AppColors.tabActive)
         .onAppear {
             let appearance = UITabBarAppearance()
             appearance.configureWithOpaqueBackground()
             appearance.backgroundColor = UIColor(AppColors.tabBar)
+
+            let normalAttrs: [NSAttributedString.Key: Any] = [
+                .foregroundColor: UIColor(AppColors.tabInactive)
+            ]
+            let selectedAttrs: [NSAttributedString.Key: Any] = [
+                .foregroundColor: UIColor(AppColors.tabActive)
+            ]
+            appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.tabInactive)
+            appearance.stackedLayoutAppearance.normal.titleTextAttributes = normalAttrs
+            appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppColors.tabActive)
+            appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedAttrs
+
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
 

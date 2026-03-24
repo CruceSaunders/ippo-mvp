@@ -5,65 +5,51 @@ struct LoginView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var userData: UserData
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         ZStack {
-            // Background
-            LinearGradient(
-                colors: [AppColors.background, AppColors.surface],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
+            ParchmentBackground()
+
             VStack(spacing: AppSpacing.xxl) {
                 Spacer()
-                
-                // Logo
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [AppColors.brandPrimary.opacity(0.3), Color.clear],
-                                center: .center,
-                                startRadius: 50,
-                                endRadius: 120
+
+                VStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(AppColors.surface)
+                            .frame(width: 140, height: 140)
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderBrown, lineWidth: 3)
                             )
-                        )
-                        .frame(width: 200, height: 200)
-                    
+                            .shadow(color: AppColors.parchmentDark.opacity(0.3), radius: 8, y: 3)
+
+                        Image(systemName: "pawprint.fill")
+                            .font(.system(size: 56, weight: .semibold))
+                            .foregroundColor(AppColors.accent)
+                    }
+
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [AppColors.brandPrimary, AppColors.brandSecondary],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 120, height: 120)
-                        .shadow(color: AppColors.brandPrimary.opacity(0.5), radius: 20)
-                    
-                    Image(systemName: "figure.run")
-                        .font(.system(size: 50, weight: .semibold))
-                        .foregroundColor(.white)
+                        .stroke(AppColors.vineLight.opacity(0.25), lineWidth: 2)
+                        .frame(width: 160, height: 160)
+                        .offset(y: -88)
+                        .allowsHitTesting(false)
                 }
-                
-                // Title
+
                 VStack(spacing: AppSpacing.sm) {
                     Text("Ippo")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .font(.system(size: 46, weight: .bold, design: .serif))
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     Text("Run. Catch. Grow.")
-                        .font(AppTypography.body)
+                        .font(.system(size: 17, weight: .medium, design: .serif))
                         .foregroundColor(AppColors.textSecondary)
+                        .italic()
                 }
-                
+
                 Spacer()
-                
-                // Sign In Buttons
+
                 VStack(spacing: AppSpacing.md) {
-                    // Sign in with Apple
                     SignInWithAppleButton(.signIn) { request in
                         let appleRequest = authService.startSignInWithApple()
                         request.requestedScopes = appleRequest.requestedScopes
@@ -75,29 +61,32 @@ struct LoginView: View {
                     }
                     .signInWithAppleButtonStyle(.white)
                     .frame(height: 50)
-                    .cornerRadius(25)
-                    
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(AppColors.borderLight, lineWidth: 1)
+                    )
+
                     Button {
                         Task { await authService.signInWithGoogle() }
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "g.circle.fill")
                                 .font(.system(size: 20))
-                            Text("Sign in with Google")
-                                .font(.system(size: 17, weight: .medium))
+                            Text("Continue with Google")
+                                .font(.system(size: 17, weight: .medium, design: .rounded))
                         }
                         .foregroundColor(AppColors.textPrimary)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .background(AppColors.surface)
-                        .cornerRadius(25)
+                        .cornerRadius(12)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 25)
-                                .stroke(AppColors.textTertiary.opacity(0.3), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(AppColors.borderLight, lineWidth: 1)
                         )
                     }
-                    
-                    // Error message
+
                     if let error = authService.errorMessage {
                         Text(error)
                             .font(AppTypography.caption1)
@@ -105,16 +94,14 @@ struct LoginView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, AppSpacing.lg)
                     }
-                    
-                    // Loading indicator
+
                     if authService.isLoading {
                         ProgressView()
-                            .tint(AppColors.brandPrimary)
+                            .tint(AppColors.accent)
                     }
                 }
                 .padding(.horizontal, AppSpacing.xl)
-                
-                // Terms
+
                 Text("By signing in, you agree to our Terms of Service and Privacy Policy.")
                     .font(AppTypography.caption2)
                     .foregroundColor(AppColors.textTertiary)

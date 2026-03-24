@@ -42,7 +42,7 @@ struct HomeView: View {
         NavigationStack {
             GeometryReader { rootGeo in
                 ZStack {
-                    AppColors.background.ignoresSafeArea()
+                    ParchmentBackground()
 
                     ScrollView {
                         VStack(spacing: 0) {
@@ -54,13 +54,23 @@ struct HomeView: View {
                             }
 
                             if let pet = userData.equippedPet, let def = pet.definition {
+                                coinAndStreakBar
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 8)
+
                                 petDisplay(pet: pet, def: def)
                                 xpBar(pet: pet)
                                     .padding(.horizontal, 20)
                                     .padding(.top, 8)
+
+                                RibbonBanner(title: "Daily Care", style: .small)
+                                    .padding(.horizontal, 30)
+                                    .padding(.top, 14)
+
                                 careTray(pet: pet)
                                     .padding(.horizontal, 20)
-                                    .padding(.top, 14)
+                                    .padding(.top, 8)
+
                                 boostBanners
                                     .padding(.horizontal, 20)
                                     .padding(.top, 10)
@@ -99,8 +109,8 @@ struct HomeView: View {
                     if isDraggingWater {
                         Image(systemName: "drop.fill")
                             .font(.system(size: 32))
-                            .foregroundColor(AppColors.accent)
-                            .shadow(color: AppColors.accent.opacity(0.5), radius: 8)
+                            .foregroundColor(AppColors.xp)
+                            .shadow(color: AppColors.xp.opacity(0.5), radius: 8)
                             .position(x: waterDragLocation.x, y: waterDragLocation.y)
                             .allowsHitTesting(false)
                     }
@@ -149,7 +159,7 @@ struct HomeView: View {
                     } label: {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 17))
-                            .foregroundColor(AppColors.textSecondary)
+                            .foregroundColor(AppColors.borderBrown)
                     }
                 }
             }
@@ -193,28 +203,77 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Coin & Streak Bar
+
+    private var coinAndStreakBar: some View {
+        HStack {
+            HStack(spacing: 5) {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(AppColors.coins)
+                Text("\(userData.profile.coins)")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(AppColors.surface)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(AppColors.borderLight, lineWidth: 1)
+            )
+
+            Spacer()
+
+            if userData.profile.currentStreak > 0 {
+                HStack(spacing: 5) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(AppColors.accent)
+                    Text("\(userData.profile.currentStreak)")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                    Text("day streak")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                    if userData.inventory.isStreakFrozen {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(AppColors.success)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(AppColors.surface)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(AppColors.borderLight, lineWidth: 1)
+                )
+            }
+        }
+    }
+
     // MARK: - Milestone Toast
 
     private func milestoneToastView(_ toast: MilestoneToast) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: toast.icon)
-                .font(.system(size: 20))
-                .foregroundColor(colorForToast(toast.color))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(toast.title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                Text(toast.subtitle)
-                    .font(.system(size: 13, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
+        StoryBookCard {
+            HStack(spacing: 10) {
+                Image(systemName: toast.icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(colorForToast(toast.color))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(toast.title)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                    Text(toast.subtitle)
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                Spacer()
             }
-            Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .cornerRadius(14)
-        .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
         .padding(.horizontal, 20)
     }
 
@@ -232,23 +291,17 @@ struct HomeView: View {
 
     private func petDisplay(pet: OwnedPet, def: GamePetDefinition) -> some View {
         VStack(spacing: 6) {
-            ZStack {
-                Text(def.name)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
+            Text(def.name)
+                .font(AppTypography.petName)
+                .foregroundColor(AppColors.textPrimary)
+                .padding(.top, 10)
 
-                HStack {
-                    Spacer()
-                    MoodIndicator(mood: pet.mood, careNeed: userData.activeCareNeed)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Text("Lv. \(pet.level) · \(pet.stageName)")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundColor(AppColors.textSecondary)
+
+                MoodIndicator(mood: pet.mood, careNeed: userData.activeCareNeed)
 
                 if !pet.canEarnPetXP {
                     Text("· Petted today")
@@ -256,6 +309,7 @@ struct HomeView: View {
                         .foregroundColor(AppColors.textTertiary)
                 }
             }
+            .padding(.horizontal, 20)
 
             ZStack {
                 PetEnvironmentView(
@@ -278,8 +332,12 @@ struct HomeView: View {
                         .onDisappear { sleepTimer?.invalidate(); sleepTimer = nil }
                 }
             }
-            .frame(height: screenSize.height * 0.44)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .frame(height: screenSize.height * 0.40)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(AppColors.borderLight, lineWidth: 1)
+            )
             .padding(.horizontal, 4)
             .background(
                 GeometryReader { geo in
@@ -334,13 +392,13 @@ struct HomeView: View {
         )
     }
 
-    // MARK: - Care Tray (draggable food + water)
+    // MARK: - Care Tray
 
     @ViewBuilder
     private func careTray(pet: OwnedPet) -> some View {
         let hibernating = userData.inventory.isHibernating
 
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             draggableItem(
                 icon: "leaf.fill",
                 label: hibernating ? "Sleeping" : "Food",
@@ -378,21 +436,21 @@ struct HomeView: View {
                 }
             }
 
-            VStack(spacing: 4) {
-                Image(systemName: "hand.draw.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(AppColors.textTertiary)
-                Text(hibernating ? "Sleeping" : "Rub pet")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(AppColors.textTertiary)
-                Text(hibernating ? "Zzz..." : (pet.canEarnPetXP ? "+XP" : "Done today"))
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundColor(!hibernating && pet.canEarnPetXP ? AppColors.xp : AppColors.textTertiary)
+            StoryBookCardCompact {
+                VStack(spacing: 4) {
+                    Image(systemName: "hand.draw.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(hibernating ? AppColors.textTertiary : AppColors.borderBrown)
+                    Text(hibernating ? "Sleeping" : "Rub pet")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                    Text(hibernating ? "Zzz..." : (pet.canEarnPetXP ? "+XP" : "Done today"))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(!hibernating && pet.canEarnPetXP ? AppColors.xp : AppColors.textTertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 72)
-            .background(AppColors.surface)
-            .cornerRadius(12)
             .opacity(hibernating ? 0.5 : 1.0)
         }
     }
@@ -407,21 +465,21 @@ struct HomeView: View {
         isDragging: Binding<Bool>,
         onDrop: @escaping () -> Void
     ) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundColor(enabled ? AppColors.accent : AppColors.textTertiary)
-            Text("\(label) x\(count)")
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundColor(enabled ? AppColors.textPrimary : AppColors.textTertiary)
-            Text(xpAvailable ? "+XP" : "Done today")
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundColor(xpAvailable ? AppColors.xp : AppColors.textTertiary)
+        StoryBookCardCompact {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundColor(enabled ? AppColors.accent : AppColors.textTertiary)
+                Text("\(label) x\(count)")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(enabled ? AppColors.textPrimary : AppColors.textTertiary)
+                Text(xpAvailable ? "+XP" : "Done today")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(xpAvailable ? AppColors.xp : AppColors.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 72)
-        .background(AppColors.surface)
-        .cornerRadius(12)
         .opacity(isDragging.wrappedValue ? 0.4 : 1.0)
         .gesture(
             enabled
@@ -455,6 +513,10 @@ struct HomeView: View {
             .padding(.vertical, 6)
             .background(AppColors.surface)
             .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(AppColors.borderLight, lineWidth: 1)
+            )
             .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
             .position(x: screenSize.width / 2, y: screenSize.height * 0.25)
             .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -468,7 +530,7 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Care Hint Overlay (first-time)
+    // MARK: - Care Hint Overlay
 
     private var careHintOverlay: some View {
         ZStack {
@@ -477,22 +539,22 @@ struct HomeView: View {
                 .onTapGesture { hasSeenCareHint = true }
 
             VStack(spacing: 16) {
-                HStack(spacing: 12) {
-                    Image(systemName: "hand.draw.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(AppColors.accent)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Drag food onto your pet to feed")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundColor(AppColors.textPrimary)
-                        Text("Rub your pet to show love")
-                            .font(.system(size: 13, design: .rounded))
-                            .foregroundColor(AppColors.textSecondary)
+                StoryBookCard {
+                    HStack(spacing: 12) {
+                        Image(systemName: "hand.draw.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(AppColors.accent)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Drag food onto your pet to feed")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary)
+                            Text("Rub your pet to show love")
+                                .font(.system(size: 13, design: .rounded))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
                     }
                 }
-                .padding(20)
-                .background(AppColors.surface)
-                .cornerRadius(16)
+                .padding(.horizontal, 20)
                 .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
 
                 Text("Tap anywhere to dismiss")
@@ -563,95 +625,86 @@ struct HomeView: View {
     }
 
     private func boostBanner(icon: String, iconColor: Color, title: String, detail: String, bgColor: Color) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(iconColor)
-            Text(title)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
-            Spacer()
-            Text(detail)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
+        StoryBookCardCompact {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(iconColor)
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Spacer()
+                Text(detail)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+            }
         }
-        .padding(10)
-        .background(bgColor.opacity(0.1))
-        .cornerRadius(10)
     }
 
     // MARK: - Stats Bar
 
     private var statsBar: some View {
-        HStack(spacing: 0) {
-            HStack(spacing: 6) {
-                Image(systemName: "circle.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(AppColors.coins)
-                Text("\(userData.profile.coins)")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                Text("coins")
-                    .font(.system(size: 13, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
-            }
-
-            Spacer()
-
-            if userData.profile.currentStreak > 0 {
+        StoryBookCard(padding: 12) {
+            HStack(spacing: 0) {
                 HStack(spacing: 6) {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(AppColors.accent)
-                    Text("\(userData.profile.currentStreak)")
+                    Image(systemName: "figure.run")
+                        .font(.system(size: 14))
+                        .foregroundColor(AppColors.borderBrown)
+                    Text("\(userData.profile.totalRuns)")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundColor(AppColors.textPrimary)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("day streak")
-                            .font(.system(size: 13, design: .rounded))
-                            .foregroundColor(AppColors.textSecondary)
-                        if streakXPBonusPercent > 0 {
-                            Text("+\(streakXPBonusPercent, specifier: "%.1f")% XP")
-                                .font(.system(size: 10, weight: .medium, design: .rounded))
-                                .foregroundColor(AppColors.xp)
-                        }
-                    }
-                    if userData.inventory.isStreakFrozen {
-                        Image(systemName: "shield.fill")
-                            .font(.system(size: 11))
-                            .foregroundColor(AppColors.success)
-                    }
+                    Text("runs")
+                        .font(.system(size: 13, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                }
+
+                Spacer()
+
+                if streakXPBonusPercent > 0 {
+                    Text("+\(streakXPBonusPercent, specifier: "%.1f")% XP")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.xp)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(AppColors.xp.opacity(0.12))
+                        .cornerRadius(6)
                 }
             }
-
-            Spacer()
-
-            HStack(spacing: 6) {
-                Image(systemName: "figure.run")
-                    .font(.system(size: 14))
-                    .foregroundColor(AppColors.textSecondary)
-                Text("\(userData.profile.totalRuns)")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                Text("runs")
-                    .font(.system(size: 13, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
-            }
         }
-        .padding(12)
-        .background(AppColors.surface)
-        .cornerRadius(12)
     }
 
     // MARK: - Run History
 
     @ViewBuilder
     private var runHistorySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Run History")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                Spacer()
+        VStack(spacing: 10) {
+            RibbonBanner(title: "Run History", style: .small)
+                .padding(.horizontal, 10)
+
+            if userData.runHistory.isEmpty {
+                StoryBookCard {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 6) {
+                            Image(systemName: "figure.run")
+                                .font(.system(size: 24))
+                                .foregroundColor(AppColors.textTertiary)
+                            Text("No runs yet. Go for a run!")
+                                .font(.system(size: 14, design: .rounded))
+                                .foregroundColor(AppColors.textTertiary)
+                        }
+                        .padding(.vertical, 12)
+                        Spacer()
+                    }
+                }
+            } else {
+                let runsToShow = showAllRuns
+                    ? Array(userData.runHistory.prefix(20))
+                    : Array(userData.runHistory.prefix(1))
+
+                ForEach(runsToShow) { run in
+                    runRow(run)
+                }
+
                 if userData.runHistory.count > 1 {
                     Button {
                         withAnimation(.easeInOut(duration: 0.25)) {
@@ -664,64 +717,39 @@ struct HomeView: View {
                     }
                 }
             }
-
-            if userData.runHistory.isEmpty {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 6) {
-                        Image(systemName: "figure.run")
-                            .font(.system(size: 24))
-                            .foregroundColor(AppColors.textTertiary)
-                        Text("No runs yet. Go for a run!")
-                            .font(.system(size: 14, design: .rounded))
-                            .foregroundColor(AppColors.textTertiary)
-                    }
-                    .padding(.vertical, 20)
-                    Spacer()
-                }
-            } else {
-                let runsToShow = showAllRuns
-                    ? Array(userData.runHistory.prefix(20))
-                    : Array(userData.runHistory.prefix(1))
-
-                ForEach(runsToShow) { run in
-                    runRow(run)
-                }
-            }
         }
     }
 
     private func runRow(_ run: CompletedRun) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(run.date, style: .date)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                HStack(spacing: 8) {
-                    Label(formatDuration(run.durationSeconds), systemImage: "clock")
-                    Label("\(run.sprintsCompleted) sprints", systemImage: "bolt.fill")
-                }
-                .font(.system(size: 12, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 3) {
-                HStack(spacing: 3) {
-                    Text("+\(run.coinsEarned)")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundColor(AppColors.coins)
-                    Image(systemName: "circle.fill")
-                        .font(.system(size: 5))
-                        .foregroundColor(AppColors.coins)
-                }
-                Text("+\(run.xpEarned) XP")
+        StoryBookCard(padding: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(run.date, style: .date)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                    HStack(spacing: 8) {
+                        Label(formatDuration(run.durationSeconds), systemImage: "clock")
+                        Label("\(run.sprintsCompleted) sprints", systemImage: "bolt.fill")
+                    }
                     .font(.system(size: 12, design: .rounded))
-                    .foregroundColor(AppColors.xp)
+                    .foregroundColor(AppColors.textSecondary)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 3) {
+                    HStack(spacing: 3) {
+                        Text("+\(run.coinsEarned)")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundColor(AppColors.coins)
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 5))
+                            .foregroundColor(AppColors.coins)
+                    }
+                    Text("+\(run.xpEarned) XP")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundColor(AppColors.xp)
+                }
             }
         }
-        .padding(12)
-        .background(AppColors.surface)
-        .cornerRadius(12)
     }
 
     // MARK: - No Pet View
@@ -731,9 +759,9 @@ struct HomeView: View {
             Spacer().frame(height: 60)
             Image(systemName: "pawprint.fill")
                 .font(.system(size: 48))
-                .foregroundColor(AppColors.textTertiary)
+                .foregroundColor(AppColors.borderBrown.opacity(0.5))
             Text("No pet equipped")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .font(AppTypography.title3)
                 .foregroundColor(AppColors.textSecondary)
             Text("Go to your collection and equip a pet!")
                 .font(.system(size: 14, design: .rounded))
@@ -744,103 +772,87 @@ struct HomeView: View {
     // MARK: - Watch Setup Banner
 
     private var watchSetupBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "applewatch")
-                .font(.system(size: 24))
-                .foregroundColor(AppColors.accent)
+        StoryBookCard {
+            HStack(spacing: 12) {
+                Image(systemName: "applewatch")
+                    .font(.system(size: 24))
+                    .foregroundColor(AppColors.accent)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Apple Watch Not Connected")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                Text("Set up your Watch to start running")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
-            }
-
-            Spacer()
-
-            Button {
-                showWatchSetupSheet = true
-            } label: {
-                Text("Set Up")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(AppColors.accent)
-                    .cornerRadius(10)
-            }
-
-            Button {
-                withAnimation(.easeOut(duration: 0.25)) {
-                    watchBannerDismissed = true
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Apple Watch Not Connected")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                    Text("Set up your Watch to start running")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
                 }
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(AppColors.textTertiary)
+
+                Spacer()
+
+                GoldButton(title: "Set Up", size: .compact) {
+                    showWatchSetupSheet = true
+                }
+
+                Button {
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        watchBannerDismissed = true
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(AppColors.textTertiary)
+                }
             }
         }
-        .padding(14)
-        .background(AppColors.accentSoft.opacity(0.25))
-        .cornerRadius(14)
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     // MARK: - First Run CTA
 
     private var firstRunCTA: some View {
-        VStack(spacing: 10) {
-            if watchConnectivity.isWatchAppInstalled {
-                HStack(spacing: 10) {
-                    Image(systemName: "applewatch")
-                        .font(.system(size: 22))
-                        .foregroundColor(AppColors.accent)
-                    Text("Ready for your first run?")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(AppColors.textPrimary)
-                    Spacer()
-                }
-                Text("Open the Ippo app on your Apple Watch and tap Start Run. Sprint when you feel a vibration to catch new pets!")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                HStack(spacing: 10) {
-                    Image(systemName: "applewatch.slash")
-                        .font(.system(size: 22))
-                        .foregroundColor(AppColors.warning)
-                    Text("Set up your Watch first")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(AppColors.textPrimary)
-                    Spacer()
-                }
-                Text("You need Ippo installed on your Apple Watch before you can go for your first run.")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundColor(AppColors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button {
-                    showWatchSetupSheet = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.up.forward.app")
-                            .font(.system(size: 13))
-                        Text("Set Up Apple Watch")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+        StoryBookCard {
+            VStack(spacing: 10) {
+                if watchConnectivity.isWatchAppInstalled {
+                    HStack(spacing: 10) {
+                        Image(systemName: "applewatch")
+                            .font(.system(size: 22))
+                            .foregroundColor(AppColors.accent)
+                        Text("Ready for your first run?")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundColor(AppColors.textPrimary)
+                        Spacer()
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(AppColors.accent)
-                    .cornerRadius(10)
+                    Text("Open the Ippo app on your Apple Watch and tap Start Run. Sprint when you feel a vibration to catch new pets!")
+                        .font(.system(size: 14, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    HStack(spacing: 10) {
+                        Image(systemName: "applewatch.slash")
+                            .font(.system(size: 22))
+                            .foregroundColor(AppColors.warning)
+                        Text("Set up your Watch first")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundColor(AppColors.textPrimary)
+                        Spacer()
+                    }
+                    Text("You need Ippo installed on your Apple Watch before you can go for your first run.")
+                        .font(.system(size: 14, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    GoldButton(
+                        title: "Set Up Apple Watch",
+                        icon: "arrow.up.forward.app",
+                        isFullWidth: true,
+                        size: .standard
+                    ) {
+                        showWatchSetupSheet = true
+                    }
+                    .padding(.top, 4)
                 }
-                .padding(.top, 4)
             }
         }
-        .padding(16)
-        .background(watchConnectivity.isWatchAppInstalled ? AppColors.accentSoft.opacity(0.4) : AppColors.warning.opacity(0.12))
-        .cornerRadius(16)
     }
 
     // MARK: - Hearts Overlay

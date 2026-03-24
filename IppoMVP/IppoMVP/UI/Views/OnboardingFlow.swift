@@ -47,7 +47,7 @@ struct IppoCompleteOnboardingFlow: View {
 
     var body: some View {
         ZStack {
-            AppColors.background.ignoresSafeArea()
+            ParchmentBackground(showVineBorder: true)
 
             VStack(spacing: 0) {
                 progressBar
@@ -87,16 +87,26 @@ struct IppoCompleteOnboardingFlow: View {
     private var progressBar: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(AppColors.surfaceElevated)
-                    .frame(height: 4)
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(AppColors.accent)
-                    .frame(width: geo.size.width * CGFloat(step + 1) / CGFloat(totalSteps), height: 4)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(AppColors.surfaceDark)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(AppColors.borderLight, lineWidth: 0.5)
+                    )
+                    .frame(height: 8)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppColors.goldLight, AppColors.goldMid],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: geo.size.width * CGFloat(step + 1) / CGFloat(totalSteps), height: 8)
                     .animation(.easeInOut(duration: 0.3), value: step)
             }
         }
-        .frame(height: 4)
+        .frame(height: 8)
         .padding(.horizontal, 24)
         .padding(.top, 12)
     }
@@ -112,7 +122,7 @@ struct IppoCompleteOnboardingFlow: View {
                 .foregroundColor(AppColors.accent)
 
             Text("Welcome to Ippo")
-                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .font(.system(size: 32, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             Text("Catch pets while you run.\nWatch them grow.")
@@ -151,7 +161,7 @@ struct IppoCompleteOnboardingFlow: View {
                 .foregroundColor(AppColors.accent)
 
             Text(isReturningUser ? "Welcome Back" : "Create Your Account")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             Text(isReturningUser ? "Sign in to restore your pets" : "Sign in to save your progress")
@@ -285,7 +295,7 @@ struct IppoCompleteOnboardingFlow: View {
                 .foregroundColor(AppColors.accent)
 
             Text("Set Up Your Profile")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             VStack(alignment: .leading, spacing: 16) {
@@ -398,7 +408,7 @@ struct IppoCompleteOnboardingFlow: View {
             Spacer()
 
             Text("How old are you?")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             Text("We use this to detect when you're sprinting")
@@ -435,7 +445,7 @@ struct IppoCompleteOnboardingFlow: View {
             Spacer().frame(height: 20)
 
             Text("Choose your first companion")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             Spacer()
@@ -506,7 +516,7 @@ struct IppoCompleteOnboardingFlow: View {
             }
 
             Text(allGranted ? "All Set!" : (canProceed ? "Almost Done!" : "Before Your First Run"))
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             VStack(spacing: 16) {
@@ -744,7 +754,7 @@ struct IppoCompleteOnboardingFlow: View {
                 .padding(.top, 12)
 
                 Text(watchReady ? "Watch Connected!" : "Connect Your Apple Watch")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .bold, design: .serif))
                     .foregroundColor(AppColors.textPrimary)
 
                 Text(watchReady
@@ -943,7 +953,7 @@ struct IppoCompleteOnboardingFlow: View {
             Spacer()
 
             Text("How a Run Works")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             watchMockup {
@@ -996,7 +1006,7 @@ struct IppoCompleteOnboardingFlow: View {
             Spacer()
 
             Text("Feel the Buzz? Sprint!")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             Text("During your run, your Watch vibrates 3 times.\nThat's your signal to sprint!")
@@ -1044,7 +1054,7 @@ struct IppoCompleteOnboardingFlow: View {
                                 .frame(width: 80, height: 80)
                                 .rotationEffect(.degrees(-90))
                             Text("\(sprintDemoCountdown)s")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .font(.system(size: 24, weight: .bold, design: .serif))
                                 .foregroundColor(AppColors.textPrimary)
                         }
                         Text("SPRINT!")
@@ -1150,7 +1160,7 @@ struct IppoCompleteOnboardingFlow: View {
             Spacer()
 
             Text("Sprint Encounters")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             // Timeline visualization
@@ -1196,7 +1206,7 @@ struct IppoCompleteOnboardingFlow: View {
             Spacer()
 
             Text("Catch New Friends!")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             // Mock Watch catch screen
@@ -1273,7 +1283,7 @@ struct IppoCompleteOnboardingFlow: View {
             Spacer()
 
             Text("Earn & Spend")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             // Earn section
@@ -1408,7 +1418,7 @@ struct IppoCompleteOnboardingFlow: View {
                 .foregroundColor(AppColors.petHappy)
 
             Text("Take Care of Your Pet")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             VStack(spacing: 16) {
@@ -1502,7 +1512,7 @@ struct IppoCompleteOnboardingFlow: View {
             Spacer()
 
             Text("Watch Them Grow")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundColor(AppColors.textPrimary)
 
             if let starterId = selectedStarterPetId ?? userData.ownedPets.first?.petDefinitionId,
@@ -1623,16 +1633,8 @@ struct IppoCompleteOnboardingFlow: View {
     // MARK: - Reusable Components
 
     private func onboardingButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(AppColors.accent)
-                .cornerRadius(14)
-        }
-        .padding(.bottom, 16)
+        GoldButton(title: title, isFullWidth: true, size: .large, action: action)
+            .padding(.bottom, 16)
     }
 
     private func watchMockup<Content: View>(@ViewBuilder content: () -> Content) -> some View {

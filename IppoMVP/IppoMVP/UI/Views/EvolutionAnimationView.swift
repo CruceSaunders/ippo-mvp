@@ -69,7 +69,7 @@ struct EvolutionAnimationView: View {
 
     private var backgroundColor: some View {
         ZStack {
-            AppColors.background
+            ParchmentBackground(showVineBorder: false)
 
             Color.white
                 .opacity(whiteFlash)
@@ -87,7 +87,7 @@ struct EvolutionAnimationView: View {
                 Spacer()
 
                 Text("\(evolution.petName) is evolving!")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(AppTypography.title1)
                     .foregroundColor(AppColors.textPrimary)
                     .opacity(announceTextOpacity)
                     .multilineTextAlignment(.center)
@@ -204,12 +204,12 @@ struct EvolutionAnimationView: View {
 
                 VStack(spacing: 8) {
                     Text("\(evolution.petName)")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .font(AppTypography.largeTitle)
                         .foregroundColor(AppColors.textPrimary)
 
                     Text("is now a \(evolution.stageName)!")
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
-                        .foregroundColor(AppColors.accent)
+                        .font(AppTypography.title2)
+                        .foregroundColor(AppColors.goldMid)
                 }
 
                 Spacer()
@@ -445,6 +445,6 @@ private struct DustParticle {
     var offset: CGSize = .zero
     var opacity: Double = Double.random(in: 0.5...1.0)
     let size: CGFloat = CGFloat.random(in: 3...8)
-    let color: Color = [AppColors.accent, AppColors.accentSoft, AppColors.gold, .white]
+    let color: Color = [AppColors.accent, AppColors.accentSoft, AppColors.goldMid, AppColors.goldLight]
         .randomElement()!
 }

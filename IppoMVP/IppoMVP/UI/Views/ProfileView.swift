@@ -17,186 +17,40 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppColors.background.ignoresSafeArea()
+                ParchmentBackground(showVineBorder: false)
 
-                List {
-                    Section {
+                ScrollView {
+                    VStack(spacing: 20) {
                         profileHeader
-                    }
-                    .listRowBackground(AppColors.surface)
+                        statsSection
+                        displayNameSection
+                        usernameSection
+                        accountSection
 
-                    Section("Stats") {
-                        statRow(label: "Total Runs", value: "\(userData.profile.totalRuns)")
-                        statRow(label: "Total Sprints", value: "\(userData.profile.totalSprints)")
-                        statRow(label: "Total Distance", value: formatDistance(userData.profile.totalDistanceMeters))
-                        statRow(label: "Longest Streak", value: "\(userData.profile.longestStreak) days")
-                        statRow(label: "Pets Caught", value: "\(userData.activePets.count)")
-                    }
-                    .listRowBackground(AppColors.surface)
+                        Text("Ippo v3.0")
+                            .font(.system(size: 12, design: .rounded))
+                            .foregroundColor(AppColors.textTertiary)
+                            .italic()
+                            .padding(.top, 8)
 
-                    Section("Display Name") {
-                        if showEditDisplayName {
-                            VStack(alignment: .leading, spacing: 8) {
-                                TextField("Display name", text: $editDisplayName)
-                                    .font(.system(size: 16, design: .rounded))
-                                    .onChange(of: editDisplayName) { _, newValue in
-                                        if editDisplayName.count > 30 { editDisplayName = String(editDisplayName.prefix(30)) }
-                                    }
-
-                                HStack {
-                                    Button("Cancel") {
-                                        showEditDisplayName = false
-                                    }
-                                    .font(.system(size: 14, design: .rounded))
-                                    .foregroundColor(AppColors.textSecondary)
-
-                                    Spacer()
-
-                                    Button("Save") {
-                                        let trimmed = editDisplayName.trimmingCharacters(in: .whitespaces)
-                                        guard !trimmed.isEmpty else { return }
-                                        userData.profile.displayName = trimmed
-                                        userData.save()
-                                        showEditDisplayName = false
-                                    }
-                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                    .foregroundColor(AppColors.accent)
-                                    .disabled(editDisplayName.trimmingCharacters(in: .whitespaces).isEmpty)
-                                }
-                            }
-                        } else {
-                            HStack {
-                                Text(userData.profile.displayName)
-                                    .font(.system(size: 15, design: .rounded))
-                                    .foregroundColor(AppColors.textPrimary)
-                                Spacer()
-                                Button("Edit") {
-                                    editDisplayName = userData.profile.displayName
-                                    showEditDisplayName = true
-                                }
-                                .font(.system(size: 14, design: .rounded))
-                                .foregroundColor(AppColors.accent)
-                            }
+                        if authService.isAdmin {
+                            debugSection
                         }
                     }
-                    .listRowBackground(AppColors.surface)
-
-                    Section("Username") {
-                        if showEditUsername {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("@")
-                                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                                        .foregroundColor(AppColors.textSecondary)
-                                    TextField("username", text: $editUsername)
-                                        .font(.system(size: 16, design: .rounded))
-                                        .textInputAutocapitalization(.never)
-                                        .autocorrectionDisabled()
-                                        .onChange(of: editUsername) { _, newValue in
-                                            editUsername = newValue.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
-                                            if editUsername.count > 20 { editUsername = String(editUsername.prefix(20)) }
-                                            usernameError = nil
-                                        }
-                                }
-
-                                if let error = usernameError {
-                                    Text(error)
-                                        .font(.system(size: 12, design: .rounded))
-                                        .foregroundColor(AppColors.danger)
-                                }
-
-                                HStack {
-                                    Button("Cancel") {
-                                        showEditUsername = false
-                                        usernameError = nil
-                                    }
-                                    .font(.system(size: 14, design: .rounded))
-                                    .foregroundColor(AppColors.textSecondary)
-
-                                    Spacer()
-
-                                    if isCheckingUsername {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                    }
-
-                                    Button("Save") {
-                                        saveUsername()
-                                    }
-                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                    .foregroundColor(AppColors.accent)
-                                    .disabled(editUsername.count < 3 || isCheckingUsername)
-                                }
-                            }
-                        } else {
-                            HStack {
-                                Text("@\(userData.profile.username.isEmpty ? "not set" : userData.profile.username)")
-                                    .font(.system(size: 15, design: .rounded))
-                                    .foregroundColor(userData.profile.username.isEmpty ? AppColors.textTertiary : AppColors.textPrimary)
-                                Spacer()
-                                Button("Edit") {
-                                    editUsername = userData.profile.username
-                                    showEditUsername = true
-                                }
-                                .font(.system(size: 14, design: .rounded))
-                                .foregroundColor(AppColors.accent)
-                            }
-                        }
-                    }
-                    .listRowBackground(AppColors.surface)
-
-                    Section("Account") {
-                        Button {
-                            showLogoutConfirm = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                Text("Sign Out")
-                            }
-                            .foregroundColor(AppColors.warning)
-                        }
-
-                        Button {
-                            showDeleteSheet = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "trash")
-                                Text("Delete Account")
-                            }
-                            .foregroundColor(AppColors.danger)
-                        }
-                    }
-                    .listRowBackground(AppColors.surface)
-
-                    Section {
-                        HStack {
-                            Spacer()
-                            Text("Ippo v3.0")
-                                .font(.system(size: 12, design: .rounded))
-                                .foregroundColor(AppColors.textTertiary)
-                            Spacer()
-                        }
-                    }
-                    .listRowBackground(Color.clear)
-
-                    if authService.isAdmin {
-                        Section("Developer") {
-                            NavigationLink("Debug Panel") {
-                                AdminDebugView()
-                                    .environmentObject(userData)
-                                    .environmentObject(authService)
-                            }
-                        }
-                        .listRowBackground(AppColors.surface)
-                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
                 }
-                .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Settings")
+                        .font(AppTypography.title3)
+                        .foregroundColor(AppColors.textPrimary)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundColor(AppColors.accent)
                 }
             }
@@ -215,13 +69,23 @@ struct ProfileView: View {
     }
 
     private var profileHeader: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "person.circle.fill")
-                .font(.system(size: 48))
-                .foregroundColor(AppColors.accent)
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(AppColors.surface)
+                    .frame(width: 80, height: 80)
+                    .overlay(
+                        Circle()
+                            .stroke(AppColors.borderBrown, lineWidth: 2)
+                    )
+
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 44))
+                    .foregroundColor(AppColors.borderBrown)
+            }
 
             Text(userData.profile.displayName)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(AppTypography.petName)
                 .foregroundColor(AppColors.textPrimary)
 
             if !userData.profile.username.isEmpty {
@@ -231,18 +95,249 @@ struct ProfileView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(.top, 12)
     }
 
-    private func statRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 15, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
-            Spacer()
+    private var statsSection: some View {
+        StoryBookCard {
+            VStack(spacing: 12) {
+                RibbonBanner(title: "Adventure Stats", style: .small)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    statCard(icon: "figure.run", label: "Total Runs", value: "\(userData.profile.totalRuns)")
+                    statCard(icon: "map", label: "Total Distance", value: formatDistance(userData.profile.totalDistanceMeters))
+                    statCard(icon: "bolt.fill", label: "Total Sprints", value: "\(userData.profile.totalSprints)")
+                    statCard(icon: "flame.fill", label: "Longest Streak", value: "\(userData.profile.longestStreak) days")
+                }
+
+                HStack {
+                    Image(systemName: "pawprint.fill")
+                        .foregroundColor(AppColors.accent)
+                    Text("Pets Caught:")
+                        .font(.system(size: 14, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                    Spacer()
+                    Text("\(userData.activePets.count)")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                }
+            }
+        }
+    }
+
+    private func statCard(icon: String, label: String, value: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(AppColors.borderBrown)
             Text(value)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(AppColors.textPrimary)
+            Text(label)
+                .font(.system(size: 11, design: .rounded))
                 .foregroundColor(AppColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(AppColors.surfaceElevated)
+        .cornerRadius(AppSpacing.radiusSm)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppSpacing.radiusSm)
+                .stroke(AppColors.borderLight, lineWidth: 1)
+        )
+    }
+
+    private var displayNameSection: some View {
+        StoryBookCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Display Name")
+                    .font(AppTypography.sectionLabel)
+                    .foregroundColor(AppColors.textSecondary)
+
+                if showEditDisplayName {
+                    TextField("Display name", text: $editDisplayName)
+                        .font(.system(size: 16, design: .rounded))
+                        .padding(10)
+                        .background(AppColors.surfaceElevated)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
+                        .onChange(of: editDisplayName) { _, newValue in
+                            if editDisplayName.count > 30 { editDisplayName = String(editDisplayName.prefix(30)) }
+                        }
+
+                    HStack {
+                        Button("Cancel") {
+                            showEditDisplayName = false
+                        }
+                        .font(.system(size: 14, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+
+                        Spacer()
+
+                        GoldButton(title: "Save", size: .compact) {
+                            let trimmed = editDisplayName.trimmingCharacters(in: .whitespaces)
+                            guard !trimmed.isEmpty else { return }
+                            userData.profile.displayName = trimmed
+                            userData.save()
+                            showEditDisplayName = false
+                        }
+                    }
+                } else {
+                    HStack {
+                        Text(userData.profile.displayName)
+                            .font(.system(size: 15, design: .rounded))
+                            .foregroundColor(AppColors.textPrimary)
+                        Spacer()
+                        Button("Edit") {
+                            editDisplayName = userData.profile.displayName
+                            showEditDisplayName = true
+                        }
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.accent)
+                    }
+                }
+            }
+        }
+    }
+
+    private var usernameSection: some View {
+        StoryBookCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Username")
+                    .font(AppTypography.sectionLabel)
+                    .foregroundColor(AppColors.textSecondary)
+
+                if showEditUsername {
+                    HStack {
+                        Text("@")
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundColor(AppColors.textSecondary)
+                        TextField("username", text: $editUsername)
+                            .font(.system(size: 16, design: .rounded))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onChange(of: editUsername) { _, newValue in
+                                editUsername = newValue.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+                                if editUsername.count > 20 { editUsername = String(editUsername.prefix(20)) }
+                                usernameError = nil
+                            }
+                    }
+                    .padding(10)
+                    .background(AppColors.surfaceElevated)
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(AppColors.borderLight, lineWidth: 1)
+                    )
+
+                    if let error = usernameError {
+                        Text(error)
+                            .font(.system(size: 12, design: .rounded))
+                            .foregroundColor(AppColors.danger)
+                    }
+
+                    HStack {
+                        Button("Cancel") {
+                            showEditUsername = false
+                            usernameError = nil
+                        }
+                        .font(.system(size: 14, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+
+                        Spacer()
+
+                        if isCheckingUsername {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+
+                        GoldButton(title: "Save", isDisabled: editUsername.count < 3 || isCheckingUsername, size: .compact) {
+                            saveUsername()
+                        }
+                    }
+                } else {
+                    HStack {
+                        Text("@\(userData.profile.username.isEmpty ? "not set" : userData.profile.username)")
+                            .font(.system(size: 15, design: .rounded))
+                            .foregroundColor(userData.profile.username.isEmpty ? AppColors.textTertiary : AppColors.textPrimary)
+                        Spacer()
+                        Button("Edit") {
+                            editUsername = userData.profile.username
+                            showEditUsername = true
+                        }
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.accent)
+                    }
+                }
+            }
+        }
+    }
+
+    private var accountSection: some View {
+        StoryBookCard {
+            VStack(spacing: 0) {
+                Button {
+                    showLogoutConfirm = true
+                } label: {
+                    HStack {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(AppColors.warning)
+                        Text("Sign Out")
+                            .font(.system(size: 15, design: .rounded))
+                            .foregroundColor(AppColors.warning)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(AppColors.textTertiary)
+                    }
+                    .padding(.vertical, 12)
+                }
+
+                Divider()
+                    .background(AppColors.borderLight)
+
+                Button {
+                    showDeleteSheet = true
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                            .foregroundColor(AppColors.danger)
+                        Text("Delete Account")
+                            .font(.system(size: 15, design: .rounded))
+                            .foregroundColor(AppColors.danger)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(AppColors.textTertiary)
+                    }
+                    .padding(.vertical, 12)
+                }
+            }
+        }
+    }
+
+    private var debugSection: some View {
+        StoryBookCard {
+            NavigationLink {
+                AdminDebugView()
+                    .environmentObject(userData)
+                    .environmentObject(authService)
+            } label: {
+                HStack {
+                    Image(systemName: "wrench.and.screwdriver.fill")
+                        .foregroundColor(AppColors.borderBrown)
+                    Text("Debug Panel")
+                        .font(.system(size: 15, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppColors.textTertiary)
+                }
+            }
         }
     }
 
@@ -310,7 +405,7 @@ private struct DeleteAccountSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppColors.background.ignoresSafeArea()
+                ParchmentBackground(showVineBorder: false)
 
                 VStack(spacing: 24) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -320,7 +415,7 @@ private struct DeleteAccountSheet: View {
 
                     VStack(spacing: 8) {
                         Text("Delete Your Account?")
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .font(AppTypography.title2)
                             .foregroundColor(AppColors.textPrimary)
 
                         Text("This will permanently delete your account, all your pets, progress, and data. This action cannot be undone.")
@@ -344,7 +439,7 @@ private struct DeleteAccountSheet: View {
                             .cornerRadius(10)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(isConfirmed ? AppColors.danger : AppColors.surfaceElevated, lineWidth: 1)
+                                    .stroke(isConfirmed ? AppColors.danger : AppColors.borderLight, lineWidth: 1)
                             )
                     }
                     .padding(.horizontal, 24)

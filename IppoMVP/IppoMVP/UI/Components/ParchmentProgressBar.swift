@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct XPProgressBar: View {
+struct ParchmentProgressBar: View {
     let progress: Double
     let currentXP: Int
     let targetXP: Int
