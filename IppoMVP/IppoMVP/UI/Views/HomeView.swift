@@ -3,12 +3,15 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var userData: UserData
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var watchConnectivity: WatchConnectivityService
     @State private var showSettings = false
     @State private var showHearts = false
     @State private var showRunSummary = false
     @State private var showEvolution = false
     @State private var bounceOffset: CGFloat = 0
     @State private var showAllRuns = false
+    @State private var showWatchSetupSheet = false
+    @AppStorage("ippo.watchBannerDismissed") private var watchBannerDismissed = false
 
     @State private var petFrame: CGRect = .zero
     @State private var foodDragLocation: CGPoint = .zero
@@ -43,6 +46,13 @@ struct HomeView: View {
 
                     ScrollView {
                         VStack(spacing: 0) {
+                            if !watchConnectivity.isWatchAppInstalled && !watchBannerDismissed {
+                                watchSetupBanner
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 8)
+                                    .padding(.bottom, 4)
+                            }
+
                             if let pet = userData.equippedPet, let def = pet.definition {
                                 petDisplay(pet: pet, def: def)
                                 xpBar(pet: pet)
@@ -108,6 +118,10 @@ struct HomeView: View {
                     .environmentObject(userData)
                     .environmentObject(authService)
             }
+            .sheet(isPresented: $showWatchSetupSheet) {
+                WatchSetupSheet()
+                    .environmentObject(watchConnectivity)
+            }
             .fullScreenCover(isPresented: $showRunSummary) {
                 if let run = userData.pendingRunSummary {
                     PostRunSummaryView(run: run) {
@@ -145,6 +159,10 @@ struct HomeView: View {
                 }
                 NotificationSystem.shared.rescheduleNotifications()
                 userData.inventory.cleanExpiredBoosts()
+                if watchConnectivity.isWatchAppInstalled {
+                    watchBannerDismissed = false
+                    userData.watchSetupDeferred = false
+                }
             }
             .onChange(of: userData.pendingEvolution != nil) { _, hasEvolution in
                 if hasEvolution {
@@ -723,26 +741,105 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Watch Setup Banner
+
+    private var watchSetupBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "applewatch")
+                .font(.system(size: 24))
+                .foregroundColor(AppColors.accent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Apple Watch Not Connected")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                Text("Set up your Watch to start running")
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+            }
+
+            Spacer()
+
+            Button {
+                showWatchSetupSheet = true
+            } label: {
+                Text("Set Up")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(AppColors.accent)
+                    .cornerRadius(10)
+            }
+
+            Button {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    watchBannerDismissed = true
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(AppColors.textTertiary)
+            }
+        }
+        .padding(14)
+        .background(AppColors.accentSoft.opacity(0.25))
+        .cornerRadius(14)
+        .transition(.move(edge: .top).combined(with: .opacity))
+    }
+
     // MARK: - First Run CTA
 
     private var firstRunCTA: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 10) {
-                Image(systemName: "applewatch")
-                    .font(.system(size: 22))
-                    .foregroundColor(AppColors.accent)
-                Text("Ready for your first run?")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(AppColors.textPrimary)
-                Spacer()
+            if watchConnectivity.isWatchAppInstalled {
+                HStack(spacing: 10) {
+                    Image(systemName: "applewatch")
+                        .font(.system(size: 22))
+                        .foregroundColor(AppColors.accent)
+                    Text("Ready for your first run?")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                    Spacer()
+                }
+                Text("Open the Ippo app on your Apple Watch and tap Start Run. Sprint when you feel a vibration to catch new pets!")
+                    .font(.system(size: 14, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                HStack(spacing: 10) {
+                    Image(systemName: "applewatch.slash")
+                        .font(.system(size: 22))
+                        .foregroundColor(AppColors.warning)
+                    Text("Set up your Watch first")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                    Spacer()
+                }
+                Text("You need Ippo installed on your Apple Watch before you can go for your first run.")
+                    .font(.system(size: 14, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    showWatchSetupSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.system(size: 13))
+                        Text("Set Up Apple Watch")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(AppColors.accent)
+                    .cornerRadius(10)
+                }
+                .padding(.top, 4)
             }
-            Text("Open the Ippo app on your Apple Watch and tap Start Run. Sprint when you feel a vibration to catch new pets!")
-                .font(.system(size: 14, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
-        .background(AppColors.accentSoft.opacity(0.4))
+        .background(watchConnectivity.isWatchAppInstalled ? AppColors.accentSoft.opacity(0.4) : AppColors.warning.opacity(0.12))
         .cornerRadius(16)
     }
 

@@ -19,6 +19,9 @@ final class UserData: ObservableObject {
     @Published var pendingEvolution: PendingEvolution?
     @Published var activeCareNeed: CareNeedType?
     @Published var pendingMilestoneToast: MilestoneToast?
+    @Published var watchSetupDeferred: Bool = UserDefaults.standard.bool(forKey: "ippo.watchSetupDeferred") {
+        didSet { UserDefaults.standard.set(watchSetupDeferred, forKey: "ippo.watchSetupDeferred") }
+    }
 
     /// Timestamp of the most recent local mutation (run completion, purchase, etc.).
     /// Cloud sync will skip overwriting local state if it started before this timestamp.
@@ -558,6 +561,8 @@ final class UserData: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "scheduledCareNeedTime")
         UserDefaults.standard.removeObject(forKey: "lastDailyRewardDate")
         UserDefaults.standard.removeObject(forKey: "ippo.hasEverFed")
+        UserDefaults.standard.removeObject(forKey: "ippo.watchSetupDeferred")
+        watchSetupDeferred = false
     }
 
     // MARK: - Pending Run Persistence

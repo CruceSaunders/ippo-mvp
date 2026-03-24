@@ -723,90 +723,140 @@ struct IppoCompleteOnboardingFlow: View {
     // MARK: - Step 6: Watch Setup
 
     @State private var watchPollTimer: Timer?
+    @State private var watchSuccessBounce = false
 
     private var watchSetupScreen: some View {
         let watchReady = watchConnectivity.isPaired && watchConnectivity.isWatchAppInstalled
 
-        return VStack(spacing: 24) {
-            Spacer()
+        return ScrollView {
+            VStack(spacing: 20) {
+                // Hero
+                ZStack {
+                    Circle()
+                        .fill(watchReady ? AppColors.success.opacity(0.15) : AppColors.accent.opacity(0.1))
+                        .frame(width: 88, height: 88)
 
-            Image(systemName: "applewatch")
-                .font(.system(size: 64))
-                .foregroundColor(watchReady ? AppColors.success : AppColors.accent)
+                    Image(systemName: watchReady ? "checkmark.circle.fill" : "applewatch")
+                        .font(.system(size: 44))
+                        .foregroundColor(watchReady ? AppColors.success : AppColors.accent)
+                        .symbolEffect(.bounce, value: watchSuccessBounce)
+                }
+                .padding(.top, 12)
 
-            Text(watchReady ? "Watch Connected!" : "Connect Your Watch")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(AppColors.textPrimary)
+                Text(watchReady ? "Watch Connected!" : "Connect Your Apple Watch")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
 
-            Text("Ippo runs on your Apple Watch during workouts")
-                .font(.system(size: 15, design: .rounded))
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
+                Text(watchReady
+                     ? "You're all set to run with Ippo!"
+                     : "Ippo uses your Apple Watch during runs to track sprints and catch pets.")
+                    .font(.system(size: 15, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
 
-            VStack(spacing: 16) {
-                watchStatusRow(
-                    title: "Watch Paired",
-                    isOK: watchConnectivity.isPaired,
-                    helpText: "Pair your Apple Watch in the Watch app"
-                )
-                watchStatusRow(
-                    title: "Ippo Installed on Watch",
-                    isOK: watchConnectivity.isWatchAppInstalled,
-                    helpText: "Tap the button below to install"
-                )
-            }
-            .padding(20)
-            .background(AppColors.surface)
-            .cornerRadius(16)
+                // Status indicators
+                VStack(spacing: 12) {
+                    onboardingWatchStatusRow(
+                        title: "Apple Watch Paired",
+                        isOK: watchConnectivity.isPaired,
+                        helpText: "Pair your Watch in the Watch app on your iPhone"
+                    )
+                    Divider().padding(.horizontal, 4)
+                    onboardingWatchStatusRow(
+                        title: "Ippo Installed on Watch",
+                        isOK: watchConnectivity.isWatchAppInstalled,
+                        helpText: "Follow the steps below to install"
+                    )
+                }
+                .padding(18)
+                .background(AppColors.surface)
+                .cornerRadius(16)
 
-            if !watchReady {
-                Button {
-                    if let url = URL(string: "itms-watchs://") {
-                        UIApplication.shared.open(url)
+                if !watchReady {
+                    // Step-by-step instructions
+                    VStack(spacing: 10) {
+                        Text("How to Install")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(AppColors.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        onboardingInstallStep(number: 1, icon: "applewatch", text: "Open the **Watch** app on your iPhone")
+                        onboardingInstallStep(number: 2, icon: "arrow.down.app", text: "Scroll down to **Available Apps**")
+                        onboardingInstallStep(number: 3, icon: "arrow.down.circle", text: "Find **Ippo** and tap **Install**")
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.up.forward.app")
-                            .font(.system(size: 15))
-                        Text("Open Watch App to Install Ippo")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+
+                    // Open Watch App button
+                    Button { openWatchAppForInstall() } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 15))
+                            Text("Open Watch App")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(AppColors.accent)
+                        .cornerRadius(14)
                     }
-                    .foregroundColor(AppColors.accent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(AppColors.accentSoft.opacity(0.3))
+
+                    // Troubleshooting
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 14))
+                                .foregroundColor(AppColors.textSecondary)
+                            Text("Don't see Ippo?")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("• In the Watch app, go to **General** > **Automatic App Install** and turn it on")
+                            Text("• Or open the **App Store** on your Watch and search for **Ippo**")
+                            Text("• Make sure your Watch is nearby and connected to Wi-Fi")
+                        }
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
+                    }
+                    .padding(14)
+                    .background(AppColors.surfaceElevated.opacity(0.6))
                     .cornerRadius(12)
                 }
-            }
 
-            if watchReady {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(AppColors.success)
-                    Text("Your Watch is ready!")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(AppColors.success)
+                // Buttons
+                VStack(spacing: 10) {
+                    onboardingButton("Continue") {
+                        watchPollTimer?.invalidate()
+                        watchPollTimer = nil
+                        step = 7
+                    }
+                    .disabled(!watchReady)
+                    .opacity(watchReady ? 1 : 0.5)
+
+                    if !watchReady {
+                        Button {
+                            watchPollTimer?.invalidate()
+                            watchPollTimer = nil
+                            userData.watchSetupDeferred = true
+                            step = 7
+                        } label: {
+                            Text("Set Up Later")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .padding(.bottom, 4)
+
+                        Text("You'll need your Apple Watch connected before your first run")
+                            .font(.system(size: 12, design: .rounded))
+                            .foregroundColor(AppColors.textTertiary)
+                            .multilineTextAlignment(.center)
+                            .padding(.bottom, 8)
+                    }
                 }
             }
-
-            Spacer()
-
-            onboardingButton("Continue") {
-                watchPollTimer?.invalidate()
-                watchPollTimer = nil
-                step = 7
-            }
-            .disabled(!watchReady)
-            .opacity(watchReady ? 1 : 0.5)
-
-            if !watchReady {
-                Text("Apple Watch is required to use Ippo")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundColor(AppColors.warning)
-                    .padding(.bottom, 8)
-            }
+            .padding(.horizontal, 32)
         }
-        .padding(.horizontal, 32)
         .onAppear {
             watchConnectivity.refreshStatus()
             watchPollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
@@ -819,17 +869,24 @@ struct IppoCompleteOnboardingFlow: View {
             watchPollTimer?.invalidate()
             watchPollTimer = nil
         }
+        .onChange(of: watchReady) { _, ready in
+            if ready {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    watchSuccessBounce.toggle()
+                }
+            }
+        }
     }
 
-    private func watchStatusRow(title: String, isOK: Bool, helpText: String) -> some View {
+    private func onboardingWatchStatusRow(title: String, isOK: Bool, helpText: String) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: isOK ? "checkmark.circle.fill" : "xmark.circle")
-                .font(.system(size: 22))
+            Image(systemName: isOK ? "checkmark.circle.fill" : "circle.dashed")
+                .font(.system(size: 24))
                 .foregroundColor(isOK ? AppColors.success : AppColors.textTertiary)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundColor(AppColors.textPrimary)
                 if !isOK {
                     Text(helpText)
@@ -838,6 +895,44 @@ struct IppoCompleteOnboardingFlow: View {
                 }
             }
             Spacer()
+        }
+    }
+
+    private func onboardingInstallStep(number: Int, icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(AppColors.accent)
+                    .frame(width: 28, height: 28)
+                Text("\(number)")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(AppColors.accent)
+                    .frame(width: 22)
+
+                Text(LocalizedStringKey(text))
+                    .font(.system(size: 14, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+            }
+
+            Spacer()
+        }
+        .padding(12)
+        .background(AppColors.surface)
+        .cornerRadius(10)
+    }
+
+    private func openWatchAppForInstall() {
+        if let url = URL(string: "itms-watchs://bridge:root=GENERAL_LINK"),
+           UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url)
+        } else if let url = URL(string: "itms-watchs://") {
+            UIApplication.shared.open(url)
         }
     }
 
