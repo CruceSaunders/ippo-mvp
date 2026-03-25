@@ -329,34 +329,36 @@ final class UserData: ObservableObject {
         let pet = ownedPets[idx]
         guard pet.isEquipped else { return }
 
-        var score = 0
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
-        if let lastRun = profile.lastRunDate,
-           calendar.isDate(lastRun, inSameDayAs: Date()) || calendar.isDate(lastRun, inSameDayAs: today.addingTimeInterval(-86400)) {
-            score += 1
+        let hasRecentRun: Bool = {
+            guard let lastRun = profile.lastRunDate else { return false }
+            return calendar.isDate(lastRun, inSameDayAs: Date())
+                || calendar.isDate(lastRun, inSameDayAs: today.addingTimeInterval(-86400))
+        }()
+
+        guard hasRecentRun else {
+            ownedPets[idx].mood = 1
+            return
         }
 
+        var careScore = 0
         if let lastFed = pet.lastFedDate, calendar.isDateInToday(lastFed) {
-            score += 1
+            careScore += 1
         }
-
         if let lastWatered = pet.lastWateredDate, calendar.isDateInToday(lastWatered) {
-            score += 1
+            careScore += 1
         }
-
         if let lastPetted = pet.lastPettedDate, calendar.isDateInToday(lastPetted) {
-            score += 1
+            careScore += 1
         }
 
         let mood: Int
-        if score >= 3 {
-            mood = 3
-        } else if score >= 2 {
-            mood = 2
+        if careScore >= 2 {
+            mood = 3 // Happy: ran recently + 2+ care actions
         } else {
-            mood = 1
+            mood = 2 // Content: ran recently but minimal care
         }
         ownedPets[idx].mood = mood
     }
@@ -373,10 +375,7 @@ final class UserData: ObservableObject {
                 ownedPets[i].consecutiveSadDays = 0
             }
 
-            let sadDays = ownedPets[i].consecutiveSadDays
-            let noInteraction = daysSinceLastInteraction()
-
-            if sadDays >= config.runawayDaysSad && noInteraction >= config.runawayDaysNoInteraction {
+            if ownedPets[i].consecutiveSadDays >= config.runawayDaysSad {
                 let petName = ownedPets[i].definition?.name ?? "Your pet"
                 ownedPets[i].isLost = true
                 ownedPets[i].isEquipped = false
@@ -469,7 +468,8 @@ final class UserData: ObservableObject {
         profile.totalDurationSeconds += run.durationSeconds
         profile.totalDistanceMeters += run.distanceMeters
 
-        let isValidatedRun = run.sprintsCompleted >= 1
+        let minimumRunDuration = 300 // 5 minutes
+        let isValidatedRun = run.sprintsCompleted >= 1 && run.durationSeconds >= minimumRunDuration
 
         if isValidatedRun {
             profile.totalSprints += run.sprintsCompleted
