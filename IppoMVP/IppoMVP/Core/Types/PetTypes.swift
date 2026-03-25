@@ -284,18 +284,6 @@ struct CompletedRun: Identifiable, Codable, Equatable {
         try container.encode(petEncounters, forKey: .petEncounters)
     }
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(date, forKey: .date)
-        try container.encode(durationSeconds, forKey: .durationSeconds)
-        try container.encode(distanceMeters, forKey: .distanceMeters)
-        try container.encode(sprintsCompleted, forKey: .sprintsCompleted)
-        try container.encode(coinsEarned, forKey: .coinsEarned)
-        try container.encode(xpEarned, forKey: .xpEarned)
-        try container.encode(petEncounters, forKey: .petEncounters)
-    }
-
     var newPetIds: [String] {
         petEncounters.filter(\.isNew).map(\.petId)
     }
