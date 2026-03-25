@@ -247,6 +247,12 @@ struct CompletedRun: Identifiable, Codable, Equatable {
         self.petEncounters = petEncounters
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case id, date, durationSeconds, distanceMeters, sprintsCompleted
+        case coinsEarned, xpEarned, petEncounters
+        case petCaughtId
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
@@ -259,17 +265,23 @@ struct CompletedRun: Identifiable, Codable, Equatable {
 
         if let encounters = try container.decodeIfPresent([PetEncounterResult].self, forKey: .petEncounters) {
             petEncounters = encounters
-        } else if let legacyPetId = try? container.decodeIfPresent(String.self, forKey: .legacyPetCaughtId) {
+        } else if let legacyPetId = try container.decodeIfPresent(String.self, forKey: .petCaughtId) {
             petEncounters = [PetEncounterResult(petId: legacyPetId, isNew: true, bonusXP: 0)]
         } else {
             petEncounters = []
         }
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case id, date, durationSeconds, distanceMeters, sprintsCompleted
-        case coinsEarned, xpEarned, petEncounters
-        case legacyPetCaughtId = "petCaughtId"
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(date, forKey: .date)
+        try container.encode(durationSeconds, forKey: .durationSeconds)
+        try container.encode(distanceMeters, forKey: .distanceMeters)
+        try container.encode(sprintsCompleted, forKey: .sprintsCompleted)
+        try container.encode(coinsEarned, forKey: .coinsEarned)
+        try container.encode(xpEarned, forKey: .xpEarned)
+        try container.encode(petEncounters, forKey: .petEncounters)
     }
 
     func encode(to encoder: Encoder) throws {
