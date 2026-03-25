@@ -50,7 +50,7 @@ final class TelemetryLogger {
     // MARK: - Specialized Logging
     func logSprint(_ result: SprintResult) {
         let status = result.isValid ? "VALID" : "INVALID"
-        log("Sprint \(status) - Score: \(Int(result.validationScore))% (HR: \(Int(result.hrScore))%, Cadence: \(Int(result.cadenceScore))%, HRD: \(Int(result.hrdScore))%)", level: .info)
+        log("Sprint \(status) - Peak HR: \(result.peakHR) (Zone 4 threshold: \(result.zone4Threshold))", level: .info)
     }
     
     func logRewards(_ rewards: SprintRewards) {

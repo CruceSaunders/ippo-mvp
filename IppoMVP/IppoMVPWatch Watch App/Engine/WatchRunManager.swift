@@ -10,6 +10,16 @@ enum WatchRunState {
     case summary
 }
 
+struct WatchPetEncounter {
+    let petId: String
+    let isNew: Bool
+    let bonusXP: Int
+
+    func toDictionary() -> [String: Any] {
+        ["petId": petId, "isNew": isNew, "bonusXP": bonusXP]
+    }
+}
+
 struct WatchRunSummary {
     let durationSeconds: Int
     let distanceMeters: Double
@@ -19,7 +29,7 @@ struct WatchRunSummary {
     let xpEarned: Int
     let averageHR: Int
     let totalCalories: Double
-    let petCaughtId: String?
+    let petEncounters: [WatchPetEncounter]
     let sprintsSinceLastCatch: Int
 }
 
@@ -40,8 +50,8 @@ final class WatchRunManager: NSObject, ObservableObject {
     @Published var isPaused: Bool = false
     @Published var elapsedTime: TimeInterval = 0
     @Published var currentHR: Int = 0
-    @Published var currentDistance: Double = 0      // meters
-    @Published var currentCalories: Double = 0      // kcal
+    @Published var currentDistance: Double = 0
+    @Published var currentCalories: Double = 0
     @Published var totalSprints: Int = 0
     @Published var sprintsCompleted: Int = 0
     @Published var isInRecovery: Bool = false
@@ -55,6 +65,11 @@ final class WatchRunManager: NSObject, ObservableObject {
     // MARK: - HealthKit Authorization State
     @Published var healthKitAuthorized: Bool = false
     @Published var healthKitError: String?
+    
+    // MARK: - Encounter feedback
+    @Published var didCatchPet: Bool = false
+    @Published var caughtPetName: String?
+    @Published var lastEncounterWasDuplicate: Bool = false
     
     // MARK: - Internal State
     private var runStartTime: Date?
@@ -80,14 +95,17 @@ final class WatchRunManager: NSObject, ObservableObject {
     // Rewards accumulator
     private var earnedCoins: Int = 0
     private var earnedXP: Int = 0
-    private var petCaughtId: String?
+    private var petEncounters: [WatchPetEncounter] = []
     private var sprintsSinceLastCatch: Int = 0
-    @Published var didCatchPet: Bool = false
-    @Published var caughtPetName: String?
+    
+    // Daily limits (synced from phone at run start, updated during run)
+    private var encountersToday: Int = 0
+    private var newPetsToday: Int = 0
     
     // Config
     private let sprintConfig = WatchSprintConfig()
     private let encounterConfig = WatchEncounterConfig()
+    private let catchConfig = WatchCatchConfig()
     
     // MARK: - Computed Properties
     var formattedDuration: String {
@@ -100,16 +118,14 @@ final class WatchRunManager: NSObject, ObservableObject {
         return String(format: "%02d:%02d", minutes, seconds)
     }
     
-    /// Distance in miles
     var formattedDistance: String {
         let miles = currentDistance / 1609.34
         if miles < 0.01 { return "0.00 mi" }
         return String(format: "%.2f mi", miles)
     }
     
-    /// Current pace in min/mile
     var formattedPace: String {
-        guard currentDistance > 80 else { return "--:--" } // Need ~0.05 mi for meaningful pace
+        guard currentDistance > 80 else { return "--:--" }
         let miles = currentDistance / 1609.34
         let minutesPerMile = (elapsedTime / 60.0) / miles
         guard minutesPerMile.isFinite && minutesPerMile > 0 && minutesPerMile < 60 else { return "--:--" }
@@ -118,13 +134,11 @@ final class WatchRunManager: NSObject, ObservableObject {
         return String(format: "%d:%02d", paceMinutes, paceSeconds)
     }
     
-    /// Formatted calories
     var formattedCalories: String {
         if currentCalories < 1 { return "0" }
         return String(format: "%.0f", currentCalories)
     }
     
-    /// Average HR from all samples during the run
     var averageHR: Int {
         guard !allHRSamples.isEmpty else { return 0 }
         return allHRSamples.reduce(0, +) / allHRSamples.count
@@ -138,7 +152,6 @@ final class WatchRunManager: NSObject, ObservableObject {
     
     // MARK: - HealthKit Authorization
     
-    /// Check current authorization and request if needed
     func checkAndRequestHealthKit() {
         if Self.isSimulator {
             healthKitAuthorized = true
@@ -162,7 +175,6 @@ final class WatchRunManager: NSObject, ObservableObject {
         requestHealthKitPermissions()
     }
     
-    /// Request HealthKit permissions
     func requestHealthKitPermissions() {
         if Self.isSimulator {
             healthKitAuthorized = true
@@ -221,17 +233,22 @@ final class WatchRunManager: NSObject, ObservableObject {
         sprintsCompleted = 0
         earnedCoins = 0
         earnedXP = 0
-        petCaughtId = nil
+        petEncounters = []
         didCatchPet = false
         caughtPetName = nil
+        lastEncounterWasDuplicate = false
         isPaused = false
         lastEncounterTime = nil
-        sprintsSinceLastCatch = WatchConnectivityServiceWatch.shared.sprintsSinceLastCatch
         isInRecovery = false
         recoveryRemaining = 0
         totalPausedDuration = 0
         pauseStartTime = nil
         encounterCheckTimer?.invalidate()
+
+        let connectivity = WatchConnectivityServiceWatch.shared
+        sprintsSinceLastCatch = connectivity.sprintsSinceLastCatch
+        encountersToday = connectivity.encountersToday
+        newPetsToday = connectivity.newPetsAddedToday
         
         runState = .running
         
@@ -246,7 +263,6 @@ final class WatchRunManager: NSObject, ObservableObject {
             }
         }
         
-        // Shorter warmup in simulator for faster testing
         let warmup = Self.isSimulator ? 5.0 : (encounterConfig.warmupDuration)
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(warmup) * 1_000_000_000)
@@ -298,7 +314,7 @@ final class WatchRunManager: NSObject, ObservableObject {
             xpEarned: earnedXP,
             averageHR: averageHR,
             totalCalories: finalCalories,
-            petCaughtId: petCaughtId,
+            petEncounters: petEncounters,
             sprintsSinceLastCatch: sprintsSinceLastCatch
         )
         
@@ -475,6 +491,7 @@ final class WatchRunManager: NSObject, ObservableObject {
         lastSprintSuccess = isValid
         didCatchPet = false
         caughtPetName = nil
+        lastEncounterWasDuplicate = false
 
         if isValid {
             sprintsCompleted += 1
@@ -485,36 +502,31 @@ final class WatchRunManager: NSObject, ObservableObject {
 
             sprintsSinceLastCatch += 1
 
-            let starterIds: Set<String> = ["pet_01", "pet_02", "pet_03"]
-            let hasOnlyStarters = WatchConnectivityServiceWatch.shared.ownedPetIds.subtracting(starterIds).isEmpty
-            let isFirstRunEver = hasOnlyStarters && !didCatchPet && totalSprints <= 1
-            let baseCatch: Double = WatchConnectivityServiceWatch.shared.hasEncounterCharm ? 0.11 : 0.08
-            let catchRate: Double
-            if isFirstRunEver {
-                catchRate = 1.0
-            } else if sprintsSinceLastCatch >= 15 {
-                catchRate = 1.0
-            } else if sprintsSinceLastCatch >= 13 {
-                catchRate = 0.40
-            } else if sprintsSinceLastCatch >= 12 {
-                catchRate = 0.26
-            } else if sprintsSinceLastCatch >= 11 {
-                catchRate = 0.18
-            } else if sprintsSinceLastCatch >= 10 {
-                catchRate = 0.12
-            } else {
-                catchRate = baseCatch
-            }
-            let roll = Double.random(in: 0...1)
-            if roll < catchRate {
-                let caughtId = selectRandomUnownedPet()
-                if let caughtId {
-                    petCaughtId = caughtId
-                    didCatchPet = true
-                    sprintsSinceLastCatch = 0
-                    earnedCoins += 25
-                    WatchConnectivityServiceWatch.shared.ownedPetIds.insert(caughtId)
-                    WatchHapticsManager.shared.playPetCatch()
+            if encountersToday < catchConfig.maxEncountersPerDay {
+                let starterIds: Set<String> = ["pet_01", "pet_02", "pet_03"]
+                let hasOnlyStarters = WatchConnectivityServiceWatch.shared.ownedPetIds.subtracting(starterIds).isEmpty
+                let isFirstRunEver = hasOnlyStarters && petEncounters.isEmpty && totalSprints <= 1
+
+                let baseCatch: Double = WatchConnectivityServiceWatch.shared.hasEncounterCharm
+                    ? catchConfig.charmCatchRate
+                    : catchConfig.baseCatchRate
+
+                let catchRate: Double
+                if isFirstRunEver {
+                    catchRate = 1.0
+                } else if sprintsSinceLastCatch >= catchConfig.pityGuaranteedAt {
+                    catchRate = 1.0
+                } else if sprintsSinceLastCatch >= catchConfig.pityEscalationStart {
+                    let progress = Double(sprintsSinceLastCatch - catchConfig.pityEscalationStart)
+                        / Double(catchConfig.pityGuaranteedAt - catchConfig.pityEscalationStart)
+                    catchRate = baseCatch + (1.0 - baseCatch) * progress
+                } else {
+                    catchRate = baseCatch
+                }
+
+                let roll = Double.random(in: 0...1)
+                if roll < catchRate {
+                    attemptCatch()
                 }
             }
 
@@ -537,27 +549,73 @@ final class WatchRunManager: NSObject, ObservableObject {
             try? await Task.sleep(nanoseconds: delay)
             showSprintResult = false
             didCatchPet = false
+            lastEncounterWasDuplicate = false
         }
     }
 
-    private func selectRandomUnownedPet() -> String? {
+    private func attemptCatch() {
         let connectivity = WatchConnectivityServiceWatch.shared
-        let available = connectivity.catchablePetIds.filter { !connectivity.ownedPetIds.contains($0) }
-        return available.randomElement()
+
+        guard let caughtId = selectRandomPet() else { return }
+
+        let isOwned = connectivity.ownedPetIds.contains(caughtId)
+
+        if isOwned {
+            let encounter = WatchPetEncounter(
+                petId: caughtId,
+                isNew: false,
+                bonusXP: catchConfig.duplicateBonusXP
+            )
+            petEncounters.append(encounter)
+            earnedXP += catchConfig.duplicateBonusXP
+            encountersToday += 1
+            sprintsSinceLastCatch = 0
+            didCatchPet = true
+            lastEncounterWasDuplicate = true
+            WatchHapticsManager.shared.playPetCatch()
+        } else if newPetsToday < catchConfig.maxNewPetsPerDay {
+            let encounter = WatchPetEncounter(petId: caughtId, isNew: true, bonusXP: 0)
+            petEncounters.append(encounter)
+            encountersToday += 1
+            newPetsToday += 1
+            sprintsSinceLastCatch = 0
+            earnedCoins += 25
+            connectivity.ownedPetIds.insert(caughtId)
+            didCatchPet = true
+            lastEncounterWasDuplicate = false
+            WatchHapticsManager.shared.playPetCatch()
+        } else {
+            // New-pet daily limit reached — treat as duplicate for XP
+            let encounter = WatchPetEncounter(
+                petId: caughtId,
+                isNew: false,
+                bonusXP: catchConfig.duplicateBonusXP
+            )
+            petEncounters.append(encounter)
+            earnedXP += catchConfig.duplicateBonusXP
+            encountersToday += 1
+            sprintsSinceLastCatch = 0
+            didCatchPet = true
+            lastEncounterWasDuplicate = true
+            WatchHapticsManager.shared.playPetCatch()
+        }
+    }
+
+    private func selectRandomPet() -> String? {
+        let catchable = WatchConnectivityServiceWatch.shared.catchablePetIds
+        guard !catchable.isEmpty else { return nil }
+        return catchable.randomElement()
     }
     
     private func validateSprint() -> Bool {
         if Self.isSimulator { return true }
         guard !sprintHRSamples.isEmpty else { return false }
         
-        let zone4Threshold = WatchConnectivityServiceWatch.shared.hrZone4Threshold
-        
-        if zone4Threshold > 0 {
-            return peakHR >= zone4Threshold
-        } else {
-            let hrIncrease = peakHR - baselineHR
-            return hrIncrease >= 15
+        var zone4Threshold = WatchConnectivityServiceWatch.shared.hrZone4Threshold
+        if zone4Threshold <= 0 {
+            zone4Threshold = Int(Double(220 - 25) * 0.80)
         }
+        return peakHR >= zone4Threshold
     }
     
     private func startRecovery() {
@@ -632,4 +690,14 @@ struct WatchEncounterConfig {
         default:        return time >= 180 ? 1.0 : 0.0
         }
     }
+}
+
+struct WatchCatchConfig {
+    let baseCatchRate: Double = 0.20
+    let charmCatchRate: Double = 0.25
+    let pityEscalationStart: Int = 8
+    let pityGuaranteedAt: Int = 10
+    let duplicateBonusXP: Int = 30
+    let maxEncountersPerDay: Int = 3
+    let maxNewPetsPerDay: Int = 2
 }

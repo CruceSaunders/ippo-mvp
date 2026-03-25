@@ -17,14 +17,9 @@ struct SprintResult: Codable, Equatable {
     let startTime: Date
     let endTime: Date
     let isValid: Bool
-    let validationScore: Double
-    let hrScore: Double
-    let cadenceScore: Double
-    let hrdScore: Double
     let baselineHR: Int
     let peakHR: Int
-    let averageCadence: Int
-    let peakCadence: Int
+    let zone4Threshold: Int
     
     init(
         sprintId: String = UUID().uuidString,
@@ -32,28 +27,31 @@ struct SprintResult: Codable, Equatable {
         startTime: Date,
         endTime: Date = Date(),
         isValid: Bool,
-        validationScore: Double,
-        hrScore: Double = 0,
-        cadenceScore: Double = 0,
-        hrdScore: Double = 0,
         baselineHR: Int = 0,
         peakHR: Int = 0,
-        averageCadence: Int = 0,
-        peakCadence: Int = 0
+        zone4Threshold: Int = 0
     ) {
         self.sprintId = sprintId
         self.duration = duration
         self.startTime = startTime
         self.endTime = endTime
         self.isValid = isValid
-        self.validationScore = validationScore
-        self.hrScore = hrScore
-        self.cadenceScore = cadenceScore
-        self.hrdScore = hrdScore
         self.baselineHR = baselineHR
         self.peakHR = peakHR
-        self.averageCadence = averageCadence
-        self.peakCadence = peakCadence
+        self.zone4Threshold = zone4Threshold
+    }
+
+    // Backward-compatible decoder for old data with legacy scoring fields
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sprintId = try container.decodeIfPresent(String.self, forKey: .sprintId) ?? UUID().uuidString
+        duration = try container.decode(TimeInterval.self, forKey: .duration)
+        startTime = try container.decode(Date.self, forKey: .startTime)
+        endTime = try container.decodeIfPresent(Date.self, forKey: .endTime) ?? Date()
+        isValid = try container.decode(Bool.self, forKey: .isValid)
+        baselineHR = try container.decodeIfPresent(Int.self, forKey: .baselineHR) ?? 0
+        peakHR = try container.decodeIfPresent(Int.self, forKey: .peakHR) ?? 0
+        zone4Threshold = try container.decodeIfPresent(Int.self, forKey: .zone4Threshold) ?? 0
     }
 }
 
@@ -63,18 +61,14 @@ struct SprintData {
     var targetDuration: TimeInterval
     var baselineHR: Int
     var hrSamples: [Int]
-    var cadenceSamples: [Int]
     var peakHR: Int
-    var peakCadence: Int
     
     init(startTime: Date = Date(), targetDuration: TimeInterval = 35, baselineHR: Int = 0) {
         self.startTime = startTime
         self.targetDuration = targetDuration
         self.baselineHR = baselineHR
         self.hrSamples = []
-        self.cadenceSamples = []
         self.peakHR = 0
-        self.peakCadence = 0
     }
     
     var elapsed: TimeInterval {
@@ -94,16 +88,9 @@ struct SprintData {
         return hrSamples.reduce(0, +) / hrSamples.count
     }
     
-    var averageCadence: Int {
-        guard !cadenceSamples.isEmpty else { return 0 }
-        return cadenceSamples.reduce(0, +) / cadenceSamples.count
-    }
-    
-    mutating func addSample(hr: Int, cadence: Int) {
+    mutating func addSample(hr: Int) {
         hrSamples.append(hr)
-        cadenceSamples.append(cadence)
         peakHR = max(peakHR, hr)
-        peakCadence = max(peakCadence, cadence)
     }
 }
 

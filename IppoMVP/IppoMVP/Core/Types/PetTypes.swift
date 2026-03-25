@@ -207,6 +207,15 @@ struct ActiveBoost: Codable, Equatable {
     }
 }
 
+// MARK: - Pet Encounter Result
+struct PetEncounterResult: Codable, Equatable {
+    let petId: String
+    let isNew: Bool
+    let bonusXP: Int
+
+    static let duplicateBonusXP = 30
+}
+
 // MARK: - Run Summary
 struct CompletedRun: Identifiable, Codable, Equatable {
     let id: String
@@ -216,7 +225,7 @@ struct CompletedRun: Identifiable, Codable, Equatable {
     let sprintsCompleted: Int
     let coinsEarned: Int
     let xpEarned: Int
-    let petCaughtId: String?
+    let petEncounters: [PetEncounterResult]
 
     init(
         id: String = UUID().uuidString,
@@ -226,7 +235,7 @@ struct CompletedRun: Identifiable, Codable, Equatable {
         sprintsCompleted: Int = 0,
         coinsEarned: Int = 0,
         xpEarned: Int = 0,
-        petCaughtId: String? = nil
+        petEncounters: [PetEncounterResult] = []
     ) {
         self.id = id
         self.date = date
@@ -235,7 +244,44 @@ struct CompletedRun: Identifiable, Codable, Equatable {
         self.sprintsCompleted = sprintsCompleted
         self.coinsEarned = coinsEarned
         self.xpEarned = xpEarned
-        self.petCaughtId = petCaughtId
+        self.petEncounters = petEncounters
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        date = try container.decodeIfPresent(Date.self, forKey: .date) ?? Date()
+        durationSeconds = try container.decodeIfPresent(Int.self, forKey: .durationSeconds) ?? 0
+        distanceMeters = try container.decodeIfPresent(Double.self, forKey: .distanceMeters) ?? 0
+        sprintsCompleted = try container.decodeIfPresent(Int.self, forKey: .sprintsCompleted) ?? 0
+        coinsEarned = try container.decodeIfPresent(Int.self, forKey: .coinsEarned) ?? 0
+        xpEarned = try container.decodeIfPresent(Int.self, forKey: .xpEarned) ?? 0
+
+        if let encounters = try container.decodeIfPresent([PetEncounterResult].self, forKey: .petEncounters) {
+            petEncounters = encounters
+        } else if let legacyPetId = try? container.decodeIfPresent(String.self, forKey: .legacyPetCaughtId) {
+            petEncounters = [PetEncounterResult(petId: legacyPetId, isNew: true, bonusXP: 0)]
+        } else {
+            petEncounters = []
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, date, durationSeconds, distanceMeters, sprintsCompleted
+        case coinsEarned, xpEarned, petEncounters
+        case legacyPetCaughtId = "petCaughtId"
+    }
+
+    var newPetIds: [String] {
+        petEncounters.filter(\.isNew).map(\.petId)
+    }
+
+    var duplicateEncounters: [PetEncounterResult] {
+        petEncounters.filter { !$0.isNew }
+    }
+
+    var hasAnyEncounters: Bool {
+        !petEncounters.isEmpty
     }
 }
 

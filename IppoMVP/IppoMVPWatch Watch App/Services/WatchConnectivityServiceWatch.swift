@@ -17,6 +17,8 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     var catchablePetIds: [String] = []
     var hasEncounterCharm: Bool = false
     var sprintsSinceLastCatch: Int = 0
+    var encountersToday: Int = 0
+    var newPetsAddedToday: Int = 0
     
     private var session: WCSession?
     
@@ -39,7 +41,7 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
     // MARK: - Send Run Summary
     func sendRunSummary(_ summary: WatchRunSummary) {
         #if targetEnvironment(simulator)
-        print("[Ippo Sim] Run summary: \(summary.durationSeconds)s, \(summary.sprintsCompleted) sprints, \(summary.coinsEarned) coins")
+        print("[Ippo Sim] Run summary: \(summary.durationSeconds)s, \(summary.sprintsCompleted) sprints, \(summary.coinsEarned) coins, \(summary.petEncounters.count) encounters")
         #else
         guard let session = session else { return }
 
@@ -52,12 +54,10 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
             "coinsEarned": summary.coinsEarned,
             "xpEarned": summary.xpEarned,
             "averageHR": summary.averageHR,
-            "totalCalories": summary.totalCalories
+            "totalCalories": summary.totalCalories,
+            "sprintsSinceLastCatch": summary.sprintsSinceLastCatch,
+            "petEncounters": summary.petEncounters.map { $0.toDictionary() }
         ]
-        if let petId = summary.petCaughtId {
-            payload["petCaughtId"] = petId
-        }
-        payload["sprintsSinceLastCatch"] = summary.sprintsSinceLastCatch
 
         if session.isReachable {
             session.sendMessage(payload, replyHandler: nil) { [weak self] error in
@@ -128,6 +128,12 @@ final class WatchConnectivityServiceWatch: NSObject, ObservableObject {
         if let pity = response["sprintsSinceLastCatch"] as? Int {
             sprintsSinceLastCatch = pity
         }
+        if let enc = response["encountersToday"] as? Int {
+            encountersToday = enc
+        }
+        if let newPets = response["newPetsAddedToday"] as? Int {
+            newPetsAddedToday = newPets
+        }
         if let name = response["equippedPetName"] as? String {
             equippedPetName = name
         }
@@ -168,37 +174,7 @@ extension WatchConnectivityServiceWatch: WCSessionDelegate {
             guard let type = message["type"] as? String else { return }
             switch type {
             case "profileSync":
-                if let maxHR = message["estimatedMaxHR"] as? Int, maxHR > 0 {
-                    estimatedMaxHR = maxHR
-                    UserDefaults.standard.set(maxHR, forKey: "ippo.estimatedMaxHR")
-                }
-                if let petIds = message["ownedPetIds"] as? [String] {
-                    ownedPetIds = Set(petIds)
-                }
-                if let catchable = message["catchablePetIds"] as? [String] {
-                    catchablePetIds = catchable
-                }
-                if let charm = message["hasEncounterCharm"] as? Bool {
-                    hasEncounterCharm = charm
-                }
-                if let pity = message["sprintsSinceLastCatch"] as? Int {
-                    sprintsSinceLastCatch = pity
-                }
-                if let name = message["equippedPetName"] as? String {
-                    equippedPetName = name
-                }
-                if let img = message["equippedPetImageName"] as? String {
-                    equippedPetImageName = img
-                }
-                if let mood = message["equippedPetMood"] as? Int {
-                    equippedPetMood = mood
-                }
-                if let level = message["equippedPetLevel"] as? Int {
-                    equippedPetLevel = level
-                }
-                if let stage = message["equippedPetStageName"] as? String {
-                    equippedPetStageName = stage
-                }
+                applySyncResponse(message)
             case "hapticBuzz":
                 WatchHapticsManager.shared.playSprintStart()
             default:

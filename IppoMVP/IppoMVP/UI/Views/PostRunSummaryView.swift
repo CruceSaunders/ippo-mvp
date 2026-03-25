@@ -5,12 +5,16 @@ struct PostRunSummaryView: View {
     let onDismiss: () -> Void
     @EnvironmentObject var userData: UserData
     @State private var showReveal = false
-    @State private var revealPhase = 0
-    @State private var sparkleOpacity: Double = 0
 
-    private var caughtPetDef: GamePetDefinition? {
-        guard let id = run.petCaughtId else { return nil }
-        return GameData.pet(byId: id)
+    private var newCatches: [GamePetDefinition] {
+        run.newPetIds.compactMap { GameData.pet(byId: $0) }
+    }
+
+    private var duplicateEncounters: [(def: GamePetDefinition, xp: Int)] {
+        run.duplicateEncounters.compactMap { enc in
+            guard let def = GameData.pet(byId: enc.petId) else { return nil }
+            return (def, enc.bonusXP)
+        }
     }
 
     var body: some View {
@@ -32,13 +36,17 @@ struct PostRunSummaryView: View {
                         petHappySection(def: def, pet: pet)
                     }
 
-                    if let caughtDef = caughtPetDef {
-                        petRevealSection(caughtDef)
+                    if !duplicateEncounters.isEmpty {
+                        duplicateEncounterSection
+                    }
+
+                    if !newCatches.isEmpty {
+                        newCatchSection
                     }
 
                     GoldButton(
-                        title: caughtPetDef.map { "Meet \($0.name)" } ?? "Continue",
-                        icon: caughtPetDef != nil ? "sparkles" : "arrow.right",
+                        title: newCatches.first.map { "Meet \($0.name)" } ?? "Continue",
+                        icon: !newCatches.isEmpty ? "sparkles" : "arrow.right",
                         isFullWidth: true,
                         size: .large
                     ) {
@@ -51,7 +59,7 @@ struct PostRunSummaryView: View {
             }
         }
         .onAppear {
-            if caughtPetDef != nil {
+            if !newCatches.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     SoundManager.shared.play(.petCatch)
                     withAnimation(.easeInOut(duration: 0.8)) {
@@ -131,8 +139,55 @@ struct PostRunSummaryView: View {
         }
     }
 
+    // MARK: - Duplicate Encounters
+
+    private var duplicateEncounterSection: some View {
+        VStack(spacing: 12) {
+            ForEach(duplicateEncounters, id: \.def.id) { item in
+                duplicateEncounterCard(def: item.def, bonusXP: item.xp)
+            }
+        }
+    }
+
+    private func duplicateEncounterCard(def: GamePetDefinition, bonusXP: Int) -> some View {
+        StoryBookCard {
+            HStack(spacing: 14) {
+                ownedPetImage(for: def)
+                    .frame(width: 56, height: 56)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Spotted \(def.name)!")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(AppColors.xp)
+                        Text("+\(bonusXP) XP to \(def.name)")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundColor(AppColors.xp)
+                    }
+                }
+
+                Spacer()
+            }
+        }
+    }
+
     @ViewBuilder
-    private func petRevealSection(_ def: GamePetDefinition) -> some View {
+    private func ownedPetImage(for def: GamePetDefinition) -> some View {
+        if let owned = userData.ownedPets.first(where: { $0.petDefinitionId == def.id }) {
+            PetImageView(imageName: owned.currentImageName, size: 56)
+        } else {
+            PetImageView(imageName: def.stageImageNames.first ?? "pet_placeholder", size: 56)
+        }
+    }
+
+    // MARK: - New Catch Reveal
+
+    @ViewBuilder
+    private var newCatchSection: some View {
         VStack(spacing: 16) {
             Text("...but wait...")
                 .font(.system(size: 16, weight: .medium, design: .serif))
@@ -141,40 +196,48 @@ struct PostRunSummaryView: View {
                 .opacity(showReveal ? 0 : 1)
 
             if showReveal {
-                StoryBookCard(isHighlighted: true) {
-                    VStack(spacing: 12) {
-                        RibbonBanner(title: "New Friend Caught!", style: .accent)
-
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(AppColors.goldLight.opacity(0.15))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(AppColors.goldMid.opacity(0.3), lineWidth: 1)
-                                )
-
-                            Image(def.stageImageNames.first ?? "pet_placeholder")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .padding(24)
-                        }
-                        .frame(height: 160)
-
-                        Text(def.name)
-                            .font(AppTypography.petName)
-                            .foregroundColor(AppColors.textPrimary)
-
-                        Text(def.description)
-                            .font(.system(size: 14, design: .rounded))
-                            .foregroundColor(AppColors.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .italic()
-                    }
+                ForEach(newCatches) { def in
+                    newCatchCard(def)
                 }
                 .transition(.scale.combined(with: .opacity))
             }
         }
     }
+
+    private func newCatchCard(_ def: GamePetDefinition) -> some View {
+        StoryBookCard(isHighlighted: true) {
+            VStack(spacing: 12) {
+                RibbonBanner(title: "New Friend Caught!", style: .accent)
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(AppColors.goldLight.opacity(0.15))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(AppColors.goldMid.opacity(0.3), lineWidth: 1)
+                        )
+
+                    Image(def.stageImageNames.first ?? "pet_placeholder")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding(24)
+                }
+                .frame(height: 160)
+
+                Text(def.name)
+                    .font(AppTypography.petName)
+                    .foregroundColor(AppColors.textPrimary)
+
+                Text(def.description)
+                    .font(.system(size: 14, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .italic()
+            }
+        }
+    }
+
+    // MARK: - Helpers
 
     private func formatDuration(_ seconds: Int) -> String {
         let m = seconds / 60

@@ -10,9 +10,8 @@ struct WatchSummaryView: View {
 
             ScrollView {
                 VStack(spacing: 8) {
-                    // Catch celebration hero (if applicable)
-                    if let summary = runManager.runSummary, summary.petCaughtId != nil {
-                        catchCelebration
+                    if let summary = runManager.runSummary, !summary.petEncounters.isEmpty {
+                        catchCelebration(hasNewPet: summary.petEncounters.contains(where: \.isNew))
                     }
 
                     // Header
@@ -63,24 +62,24 @@ struct WatchSummaryView: View {
 
     // MARK: - Catch Celebration
 
-    private var catchCelebration: some View {
+    private func catchCelebration(hasNewPet: Bool) -> some View {
         VStack(spacing: 4) {
-            Image(systemName: "sparkles")
+            Image(systemName: hasNewPet ? "sparkles" : "arrow.up.circle.fill")
                 .font(.system(size: 24))
-                .foregroundColor(WatchColors.accent)
+                .foregroundColor(hasNewPet ? WatchColors.accent : WatchColors.xp)
 
-            Text("You caught a new friend!")
+            Text(hasNewPet ? "You caught a new friend!" : "You spotted a familiar face!")
                 .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundColor(WatchColors.accent)
+                .foregroundColor(hasNewPet ? WatchColors.accent : WatchColors.xp)
                 .multilineTextAlignment(.center)
 
-            Text("Check your phone to meet them!")
+            Text(hasNewPet ? "Check your phone to meet them!" : "Bonus XP earned!")
                 .font(.system(size: 10, design: .rounded))
                 .foregroundColor(WatchColors.textSecondary)
         }
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
-        .background(WatchColors.accentSoft.opacity(0.3))
+        .background((hasNewPet ? WatchColors.accentSoft : WatchColors.xp).opacity(0.3))
         .cornerRadius(10)
     }
 

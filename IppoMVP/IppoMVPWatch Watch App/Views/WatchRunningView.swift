@@ -169,15 +169,15 @@ struct WatchRunningView: View {
 
             VStack(spacing: 8) {
                 if runManager.didCatchPet {
-                    Image(systemName: "pawprint.fill")
+                    Image(systemName: runManager.lastEncounterWasDuplicate ? "arrow.up.circle.fill" : "pawprint.fill")
                         .font(.system(size: 36))
-                        .foregroundColor(WatchColors.accent)
+                        .foregroundColor(runManager.lastEncounterWasDuplicate ? WatchColors.xp : WatchColors.accent)
 
-                    Text("New friend caught!")
+                    Text(runManager.lastEncounterWasDuplicate ? "Familiar friend spotted!" : "New friend caught!")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(WatchColors.accent)
+                        .foregroundColor(runManager.lastEncounterWasDuplicate ? WatchColors.xp : WatchColors.accent)
 
-                    Text("Check your phone!")
+                    Text(runManager.lastEncounterWasDuplicate ? "+30 Bonus XP!" : "Check your phone!")
                         .font(.system(size: 11, design: .rounded))
                         .foregroundColor(WatchColors.textSecondary)
                 } else if runManager.lastSprintSuccess {

@@ -28,6 +28,37 @@ final class UserData: ObservableObject {
     private var lastLocalMutationDate: Date = .distantPast
     private var cloudSyncInFlight: Bool = false
 
+    // MARK: - Daily Encounter Counters
+    private static let encounterCountKey = "ippo.encountersToday"
+    private static let newPetsCountKey = "ippo.newPetsAddedToday"
+    private static let encounterDateKey = "ippo.encounterCountDate"
+
+    var encountersToday: Int {
+        resetDailyCountersIfNeeded()
+        return UserDefaults.standard.integer(forKey: Self.encounterCountKey)
+    }
+
+    var newPetsAddedToday: Int {
+        resetDailyCountersIfNeeded()
+        return UserDefaults.standard.integer(forKey: Self.newPetsCountKey)
+    }
+
+    private func resetDailyCountersIfNeeded() {
+        let storedDate = UserDefaults.standard.object(forKey: Self.encounterDateKey) as? Date
+        if let storedDate, Calendar.current.isDateInToday(storedDate) { return }
+        UserDefaults.standard.set(0, forKey: Self.encounterCountKey)
+        UserDefaults.standard.set(0, forKey: Self.newPetsCountKey)
+        UserDefaults.standard.set(Date(), forKey: Self.encounterDateKey)
+    }
+
+    private func incrementDailyEncounterCounters(from run: CompletedRun) {
+        resetDailyCountersIfNeeded()
+        let currentEncounters = UserDefaults.standard.integer(forKey: Self.encounterCountKey)
+        let currentNewPets = UserDefaults.standard.integer(forKey: Self.newPetsCountKey)
+        UserDefaults.standard.set(currentEncounters + run.petEncounters.count, forKey: Self.encounterCountKey)
+        UserDefaults.standard.set(currentNewPets + run.newPetIds.count, forKey: Self.newPetsCountKey)
+    }
+
     // MARK: - Derived Properties
     var equippedPet: OwnedPet? {
         ownedPets.first { $0.isEquipped && !$0.isLost }
@@ -286,6 +317,13 @@ final class UserData: ObservableObject {
         }
     }
 
+    /// Add XP directly to a specific pet by definition ID (for duplicate encounter bonuses).
+    func addXPToPet(definitionId: String, amount: Int) {
+        guard let idx = ownedPets.firstIndex(where: { $0.petDefinitionId == definitionId }) else { return }
+        addPetXP(idx: idx, amount: amount)
+        save()
+    }
+
     func recalculateMood(at idx: Int) {
         guard !inventory.isHibernating else { return }
         let pet = ownedPets[idx]
@@ -455,9 +493,11 @@ final class UserData: ObservableObject {
             break
         }
 
-        if run.petCaughtId != nil && ownedPets.count == 2 {
+        if !run.newPetIds.isEmpty && ownedPets.count == 2 {
             pendingMilestoneToast = .firstCatch
         }
+
+        incrementDailyEncounterCounters(from: run)
 
         save()
     }
@@ -562,6 +602,9 @@ final class UserData: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "lastDailyRewardDate")
         UserDefaults.standard.removeObject(forKey: "ippo.hasEverFed")
         UserDefaults.standard.removeObject(forKey: "ippo.watchSetupDeferred")
+        UserDefaults.standard.removeObject(forKey: Self.encounterCountKey)
+        UserDefaults.standard.removeObject(forKey: Self.newPetsCountKey)
+        UserDefaults.standard.removeObject(forKey: Self.encounterDateKey)
         watchSetupDeferred = false
     }
 

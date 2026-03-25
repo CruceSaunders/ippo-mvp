@@ -456,10 +456,18 @@ struct AdminDebugView: View {
             }
 
             Button("Submit Simulated Run") {
-                let catchId: String? = runIncludesCatch ? runCatchPetId : nil
-
-                if let catchId, !userData.ownedPetDefinitionIds.contains(catchId) {
-                    userData.addPet(definitionId: catchId)
+                var encounters: [PetEncounterResult] = []
+                if runIncludesCatch {
+                    let catchId = runCatchPetId
+                    let isNew = !userData.ownedPetDefinitionIds.contains(catchId)
+                    encounters.append(PetEncounterResult(
+                        petId: catchId,
+                        isNew: isNew,
+                        bonusXP: isNew ? 0 : PetEncounterResult.duplicateBonusXP
+                    ))
+                    if isNew {
+                        userData.addPet(definitionId: catchId)
+                    }
                 }
 
                 let run = CompletedRun(
@@ -468,7 +476,7 @@ struct AdminDebugView: View {
                     sprintsCompleted: Int(runSprints) ?? 3,
                     coinsEarned: Int(runCoins) ?? 50,
                     xpEarned: Int(runXP) ?? 80,
-                    petCaughtId: catchId
+                    petEncounters: encounters
                 )
                 userData.completeRun(run)
                 userData.pendingRunSummary = run
